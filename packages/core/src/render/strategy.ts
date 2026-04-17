@@ -56,11 +56,13 @@ export function detectWaapi(): boolean {
 }
 
 /**
- * Sample the animation at the endpoints to discover which property
- * names it produces. Assumes the property set is constant over time,
- * which holds for every built-in constructor (tween, keyframes, spring).
+ * Discover which property names the animation produces. Leaf
+ * constructors (`tween`, `keyframes`) populate a `properties` cache we
+ * use directly; otherwise we fall back to sampling at t=0 and t=1, which
+ * assumes the property set is constant over time.
  */
-export function discoverProperties(def: AnimationDef<AnimationProps>): string[] {
+export function discoverProperties(def: AnimationDef<AnimationProps>): readonly string[] {
+  if (def.properties !== undefined) return def.properties
   const set = new Set<string>()
   const a = def.interpolate(0)
   const b = def.interpolate(1)
@@ -75,9 +77,9 @@ function project(
 ): AnimationDef<AnimationProps> {
   const keySet = new Set(keys)
   // Built inline rather than via `map()` so we can propagate the
-  // `linearizable` marker. A tier-filtered view of a linearizable tween
-  // remains linearizable: we only drop keys, never change how the
-  // remaining ones interpolate.
+  // `linearizable` marker and `properties` cache. A tier-filtered view
+  // of a linearizable tween remains linearizable: we only drop keys,
+  // never change how the remaining ones interpolate.
   const projected: AnimationDef<AnimationProps> = {
     duration: def.duration,
     easing: def.easing,
@@ -90,6 +92,7 @@ function project(
       }
       return out
     },
+    properties: keys,
   }
   return def.linearizable ? { ...projected, linearizable: true } : projected
 }
@@ -107,6 +110,38 @@ export function combineHandles(
   handles: readonly StrategyHandle[],
   willChangeCleanup: (() => void) | null = null,
 ): StrategyHandle {
+  // Fast path: a single handle is the common case when all properties
+  // fall into one tier, or when the caller forced a specific backend.
+  // Skip the settled/pending state machine and return the handle
+  // directly (or a thin wrapper that chains cleanup onto `finished`).
+  if (handles.length === 1) {
+    const only = handles[0] as StrategyHandle
+    if (willChangeCleanup === null) return only
+    const finished = only.finished.then(
+      () => {
+        willChangeCleanup()
+      },
+      (err) => {
+        willChangeCleanup()
+        throw err
+      },
+    )
+    return {
+      pause: () => only.pause(),
+      resume: () => only.resume(),
+      seek: (p) => only.seek(p),
+      reverse: () => only.reverse(),
+      setSpeed: (m) => only.setSpeed(m),
+      cancel: () => only.cancel(),
+      get state() {
+        return only.state
+      },
+      get finished() {
+        return finished
+      },
+    }
+  }
+
   let userState: StrategyState = "playing"
   let settled = false
   let cleanupRan = false

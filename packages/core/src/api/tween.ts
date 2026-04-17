@@ -91,8 +91,9 @@ export function tween<P extends TweenProps>(
   // function equivalent. The WAAPI backend uses this to emit a
   // 2-keyframe animation with native CSS timing, skipping dense
   // sampling.
+  const properties = keys as readonly string[]
   if (allPlainNumbers && getCssEasing(easing) !== undefined) {
-    return { ...def, linearizable: true }
+    return { ...def, properties, linearizable: true }
   }
-  return def
+  return { ...def, properties }
 }
