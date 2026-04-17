@@ -5,5 +5,9 @@
   "type": "module",
   "dependencies": {
     "motif-animate": "workspace:*"
+  },
+  "devDependencies": {
+    "motion": "^12.38.0",
+    "motion-dom": "^12.38.0"
   }
 }

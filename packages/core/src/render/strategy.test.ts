@@ -5,9 +5,13 @@ import { type RafLike, createFrameScheduler } from "../scheduler/frame"
 import { type StrategyTarget, discoverProperties, playStrategy as play } from "./strategy"
 import type { Animatable, WaapiAnimation } from "./waapi"
 
-function mockAnimation(): WaapiAnimation & { fireFinish: () => void } {
+function mockAnimation(): WaapiAnimation & {
+  fireFinish: () => void
+  fireCancel: () => void
+} {
   let onfinish: ((ev: unknown) => void) | null = null
-  const a: WaapiAnimation & { fireFinish: () => void } = {
+  let oncancel: ((ev: unknown) => void) | null = null
+  const a: WaapiAnimation & { fireFinish: () => void; fireCancel: () => void } = {
     pause: vi.fn(),
     play: vi.fn(),
     cancel: vi.fn(),
@@ -20,10 +24,16 @@ function mockAnimation(): WaapiAnimation & { fireFinish: () => void } {
       return onfinish
     },
     set onfinish(v) {
-      onfinish = v
+      onfinish = v as ((ev: unknown) => void) | null
     },
-    oncancel: null,
+    get oncancel() {
+      return oncancel
+    },
+    set oncancel(v) {
+      oncancel = v as ((ev: unknown) => void) | null
+    },
     fireFinish: () => onfinish?.({}),
+    fireCancel: () => oncancel?.({}),
   }
   return a
 }
@@ -150,6 +160,41 @@ describe("play: strategy router", () => {
     expect(t.styles.get("will-change")).toBe("auto")
   })
 
+  it("clears will-change when the user cancels", async () => {
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1] }, { duration: 50 }), [t], {
+      waapiSupported: true,
+      scheduler,
+      clock,
+    })
+    expect(t.styles.get("will-change")).toBe("opacity")
+    h.cancel()
+    await expect(h.finished).rejects.toThrow(/cancelled/)
+    expect(t.styles.get("will-change")).toBe("auto")
+  })
+
+  it("clears will-change when a sub-handle rejects on its own", async () => {
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1], width: ["0px", "10px"] }, { duration: 50 }), [t], {
+      waapiSupported: true,
+      scheduler,
+      clock,
+    })
+    expect(t.styles.get("will-change")).toBe("opacity")
+    // Directly cancel the WAAPI sub-animation to simulate a backend failure.
+    t.animations[0]!.fireCancel()
+    await expect(h.finished).rejects.toThrow(/cancelled/)
+    expect(t.styles.get("will-change")).toBe("auto")
+  })
+
   it("pause/resume/cancel propagate to both sub-handles", () => {
     const t = mockTarget()
     const r = mockRaf()
@@ -167,6 +212,7 @@ describe("play: strategy router", () => {
     h.resume()
     expect(h.state).toBe("playing")
     h.cancel()
+    void h.finished.catch(() => {})
     expect(h.state).toBe("cancelled")
     expect(t.animations[0]!.cancel).toHaveBeenCalled()
   })
