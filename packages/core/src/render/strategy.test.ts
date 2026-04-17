@@ -2,8 +2,38 @@ import { describe, expect, it, vi } from "vitest"
 import { tween } from "../api/tween"
 import { createClock } from "../scheduler/clock"
 import { type RafLike, createFrameScheduler } from "../scheduler/frame"
-import { type StrategyTarget, discoverProperties, playStrategy as play } from "./strategy"
+import {
+  type StrategyHandle,
+  type StrategyTarget,
+  combineHandles,
+  discoverProperties,
+  playStrategy as play,
+} from "./strategy"
 import type { Animatable, WaapiAnimation } from "./waapi"
+
+function mockHandle(): StrategyHandle & {
+  resolveFinished: () => void
+  rejectFinished: (err: unknown) => void
+} {
+  let resolveFinished!: () => void
+  let rejectFinished!: (err: unknown) => void
+  const finished = new Promise<void>((res, rej) => {
+    resolveFinished = res
+    rejectFinished = rej
+  })
+  return {
+    pause: vi.fn(),
+    resume: vi.fn(),
+    seek: vi.fn(),
+    reverse: vi.fn(),
+    setSpeed: vi.fn(),
+    cancel: vi.fn(),
+    state: "playing" as const,
+    finished,
+    resolveFinished,
+    rejectFinished,
+  }
+}
 
 function mockAnimation(): WaapiAnimation & {
   fireFinish: () => void
@@ -97,8 +127,21 @@ function mockRaf() {
 describe("discoverProperties", () => {
   it("returns the union of keys at t=0 and t=1", () => {
     const def = tween({ opacity: [0, 1], width: ["0px", "100px"] }, { duration: 100 })
-    const props = discoverProperties(def)
+    const props = [...discoverProperties(def)]
     expect(props.sort()).toEqual(["opacity", "width"])
+  })
+
+  it("uses the cached `properties` list without sampling when present", () => {
+    const interpolate = vi.fn(() => ({ opacity: 1 }))
+    const def = {
+      duration: 100,
+      easing: (p: number) => p,
+      interpolate,
+      properties: ["opacity", "transform"],
+    }
+    const props = discoverProperties(def)
+    expect(props).toEqual(["opacity", "transform"])
+    expect(interpolate).not.toHaveBeenCalled()
   })
 })
 
@@ -250,5 +293,35 @@ describe("play: strategy router", () => {
     expect(t.animations[0]!.currentTime).toBe(100)
     r.fire(0)
     expect(t.styles.get("width")).toBe("25px")
+  })
+})
+
+describe("combineHandles: single-handle fast path", () => {
+  it("returns the handle directly when there is no cleanup", () => {
+    const h = mockHandle()
+    const combined = combineHandles([h])
+    expect(combined).toBe(h)
+  })
+
+  it("wraps the handle when cleanup is supplied, runs cleanup on finish", async () => {
+    const h = mockHandle()
+    const cleanup = vi.fn()
+    const combined = combineHandles([h], cleanup)
+    expect(combined).not.toBe(h)
+    combined.pause()
+    expect(h.pause).toHaveBeenCalled()
+    h.resolveFinished()
+    await combined.finished
+    expect(cleanup).toHaveBeenCalledTimes(1)
+  })
+
+  it("runs cleanup and preserves rejection on cancel", async () => {
+    const h = mockHandle()
+    const cleanup = vi.fn()
+    const combined = combineHandles([h], cleanup)
+    const err = new Error("animation cancelled")
+    h.rejectFinished(err)
+    await expect(combined.finished).rejects.toBe(err)
+    expect(cleanup).toHaveBeenCalledTimes(1)
   })
 })

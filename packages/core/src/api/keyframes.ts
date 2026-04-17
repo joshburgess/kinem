@@ -96,7 +96,7 @@ export function keyframes<P extends KeyframeStops>(
     }
   }
 
-  return animation(
+  const def = animation(
     (progress) => {
       const out: Record<string, unknown> = {}
       for (let i = 0; i < keys.length; i++) {
@@ -108,4 +108,5 @@ export function keyframes<P extends KeyframeStops>(
     duration,
     easing,
   )
+  return { ...def, properties: keys as readonly string[] }
 }

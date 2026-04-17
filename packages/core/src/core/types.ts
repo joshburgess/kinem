@@ -35,6 +35,18 @@ export interface AnimationDef<T> {
    * @internal
    */
   readonly linearizable?: boolean
+  /**
+   * Optional cache of the property keys produced by `interpolate`. When
+   * set, the strategy router uses this directly instead of sampling the
+   * animation at t=0 and t=1 to discover keys. Leaf constructors that
+   * know their output shape (`tween`, `keyframes`) populate this;
+   * combinators that preserve shape propagate it; combinators that may
+   * change shape (`map`, `parallel`, `stagger`) leave it unset so the
+   * router falls back to sampling.
+   *
+   * @internal
+   */
+  readonly properties?: readonly string[]
 }
 
 /** Extract the value type from an AnimationDef. */
