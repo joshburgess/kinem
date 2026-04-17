@@ -59,11 +59,23 @@ export interface StrategyOpts extends WaapiOpts, RafOpts {
 
 export type AnimationProps = Readonly<Record<string, PropertyValue>>
 
-/** Probe for WAAPI support by testing the prototype. */
+let waapiCache: boolean | null = null
+
+/**
+ * Probe for WAAPI support by testing the prototype. The result is
+ * cached at module scope; capability doesn't change over a page's
+ * lifetime, and every `play()` that didn't pass `waapiSupported`
+ * would otherwise re-run the prototype lookup.
+ */
 export function detectWaapi(): boolean {
-  if (typeof Element === "undefined") return false
+  if (waapiCache !== null) return waapiCache
+  if (typeof Element === "undefined") {
+    waapiCache = false
+    return false
+  }
   const proto = (Element as unknown as { prototype?: { animate?: unknown } }).prototype
-  return typeof proto?.animate === "function"
+  waapiCache = typeof proto?.animate === "function"
+  return waapiCache
 }
 
 /**
