@@ -3,24 +3,39 @@
 import { interpolateNumber, play, tween } from "motif-animate"
 import { animate } from "motion"
 // motion-dom is installed transitively via `motion`. Its `mix()` is the
-// primitive we compare against motif's `interpolateNumber()`. Deep import
-// avoids forcing consumers to install an extra package just for benches.
+// primitive we compare against motif's `interpolateNumber()`, and
+// `flushKeyframeResolvers()` is the public hook that forces motion's
+// deferred setup to run synchronously.
 import { flushKeyframeResolvers, mix } from "motion-dom"
 import { bench, describe } from "vitest"
 
 /**
- * End-to-end library-overhead comparison against Motion (framer-motion/dom).
- * Both libraries target the same synthetic HTMLElements in a happy-dom
- * environment. We measure the startup + teardown cycle because:
+ * Comparison against Motion (framer-motion / motion-dom). Both libs
+ * are pointed at the same synthetic HTMLElements in a happy-dom
+ * environment. WAAPI is stubbed here, so anything that depends on real
+ * keyframe parsing or compositor execution is not captured. See the
+ * waapi-fastpath bench for the CPU side of keyframe building and the
+ * mass-concurrent bench for steady-state rAF tick cost.
  *
- *   - once a WAAPI animation is running, the browser compositor drives
- *     it — the library is out of the hot path.
- *   - the per-element setup cost (parsing values, building keyframes,
- *     invoking `Element.animate`) is what a library actually contributes
- *     on a busy page.
+ * Each group below isolates one cost:
  *
- * Everything else (rAF ticks, commit costs) is measured by the
- * mass-interpolation and mass-concurrent benches against motif internals.
+ *   1. Primitive interpolation — apples-to-apples function-call cost.
+ *   2. Startup (fair)          — flush motion's deferred resolver so
+ *                                both libs have completed the real
+ *                                setup before we cancel. Measures
+ *                                actual library overhead.
+ *   3. Startup (lazy)          — sync animate + cancel, no flush.
+ *                                Documents motion's deferred-setup
+ *                                short-circuit: when rAF never runs,
+ *                                motion skips Element.animate() and
+ *                                .stop() is a cancel-flag flip. Motif
+ *                                does the real work eagerly, so it
+ *                                looks slower here. This is the cost
+ *                                model motion wins on structurally.
+ *
+ * We also try to keep the per-call shapes matched: 2 properties, one
+ * compositor-safe (opacity) and one pseudo-transform (x), 1s / 1s
+ * duration (motion uses seconds, motif uses ms; both = 1000ms).
  */
 
 function makeElements(n: number): HTMLElement[] {
@@ -41,69 +56,70 @@ describe("pure interpolation: number", () => {
 })
 
 for (const n of [10, 100, 500]) {
-  describe(`start + cancel ${n} animations`, () => {
-    const motifElsAuto = makeElements(n)
-    const motifElsCoarse = makeElements(n)
-    const motifElsRaf = makeElements(n)
+  describe(`startup — fair (both libs finish setup): ${n} animations`, () => {
+    const motifDefault = makeElements(n)
+    const motifRaf = makeElements(n)
     const motionEls = makeElements(n)
-    bench("motif: play(tween) — default (waapi, dense)", () => {
-      const controls = new Array(n)
+    bench("motif: play(tween) — auto backend", () => {
+      const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        controls[i] = play(
+        cs[i] = play(
           tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }),
-          motifElsAuto[i]!,
+          motifDefault[i]!,
         )
       }
       for (let i = 0; i < n; i++) {
-        controls[i].finished.catch(() => {})
-        controls[i].cancel()
-      }
-    })
-    bench("motif: play(tween) — coarse keyframes (maxSamples=2)", () => {
-      const controls = new Array(n)
-      for (let i = 0; i < n; i++) {
-        controls[i] = play(
-          tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }),
-          motifElsCoarse[i]!,
-          { maxSamples: 2, minSamples: 2 },
-        )
-      }
-      for (let i = 0; i < n; i++) {
-        controls[i].finished.catch(() => {})
-        controls[i].cancel()
+        cs[i].finished.catch(() => {})
+        cs[i].cancel()
       }
     })
     bench("motif: play(tween) — rAF backend", () => {
-      const controls = new Array(n)
+      const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        controls[i] = play(
-          tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }),
-          motifElsRaf[i]!,
-          { backend: "raf" },
-        )
+        cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }), motifRaf[i]!, {
+          backend: "raf",
+        })
       }
       for (let i = 0; i < n; i++) {
-        controls[i].finished.catch(() => {})
-        controls[i].cancel()
+        cs[i].finished.catch(() => {})
+        cs[i].cancel()
       }
     })
-    bench("motion: animate(...).stop() — lazy (no flush)", () => {
-      const controls = new Array(n)
+    bench("motion: animate(...) + flush + stop()", () => {
+      const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        controls[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
+        cs[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
       }
-      for (let i = 0; i < n; i++) controls[i].stop()
-    })
-    bench("motion: animate(...).stop() — forced resolve (fair)", () => {
-      const controls = new Array(n)
-      for (let i = 0; i < n; i++) {
-        controls[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
-      }
-      // motion schedules keyframe resolution (and the WAAPI Element.animate
-      // call) on the next rAF tick. In this synthetic loop rAF never fires,
-      // so without a flush the expensive setup is skipped entirely.
       flushKeyframeResolvers()
-      for (let i = 0; i < n; i++) controls[i].stop()
+      for (let i = 0; i < n; i++) cs[i].stop()
+    })
+  })
+
+  describe(`startup — lazy (cancel before first frame): ${n} animations`, () => {
+    // In this scenario motif still sets up eagerly (same as the fair
+    // variant above) and motion short-circuits because no frame fires
+    // between animate() and stop(). We report it as-is: the delta
+    // represents motion's architectural win for hover-flicker-style
+    // interactions where an animation may be cancelled before it ever
+    // reaches the compositor.
+    const motifEls = makeElements(n)
+    const motionEls = makeElements(n)
+    bench("motif: play(tween).cancel() — eager setup", () => {
+      const cs = new Array(n)
+      for (let i = 0; i < n; i++) {
+        cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }), motifEls[i]!)
+      }
+      for (let i = 0; i < n; i++) {
+        cs[i].finished.catch(() => {})
+        cs[i].cancel()
+      }
+    })
+    bench("motion: animate(...).stop() — deferred setup never runs", () => {
+      const cs = new Array(n)
+      for (let i = 0; i < n; i++) {
+        cs[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
+      }
+      for (let i = 0; i < n; i++) cs[i].stop()
     })
   })
 }
