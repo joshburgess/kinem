@@ -5,7 +5,7 @@ import { animate } from "motion"
 // motion-dom is installed transitively via `motion`. Its `mix()` is the
 // primitive we compare against motif's `interpolateNumber()`. Deep import
 // avoids forcing consumers to install an extra package just for benches.
-import { mix } from "motion-dom"
+import { flushKeyframeResolvers, mix } from "motion-dom"
 import { bench, describe } from "vitest"
 
 /**
@@ -87,11 +87,22 @@ for (const n of [10, 100, 500]) {
         controls[i].cancel()
       }
     })
-    bench("motion: animate(...).stop()", () => {
+    bench("motion: animate(...).stop() — lazy (no flush)", () => {
       const controls = new Array(n)
       for (let i = 0; i < n; i++) {
         controls[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
       }
+      for (let i = 0; i < n; i++) controls[i].stop()
+    })
+    bench("motion: animate(...).stop() — forced resolve (fair)", () => {
+      const controls = new Array(n)
+      for (let i = 0; i < n; i++) {
+        controls[i] = animate(motionEls[i]!, { x: 100, opacity: 1 }, { duration: 1 })
+      }
+      // motion schedules keyframe resolution (and the WAAPI Element.animate
+      // call) on the next rAF tick. In this synthetic loop rAF never fires,
+      // so without a flush the expensive setup is skipped entirely.
+      flushKeyframeResolvers()
       for (let i = 0; i < n; i++) controls[i].stop()
     })
   })

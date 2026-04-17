@@ -272,14 +272,19 @@ export function playStrategy(
   } else if (backend === "raf") {
     handles.push(playRaf(def, targets, opts))
   } else {
-    // auto: split by tier.
+    // auto: split by tier. When all properties live in one tier, skip
+    // the projection wrapper: project() allocates an AnimationDef +
+    // closure per call and the backends re-invoke that closure every
+    // tick for no gain when the filter is the identity.
+    const mainProps = useWaapi ? main : props
+    const splitNeeded = useWaapi && compositor.length > 0 && mainProps.length > 0
+
     if (compositor.length > 0 && useWaapi) {
-      const compDef = project(def, compositor)
+      const compDef = splitNeeded ? project(def, compositor) : def
       handles.push(playWaapi(compDef, targets, opts))
     }
-    const mainProps = useWaapi ? main : props
     if (mainProps.length > 0) {
-      const mainDef = project(def, mainProps)
+      const mainDef = splitNeeded ? project(def, mainProps) : def
       handles.push(playRaf(mainDef, targets, opts))
     }
   }
