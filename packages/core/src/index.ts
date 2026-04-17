@@ -163,6 +163,8 @@ export {
   type TrackerEvent,
   type TrackerListener,
   __resetTracker,
+  enableTracker,
+  isTrackerEnabled,
   listActive as listActiveAnimations,
   subscribe as subscribeTracker,
   trackAnimation,
