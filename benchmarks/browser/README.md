@@ -30,16 +30,15 @@ significant at n=1000.
 
 ## Observed results (2026-04, Chrome, M-series Mac)
 
-| scenario               |   n=100 |   n=500 |  n=1000 |
-|------------------------|---------|---------|---------|
-| cancel-before-first    |   0.93x |   0.93x |   0.95x |
-| startup-commit         |   0.96x |   0.81x |   0.71x |
-| steady-state (10 frames) | 1.01x |   1.04x |   0.92x |
+| scenario                 |   n=100 |   n=500 |  n=1000 |
+|--------------------------|---------|---------|---------|
+| cancel-before-first      |   0.77x |   0.88x |   1.05x |
+| startup-commit           |   0.53x |   0.65x |   0.73x |
+| steady-state (10 frames) |   1.03x |   0.90x |   0.91x |
 
-Ratios are motif/motion (< 1.0 means motif is faster). Steady-state is
-dominated by paint and is roughly at parity. Startup scales better for
-motif than for motion (motion's keyframe resolver overhead dominates
-at n=1000). Cancel-before-first is a slight motif win in the real
-browser, inverting the 2.3x gap we observed under happy-dom: without a
-real WAAPI implementation, motion's deferred setup short-circuited to
-nothing, which never happens in a real browser.
+Ratios are motif/motion (< 1.0 means motif is faster). Startup is a
+clear motif win across the board (motion's keyframe resolver and
+deferred-setup machinery show up here). Steady-state is dominated by
+paint and hovers around parity. Cancel-before-first favors motif at
+small n and converges at n=1000 where both libs end up doing similar
+bookkeeping before the cancel lands.
