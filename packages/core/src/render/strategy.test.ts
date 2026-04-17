@@ -158,13 +158,13 @@ describe("play: strategy router", () => {
       clock,
       backend: "auto",
     })
+    // First tick: lazy WAAPI setup runs in the update phase; rAF backend
+    // commits in render. Both need a frame before they touch the DOM.
+    r.fire(0)
     expect(t.animations).toHaveLength(1)
-    // WAAPI keyframes should contain opacity but not width.
     const kf = t.lastKeyframes![0]!
     expect("opacity" in kf).toBe(true)
     expect("width" in kf).toBe(false)
-    // The rAF side should drive width on tick.
-    r.fire(0)
     expect(t.styles.has("width")).toBe(true)
     expect(t.styles.has("opacity")).toBe(false)
   })
@@ -197,13 +197,18 @@ describe("play: strategy router", () => {
       scheduler,
       clock,
     })
+    // will-change is applied together with WAAPI setup on the first
+    // scheduler tick, not eagerly. Skipping the DOM write entirely
+    // when cancel fires before the first frame is the point.
+    expect(t.styles.has("will-change")).toBe(false)
+    r.fire(0)
     expect(t.styles.get("will-change")).toBe("opacity")
     t.animations[0]!.fireFinish()
     await h.finished
     expect(t.styles.get("will-change")).toBe("auto")
   })
 
-  it("clears will-change when the user cancels", async () => {
+  it("clears will-change when the user cancels after setup", async () => {
     const t = mockTarget()
     const r = mockRaf()
     const now = 0
@@ -214,10 +219,28 @@ describe("play: strategy router", () => {
       scheduler,
       clock,
     })
+    r.fire(0)
     expect(t.styles.get("will-change")).toBe("opacity")
     h.cancel()
     await expect(h.finished).rejects.toThrow(/cancelled/)
     expect(t.styles.get("will-change")).toBe("auto")
+  })
+
+  it("skips will-change entirely when cancel beats the first frame", async () => {
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1] }, { duration: 50 }), [t], {
+      waapiSupported: true,
+      scheduler,
+      clock,
+    })
+    h.cancel()
+    await expect(h.finished).rejects.toThrow(/cancelled/)
+    r.fire(0)
+    expect(t.styles.has("will-change")).toBe(false)
   })
 
   it("clears will-change when a sub-handle rejects on its own", async () => {
@@ -231,6 +254,7 @@ describe("play: strategy router", () => {
       scheduler,
       clock,
     })
+    r.fire(0)
     expect(t.styles.get("will-change")).toBe("opacity")
     // Directly cancel the WAAPI sub-animation to simulate a backend failure.
     t.animations[0]!.fireCancel()
@@ -249,6 +273,7 @@ describe("play: strategy router", () => {
       scheduler,
       clock,
     })
+    r.fire(0)
     h.pause()
     expect(h.state).toBe("paused")
     expect(t.animations[0]!.pause).toHaveBeenCalled()
@@ -258,6 +283,41 @@ describe("play: strategy router", () => {
     void h.finished.catch(() => {})
     expect(h.state).toBe("cancelled")
     expect(t.animations[0]!.cancel).toHaveBeenCalled()
+  })
+
+  it("cancel before the first frame skips WAAPI setup entirely", async () => {
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1] }, { duration: 100 }), [t], {
+      waapiSupported: true,
+      scheduler,
+      clock,
+    })
+    h.cancel()
+    await expect(h.finished).rejects.toThrow(/cancelled/)
+    r.fire(0)
+    expect(t.animations).toHaveLength(0)
+  })
+
+  it("pause queued before the first frame replays onto the inner handle", () => {
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1] }, { duration: 100 }), [t], {
+      waapiSupported: true,
+      scheduler,
+      clock,
+    })
+    h.pause()
+    expect(h.state).toBe("paused")
+    r.fire(0)
+    expect(t.animations[0]!.pause).toHaveBeenCalled()
+    expect(h.state).toBe("paused")
   })
 
   it("backend: 'raf' forces rAF even when WAAPI is available", () => {
@@ -290,8 +350,11 @@ describe("play: strategy router", () => {
     })
     h.pause()
     h.seek(0.25)
-    expect(t.animations[0]!.currentTime).toBe(100)
+    // Lazy WAAPI: the sub-animation is built on the first tick; the
+    // queued seek replays onto it, and the rAF backend commits in the
+    // render phase of the same frame.
     r.fire(0)
+    expect(t.animations[0]!.currentTime).toBe(100)
     expect(t.styles.get("width")).toBe("25px")
   })
 })

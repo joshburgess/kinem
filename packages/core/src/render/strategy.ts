@@ -15,6 +15,7 @@
  */
 
 import type { AnimationDef } from "../core/types"
+import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
 import type { ElementShim, PropertyValue } from "./apply"
 import { partitionByTier } from "./properties"
 import { type RafOpts, playRaf } from "./raf"
@@ -44,6 +45,16 @@ export interface StrategyOpts extends WaapiOpts, RafOpts {
    * on platforms where the probe would fail but you know it works.
    */
   readonly waapiSupported?: boolean
+  /**
+   * Defer the `Element.animate()` call for WAAPI-bound animations to
+   * the next scheduler tick. Cancelling the returned handle before the
+   * tick fires skips the WAAPI setup entirely. Default `true`.
+   *
+   * Useful for hover-flicker and rapid-toggle patterns where an
+   * animation may be cancelled before it ever reaches the compositor.
+   * Tests that assert synchronous WAAPI behavior should set `false`.
+   */
+  readonly lazy?: boolean
 }
 
 export type AnimationProps = Readonly<Record<string, PropertyValue>>
@@ -242,6 +253,77 @@ function applyWillChange(targets: readonly StrategyTarget[], props: readonly str
 }
 
 /**
+ * Wrap a handle factory so that the real handle is built on the next
+ * scheduler tick instead of synchronously. Control-plane calls made
+ * before the tick are queued and replayed once the inner handle exists;
+ * `cancel()` before the tick short-circuits the factory entirely.
+ */
+function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): StrategyHandle {
+  let inner: StrategyHandle | null = null
+  let pendingState: StrategyState = "playing"
+  const pending: Array<(h: StrategyHandle) => void> = []
+
+  let resolveFinished!: () => void
+  let rejectFinished!: (err: unknown) => void
+  const finished = new Promise<void>((res, rej) => {
+    resolveFinished = res
+    rejectFinished = rej
+  })
+
+  scheduler.schedule("update", () => {
+    if (pendingState === "cancelled") return
+    inner = factory()
+    inner.finished.then(resolveFinished, rejectFinished)
+    for (const op of pending) op(inner)
+    pending.length = 0
+  })
+
+  return {
+    pause() {
+      if (inner) inner.pause()
+      else if (pendingState === "playing") {
+        pendingState = "paused"
+        pending.push((h) => h.pause())
+      }
+    },
+    resume() {
+      if (inner) inner.resume()
+      else if (pendingState === "paused") {
+        pendingState = "playing"
+        pending.push((h) => h.resume())
+      }
+    },
+    seek(p: number) {
+      if (inner) inner.seek(p)
+      else pending.push((h) => h.seek(p))
+    },
+    reverse() {
+      if (inner) inner.reverse()
+      else pending.push((h) => h.reverse())
+    },
+    setSpeed(m: number) {
+      if (inner) inner.setSpeed(m)
+      else pending.push((h) => h.setSpeed(m))
+    },
+    cancel() {
+      if (inner) {
+        inner.cancel()
+        return
+      }
+      if (pendingState === "cancelled" || pendingState === "finished") return
+      pendingState = "cancelled"
+      rejectFinished(new Error("animation cancelled"))
+    },
+    get state() {
+      return inner?.state ?? pendingState
+    },
+    get finished() {
+      return finished
+    },
+  }
+}
+
+/**
  * Play an animation against pre-resolved targets, auto-picking the best
  * backend(s). Compositor-safe properties route to WAAPI (when supported),
  * and the rest route to the rAF backend. Both are synchronized by virtue
@@ -262,13 +344,34 @@ export function playStrategy(
   const waapiCap = opts.waapiSupported ?? detectWaapi()
   const useWaapi = backend === "waapi" || (backend === "auto" && waapiCap)
 
-  const cleanupWillChange =
-    useWaapi && compositor.length > 0 ? applyWillChange(targets, compositor) : null
-
   const handles: StrategyHandle[] = []
+  const lazy = opts.lazy ?? true
+  const scheduler = opts.scheduler ?? defaultFrame
+  const willChangeProps = useWaapi && compositor.length > 0 ? compositor : null
+
+  // Cleanup captured here so combineHandles can run it on finish/cancel
+  // regardless of whether will-change was actually applied (lazy path:
+  // cancel-before-first-frame means neither apply nor cleanup runs).
+  let cleanupWillChange: (() => void) | null = null
+  const ensureWillChange = (): void => {
+    if (willChangeProps !== null && cleanupWillChange === null) {
+      cleanupWillChange = applyWillChange(targets, willChangeProps)
+    }
+  }
+
+  const wrapWaapi = (build: () => StrategyHandle): StrategyHandle => {
+    if (!lazy) {
+      ensureWillChange()
+      return build()
+    }
+    return lazyHandle(() => {
+      ensureWillChange()
+      return build()
+    }, scheduler)
+  }
 
   if (backend === "waapi") {
-    handles.push(playWaapi(def, targets, opts))
+    handles.push(wrapWaapi(() => playWaapi(def, targets, opts)))
   } else if (backend === "raf") {
     handles.push(playRaf(def, targets, opts))
   } else {
@@ -281,7 +384,7 @@ export function playStrategy(
 
     if (compositor.length > 0 && useWaapi) {
       const compDef = splitNeeded ? project(def, compositor) : def
-      handles.push(playWaapi(compDef, targets, opts))
+      handles.push(wrapWaapi(() => playWaapi(compDef, targets, opts)))
     }
     if (mainProps.length > 0) {
       const mainDef = splitNeeded ? project(def, mainProps) : def
@@ -289,5 +392,8 @@ export function playStrategy(
     }
   }
 
-  return combineHandles(handles, cleanupWillChange)
+  // combineHandles needs a stable cleanup thunk; route through a closure
+  // so it sees whichever value ensureWillChange() set (if any).
+  const cleanupThunk = willChangeProps !== null ? () => cleanupWillChange?.() : null
+  return combineHandles(handles, cleanupThunk)
 }
