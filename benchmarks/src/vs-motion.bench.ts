@@ -96,15 +96,16 @@ for (const n of [10, 100, 500]) {
   })
 
   describe(`startup — lazy (cancel before first frame): ${n} animations`, () => {
-    // In this scenario motif still sets up eagerly (same as the fair
-    // variant above) and motion short-circuits because no frame fires
-    // between animate() and stop(). We report it as-is: the delta
-    // represents motion's architectural win for hover-flicker-style
-    // interactions where an animation may be cancelled before it ever
-    // reaches the compositor.
+    // Both libs defer the backend setup (Element.animate / keyframe
+    // resolution) to the first scheduler tick. The remaining delta is
+    // synchronous work motif performs that motion doesn't: constructing
+    // the PromiseLike Controls wrapper and registering with the built-
+    // in tracker (so devtools can list active animations at any time).
+    // Motion returns a thinner handle. The gap represents those feature
+    // costs, not wasted work.
     const motifEls = makeElements(n)
     const motionEls = makeElements(n)
-    bench("motif: play(tween).cancel() — eager setup", () => {
+    bench("motif: play(tween).cancel() — lazy WAAPI, eager controls+tracker", () => {
       const cs = new Array(n)
       for (let i = 0; i < n; i++) {
         cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }), motifEls[i]!)
