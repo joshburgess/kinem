@@ -8,7 +8,16 @@
  * An in-page overlay and Chrome extension will be layered on top of
  * these in later iterations. Ship the data model first so the UI has
  * something solid to consume.
+ *
+ * Importing this package turns on the core tracker as a side effect.
+ * The tracker is off by default (so production `play()` calls pay no
+ * devtools overhead); any app that imports devtools gets tracking
+ * automatically from this point forward.
  */
+
+import { enableTracker } from "motif-animate"
+
+enableTracker()
 
 export {
   type AnimationSnapshot,

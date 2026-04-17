@@ -46,6 +46,18 @@ export type TrackerListener = (event: TrackerEvent) => void
 let nextId = 1
 const active = new Map<number, AnimationRecord>()
 const listeners = new Set<TrackerListener>()
+/**
+ * Opt-in flag. When false (the default), `trackAnimation()` is a no-op
+ * and `play()` pays nothing for the devtools integration. The devtools
+ * package flips this on at import time via `enableTracker()`, so any
+ * app that imports devtools gets full tracking automatically.
+ *
+ * One-way switch by design: enabling mid-session is fine, but we don't
+ * support flipping off because in-flight animations already have their
+ * `finished` continuations wired up. Toggling back and forth would
+ * leave the active map inconsistent with reality.
+ */
+let enabled = false
 
 function now(): number {
   if (typeof performance !== "undefined" && typeof performance.now === "function") {
@@ -60,7 +72,23 @@ function emit(event: TrackerEvent): void {
 }
 
 /**
- * Register a `Controls` with the tracker. Returns the allocated id.
+ * Enable tracking for every subsequent `play()` call. Idempotent. The
+ * devtools package calls this at import time; other callers should only
+ * do so if they need `listActive()` or `subscribe()` to report live
+ * animation state.
+ */
+export function enableTracker(): void {
+  enabled = true
+}
+
+/** True when tracking is active. Primarily for tests. */
+export function isTrackerEnabled(): boolean {
+  return enabled
+}
+
+/**
+ * Register a `Controls` with the tracker. Returns the allocated id,
+ * or `-1` if tracking is disabled (the common production case).
  * Called from `play()`; user code should not invoke this directly.
  */
 export function trackAnimation(
@@ -68,6 +96,7 @@ export function trackAnimation(
   targets: readonly StrategyTarget[],
   backend: StrategyBackend = "auto",
 ): number {
+  if (!enabled) return -1
   const id = nextId++
   const startedAt = now()
   const record: AnimationRecord = {
@@ -105,8 +134,13 @@ export function listActive(): readonly AnimationRecord[] {
   return Array.from(active.values())
 }
 
-/** Subscribe to tracker events. Returns an unsubscribe function. */
+/**
+ * Subscribe to tracker events. Returns an unsubscribe function.
+ * Subscribing auto-enables the tracker: otherwise the subscriber would
+ * silently receive no events.
+ */
 export function subscribe(fn: TrackerListener): () => void {
+  enabled = true
   listeners.add(fn)
   return () => {
     listeners.delete(fn)
@@ -118,4 +152,5 @@ export function __resetTracker(): void {
   active.clear()
   listeners.clear()
   nextId = 1
+  enabled = false
 }

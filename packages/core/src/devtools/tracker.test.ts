@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { play } from "../api/play"
 import { tween } from "../api/tween"
 import type { StrategyTarget } from "../render/strategy"
-import { __resetTracker, listActive, subscribe, trackAnimation } from "./tracker"
+import { __resetTracker, enableTracker, listActive, subscribe, trackAnimation } from "./tracker"
 
 function fakeTarget(): StrategyTarget {
   return {
@@ -25,16 +25,29 @@ function fakeTarget(): StrategyTarget {
   } as unknown as StrategyTarget
 }
 
+beforeEach(() => {
+  // Most of the suite assumes tracking is on. The opt-in default is
+  // tested explicitly in the "disabled by default" case below.
+  enableTracker()
+})
+
 afterEach(() => {
   __resetTracker()
 })
 
 describe("tracker", () => {
-  it("listActive() is empty by default", () => {
+  it("listActive() is empty until something happens", () => {
     expect(listActive()).toHaveLength(0)
   })
 
-  it("play() registers an animation and removes it on finish", async () => {
+  it("is disabled by default so play() pays nothing when devtools is absent", () => {
+    __resetTracker()
+    const def = tween({ opacity: [0, 1] }, { duration: 1 })
+    play(def, [fakeTarget()], { backend: "raf" })
+    expect(listActive()).toHaveLength(0)
+  })
+
+  it("play() registers an animation and removes it on finish (when enabled)", async () => {
     const def = tween({ opacity: [0, 1] }, { duration: 1 })
     const controls = play(def, [fakeTarget()], { backend: "raf" })
     expect(listActive().length).toBeGreaterThan(0)

@@ -1,7 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { snapshot } from "./inspector"
 
-import { __resetTracker, trackAnimation } from "motif-animate"
+import { __resetTracker, enableTracker, trackAnimation } from "motif-animate"
+
+beforeEach(() => {
+  // The devtools package entry enables the tracker as a side effect;
+  // tests that import inspector directly bypass that, so enable here.
+  enableTracker()
+})
 
 afterEach(() => {
   __resetTracker()
