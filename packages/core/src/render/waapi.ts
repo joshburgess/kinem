@@ -1,0 +1,307 @@
+/**
+ * WAAPI rendering backend. Converts an `AnimationDef` into native
+ * `Element.animate()` calls by sampling the animation at a fixed rate
+ * and emitting a keyframes array.
+ *
+ * Because values already include the animation's easing at each
+ * sample, WAAPI's own timing function is always `"linear"` — this
+ * keeps the browser honest and supports arbitrary easings (springs,
+ * custom functions) uniformly. Fewer samples work fine for linear /
+ * cubic-bezier easings; a router may pre-detect those to emit a
+ * two-keyframe animation with a CSS easing string, but that's an
+ * optimization layered on top.
+ *
+ * Transform pseudo props (x, y, scale, rotate, …) compose into a
+ * single `transform` keyframe per sample in a canonical order.
+ */
+
+import type { AnimationDef } from "../core/types"
+import { classify, pseudoToTransformFn } from "./properties"
+
+export interface WaapiAnimation {
+  pause(): void
+  play(): void
+  cancel(): void
+  finish(): void
+  reverse(): void
+  // Native `Animation.currentTime` is `CSSNumberish | null`. We only assign
+  // numbers to this field; the broader type keeps real DOM elements
+  // assignable to the minimal `Animatable` surface.
+  // Native `Animation.currentTime` is `CSSNumberish | null`, and
+  // `onfinish` / `oncancel` carry a typed `AnimationPlaybackEvent`.
+  // We deliberately relax these fields so `HTMLElement.animate()` return
+  // values satisfy this minimal interface. Core only ever writes numbers
+  // to `currentTime` and zero-arg callbacks to the event handlers.
+  currentTime: unknown
+  playbackRate: number
+  readonly finished: Promise<unknown>
+  onfinish: unknown
+  oncancel: unknown
+}
+
+export interface Animatable {
+  animate(
+    keyframes: Keyframe[],
+    options: { duration: number; easing: string; fill?: "forwards" | "none" | "both" },
+  ): WaapiAnimation
+}
+
+export interface Keyframe {
+  offset?: number
+  transform?: string
+  [key: string]: string | number | undefined
+}
+
+export type WaapiState = "idle" | "playing" | "paused" | "finished" | "cancelled"
+
+export interface WaapiHandle {
+  pause(): void
+  resume(): void
+  seek(progress: number): void
+  reverse(): void
+  setSpeed(multiplier: number): void
+  cancel(): void
+  readonly state: WaapiState
+  readonly direction: 1 | -1
+  readonly finished: Promise<void>
+}
+
+export interface WaapiOpts {
+  /**
+   * Sample density in samples per millisecond. Default 1/16 (~60hz).
+   * Higher values produce smoother keyframes at the cost of memory.
+   */
+  readonly sampleRateHz?: number
+  /** Minimum total samples regardless of duration. Default 5. */
+  readonly minSamples?: number
+  /** Maximum total samples regardless of duration. Default 300. */
+  readonly maxSamples?: number
+  /** Fill mode for the WAAPI animation. Default `"forwards"`. */
+  readonly fill?: "forwards" | "none" | "both"
+}
+
+/** Default unit tags applied to numeric pseudo transform values. */
+const PSEUDO_UNIT: Record<string, string> = {
+  translateX: "px",
+  translateY: "px",
+  translateZ: "px",
+  rotate: "deg",
+  rotateX: "deg",
+  rotateY: "deg",
+  rotateZ: "deg",
+  skew: "deg",
+  skewX: "deg",
+  skewY: "deg",
+  scale: "",
+  scaleX: "",
+  scaleY: "",
+  scaleZ: "",
+}
+
+const TRANSFORM_ORDER: readonly string[] = [
+  "translateX",
+  "translateY",
+  "translateZ",
+  "rotate",
+  "rotateX",
+  "rotateY",
+  "rotateZ",
+  "scale",
+  "scaleX",
+  "scaleY",
+  "scaleZ",
+  "skew",
+  "skewX",
+  "skewY",
+]
+
+function formatPseudo(fn: string, value: unknown): string {
+  if (typeof value === "string") return `${fn}(${value})`
+  const unit = PSEUDO_UNIT[fn] ?? ""
+  return `${fn}(${String(value)}${unit})`
+}
+
+function camelCase(name: string): string {
+  return name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+}
+
+function sampleCount(duration: number, opts: WaapiOpts): number {
+  const rate = opts.sampleRateHz ?? 1 / 16
+  const min = opts.minSamples ?? 5
+  const max = opts.maxSamples ?? 300
+  const n = Math.ceil(duration * rate) + 1
+  return Math.max(min, Math.min(max, n))
+}
+
+/**
+ * Build the WAAPI keyframes array from an AnimationDef. Separated from
+ * the `animate` call so tests can verify the conversion without a DOM.
+ */
+export function buildKeyframes(
+  def: AnimationDef<Readonly<Record<string, unknown>>>,
+  opts: WaapiOpts = {},
+): Keyframe[] {
+  const n = sampleCount(def.duration, opts)
+  const frames: Keyframe[] = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const offset = n === 1 ? 0 : i / (n - 1)
+    const values = def.interpolate(offset)
+    frames[i] = toKeyframe(values, offset)
+  }
+  return frames
+}
+
+function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): Keyframe {
+  const out: Keyframe = { offset }
+  const pseudo: Record<string, unknown> = {}
+  let explicitTransform: string | null = null
+  let hasPseudo = false
+
+  for (const key in values) {
+    const value = values[key]
+    if (value === undefined) continue
+    if (key === "transform" && typeof value === "string") {
+      explicitTransform = value
+      continue
+    }
+    const info = classify(key)
+    if (info.apply === "transform") {
+      const fn = pseudoToTransformFn(key)
+      if (fn) {
+        pseudo[fn] = value
+        hasPseudo = true
+      }
+      continue
+    }
+    // WAAPI wants camelCase property names.
+    const name = camelCase(info.target)
+    out[name] = value as string | number
+  }
+
+  if (hasPseudo) {
+    const parts: string[] = []
+    for (const fn of TRANSFORM_ORDER) {
+      if (fn in pseudo) {
+        const value = pseudo[fn]
+        if (value !== undefined) parts.push(formatPseudo(fn, value))
+      }
+    }
+    out.transform = parts.join(" ")
+  } else if (explicitTransform !== null) {
+    out.transform = explicitTransform
+  }
+
+  return out
+}
+
+export function playWaapi(
+  def: AnimationDef<Readonly<Record<string, unknown>>>,
+  targets: readonly Animatable[],
+  opts: WaapiOpts = {},
+): WaapiHandle {
+  if (!(def.duration > 0) || !Number.isFinite(def.duration)) {
+    throw new Error(`playWaapi(): animation duration must be finite and > 0 (got ${def.duration})`)
+  }
+
+  const keyframes = buildKeyframes(def, opts)
+  const fill = opts.fill ?? "forwards"
+  const animations = targets.map((t) =>
+    t.animate(keyframes, { duration: def.duration, easing: "linear", fill }),
+  )
+
+  let state: WaapiState = "playing"
+  let direction: 1 | -1 = 1
+  let speed = 1
+
+  let resolveFinished!: () => void
+  let rejectFinished!: (err: unknown) => void
+  const finished = new Promise<void>((res, rej) => {
+    resolveFinished = res
+    rejectFinished = rej
+  })
+
+  let remaining = animations.length
+  if (remaining === 0) {
+    state = "finished"
+    resolveFinished()
+  }
+
+  const syncPlaybackRate = (): void => {
+    for (const a of animations) a.playbackRate = direction * speed
+  }
+
+  for (const a of animations) {
+    a.onfinish = () => {
+      remaining--
+      if (remaining === 0 && state === "playing") {
+        state = "finished"
+        resolveFinished()
+      }
+    }
+    a.oncancel = () => {
+      if (state === "playing" || state === "paused") {
+        state = "cancelled"
+        rejectFinished(new Error("animation cancelled"))
+      }
+    }
+  }
+
+  return {
+    pause() {
+      if (state !== "playing") return
+      for (const a of animations) a.pause()
+      state = "paused"
+    },
+    resume() {
+      if (state !== "paused") return
+      for (const a of animations) a.play()
+      state = "playing"
+    },
+    seek(p: number) {
+      if (state === "cancelled") return
+      const clamped = p < 0 ? 0 : p > 1 ? 1 : p
+      const t = clamped * def.duration
+      for (const a of animations) a.currentTime = t
+      if (state === "finished") {
+        state = "playing"
+        remaining = animations.length
+        for (const a of animations) a.play()
+      }
+    },
+    reverse() {
+      if (state === "cancelled") return
+      direction = (direction === 1 ? -1 : 1) as 1 | -1
+      syncPlaybackRate()
+      if (state === "finished") {
+        // WAAPI resumes automatically when we flip playbackRate from
+        // a finished state at currentTime=duration, playing back to 0.
+        state = "playing"
+        remaining = animations.length
+        for (const a of animations) a.play()
+      }
+    },
+    setSpeed(multiplier: number) {
+      if (state === "cancelled") return
+      if (!(multiplier > 0)) {
+        throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
+      }
+      speed = multiplier
+      syncPlaybackRate()
+    },
+    cancel() {
+      if (state === "finished" || state === "cancelled") return
+      state = "cancelled"
+      for (const a of animations) a.cancel()
+      rejectFinished(new Error("animation cancelled"))
+    },
+    get state() {
+      return state
+    },
+    get direction() {
+      return direction
+    },
+    get finished() {
+      return finished
+    },
+  }
+}
