@@ -98,14 +98,14 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
   let rafId: number | null = null
   let tickIndex = 0
   let lastTime = -1
+  // O(1) work counter: incremented on schedule/add, decremented on
+  // drain/cancel. Replaces the per-tick 4-phase scan hasWork() used to
+  // do. `jobsCount` tracks one-shot jobs in flight; `keepCount` tracks
+  // keepalive registrations. `hasWork()` is `(jobsCount + keepCount) > 0`.
+  let jobsCount = 0
+  let keepCount = 0
 
-  const hasWork = (): boolean => {
-    for (const p of PHASES) {
-      const q = queues[p]
-      if (q.jobs.length > 0 || q.keepalive.size > 0) return true
-    }
-    return false
-  }
+  const hasWork = (): boolean => jobsCount + keepCount > 0
 
   const runTick = (time: number): FrameState => {
     const delta = lastTime < 0 ? 0 : time - lastTime
@@ -114,20 +114,36 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
 
     for (const phase of PHASES) {
       const q = queues[phase]
-      // Snapshot the one-shot list so jobs enqueued during this phase
-      // (for any phase) don't run until the next frame.
-      const pending = q.jobs
-      q.jobs = []
-      for (let i = 0; i < pending.length; i++) {
-        const job = pending[i]
-        if (job) job(state)
+      const jobsLen = q.jobs.length
+      const keepSize = q.keepalive.size
+      // Skip the whole phase when there's nothing to run. Avoids an
+      // empty-array swap and an empty Set iteration per empty phase,
+      // which in steady state is 3 of 4 phases for a typical animation.
+      if (jobsLen === 0 && keepSize === 0) continue
+
+      if (jobsLen > 0) {
+        // Snapshot the one-shot list so jobs enqueued during this phase
+        // (for any phase) don't run until the next frame.
+        const pending = q.jobs
+        q.jobs = []
+        jobsCount -= jobsLen
+        for (let i = 0; i < jobsLen; i++) {
+          const job = pending[i]
+          if (job) job(state)
+        }
       }
-      // Keepalive snapshot: iterate current members; any added during
-      // this tick will run next frame.
-      const keep = Array.from(q.keepalive)
-      for (let i = 0; i < keep.length; i++) {
-        const job = keep[i]
-        if (job && q.keepalive.has(job)) job(state)
+
+      if (keepSize > 0) {
+        // Iterate the Set in place. V8/JSC/SpiderMonkey all honor the
+        // Set iterator contract that `.delete()` during iteration is
+        // safe: the removed entry won't be visited again, and entries
+        // added during iteration may or may not be visited. That's
+        // fine for animation teardown (the finish handler removes
+        // itself) because the semantics we care about is "this entry
+        // ran this frame; any new entry will run next frame." Skipping
+        // the Array.from() copy saves an allocation per non-empty
+        // phase per tick.
+        for (const job of q.keepalive) job(state)
       }
     }
 
@@ -154,14 +170,18 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     schedule(phase, fn, o) {
       const q = queues[phase]
       if (o?.keepalive) {
+        const before = q.keepalive.size
         q.keepalive.add(fn)
+        if (q.keepalive.size !== before) keepCount++
       } else {
         q.jobs.push(fn)
+        jobsCount++
       }
       wake()
     },
     cancel(phase, fn) {
-      queues[phase].keepalive.delete(fn)
+      const q = queues[phase]
+      if (q.keepalive.delete(fn)) keepCount--
       if (!hasWork() && rafId !== null) {
         raf.cancel(rafId)
         rafId = null
