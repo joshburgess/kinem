@@ -1,0 +1,115 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0d12;
+  --panel: #141821;
+  --border: #232a36;
+  --fg: #e6e9ef;
+  --muted: #8892a6;
+  --accent: #7c9cff;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+header h1 { margin: 0; font-size: 32px; letter-spacing: -0.02em; }
+header p { margin: 8px 0 32px; color: var(--muted); }
+
+#grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stage {
+  position: relative;
+  height: 180px;
+  border-radius: 8px;
+  background: #0b0d12;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.stage.tall { height: 260px; }
+.stage.wide { grid-column: span 2; }
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.controls button {
+  background: #1c2230;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.controls button:hover { border-color: var(--accent); }
+.controls button:active { transform: translateY(1px); }
+
+.box {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--accent);
+}
+
+.dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #1c2230;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}

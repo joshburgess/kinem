@@ -1,0 +1,65 @@
+{
+  "name": "motif-animate",
+  "version": "0.0.0",
+  "description": "Functional/compositional animation library for TypeScript",
+  "license": "MIT",
+  "author": "Josh Burgess",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshburgess/motif.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/joshburgess/motif#readme",
+  "bugs": "https://github.com/joshburgess/motif/issues",
+  "keywords": [
+    "animation",
+    "waapi",
+    "spring",
+    "timeline",
+    "functional",
+    "compositional",
+    "tween",
+    "typescript"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/interpolate/register-defaults.js",
+    "./dist/interpolate/register-defaults.cjs",
+    "./src/interpolate/register-defaults.ts"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./slim": {
+      "import": {
+        "types": "./dist/slim.d.ts",
+        "default": "./dist/slim.js"
+      },
+      "require": {
+        "types": "./dist/slim.d.cts",
+        "default": "./dist/slim.cjs"
+      }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts && cp dist/slim.d.ts dist/slim.d.cts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
