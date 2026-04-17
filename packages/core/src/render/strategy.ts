@@ -14,7 +14,6 @@
  * property group based on capability detection.
  */
 
-import { map } from "../core/animation"
 import type { AnimationDef } from "../core/types"
 import type { ElementShim, PropertyValue } from "./apply"
 import { partitionByTier } from "./properties"
@@ -75,14 +74,24 @@ function project(
   keys: readonly string[],
 ): AnimationDef<AnimationProps> {
   const keySet = new Set(keys)
-  return map(def, (v) => {
-    const out: Record<string, PropertyValue> = {}
-    for (const k of keySet) {
-      const value = v[k]
-      if (value !== undefined) out[k] = value
-    }
-    return out
-  })
+  // Built inline rather than via `map()` so we can propagate the
+  // `linearizable` marker. A tier-filtered view of a linearizable tween
+  // remains linearizable: we only drop keys, never change how the
+  // remaining ones interpolate.
+  const projected: AnimationDef<AnimationProps> = {
+    duration: def.duration,
+    easing: def.easing,
+    interpolate: (p) => {
+      const v = def.interpolate(p)
+      const out: Record<string, PropertyValue> = {}
+      for (const k of keySet) {
+        const value = v[k]
+        if (value !== undefined) out[k] = value
+      }
+      return out
+    },
+  }
+  return def.linearizable ? { ...projected, linearizable: true } : projected
 }
 
 /**

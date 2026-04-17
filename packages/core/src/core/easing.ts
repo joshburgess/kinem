@@ -1,6 +1,27 @@
 import type { EasingFn } from "./types"
 
+/**
+ * Per-easing CSS timing-function string. The WAAPI renderer consults this
+ * via `getCssEasing()` to decide whether to emit a 2-keyframe animation
+ * with native CSS timing, versus densely sampling the easing into many
+ * keyframes. Built-in CSS-exact easings (`linear`, `cubicBezier(...)`)
+ * are tagged here; user-defined easings are not, so they stay on the
+ * sampled path.
+ */
+const cssEasingMap = new WeakMap<EasingFn, string>()
+
+/** @internal Tag a CSS-exact easing so the WAAPI backend can skip sampling. */
+export function setCssEasing(fn: EasingFn, css: string): void {
+  cssEasingMap.set(fn, css)
+}
+
+/** @internal Returns the CSS timing-function string for a tagged easing, or undefined. */
+export function getCssEasing(fn: EasingFn): string | undefined {
+  return cssEasingMap.get(fn)
+}
+
 export const linear: EasingFn = (p) => p
+setCssEasing(linear, "linear")
 
 export const easeIn: EasingFn = (p) => p * p
 export const easeOut: EasingFn = (p) => 1 - (1 - p) * (1 - p)
@@ -48,11 +69,13 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Eas
     return t
   }
 
-  return (p) => {
+  const fn: EasingFn = (p) => {
     if (p <= 0) return 0
     if (p >= 1) return 1
     return sampleY(solve(p))
   }
+  setCssEasing(fn, `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`)
+  return fn
 }
 
 export type StepPosition = "start" | "end" | "jump-none" | "jump-both"
