@@ -217,6 +217,7 @@ describe("playScrollTriggered", () => {
     env.tick()
 
     handle.cancel()
+    void handle.controls.finished.catch(() => {})
     expect(handle.state).toBe("cancelled")
     expect(handle.controls.state).toBe("cancelled")
 

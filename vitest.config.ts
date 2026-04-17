@@ -17,6 +17,7 @@ export default defineConfig({
           include: ["packages/core/src/**/*.test.ts", "packages/core/test/**/*.test.ts"],
           environment: "node",
           setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: ["benchmarks/src/**/*.bench.ts"] },
         },
       },
       {
@@ -26,6 +27,7 @@ export default defineConfig({
           include: ["packages/react/src/**/*.test.{ts,tsx}"],
           environment: "happy-dom",
           setupFiles: ["packages/react/test-setup.ts", "packages/core/test-setup.ts"],
+          benchmark: { include: [] },
         },
       },
       {
@@ -35,6 +37,7 @@ export default defineConfig({
           include: ["packages/vue/src/**/*.test.ts"],
           environment: "happy-dom",
           setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: [] },
         },
       },
       {
@@ -44,6 +47,7 @@ export default defineConfig({
           include: ["packages/svelte/src/**/*.test.ts"],
           environment: "happy-dom",
           setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: [] },
         },
       },
       {
@@ -53,11 +57,9 @@ export default defineConfig({
           include: ["packages/devtools/src/**/*.test.ts"],
           environment: "happy-dom",
           setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: [] },
         },
       },
     ],
-  },
-  bench: {
-    include: ["benchmarks/src/**/*.bench.ts"],
   },
 })

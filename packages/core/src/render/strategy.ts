@@ -99,6 +99,8 @@ export function combineHandles(
   willChangeCleanup: (() => void) | null = null,
 ): StrategyHandle {
   let userState: StrategyState = "playing"
+  let settled = false
+  let cleanupRan = false
   let resolveFinished!: () => void
   let rejectFinished!: (err: unknown) => void
   const finished = new Promise<void>((res, rej) => {
@@ -106,32 +108,42 @@ export function combineHandles(
     rejectFinished = rej
   })
 
+  const runCleanup = (): void => {
+    if (cleanupRan) return
+    cleanupRan = true
+    willChangeCleanup?.()
+  }
+
+  const settleFinish = (): void => {
+    if (settled) return
+    settled = true
+    userState = "finished"
+    runCleanup()
+    resolveFinished()
+  }
+
+  const settleCancel = (err: unknown): void => {
+    if (settled) return
+    settled = true
+    userState = "cancelled"
+    runCleanup()
+    rejectFinished(err)
+  }
+
   let pending = handles.length
   for (const h of handles) {
     h.finished.then(
       () => {
         pending--
-        if (pending === 0 && userState !== "cancelled") {
-          userState = "finished"
-          willChangeCleanup?.()
-          resolveFinished()
-        }
+        if (pending === 0 && userState !== "cancelled") settleFinish()
       },
       (err) => {
-        if (userState !== "cancelled") {
-          userState = "cancelled"
-          willChangeCleanup?.()
-          rejectFinished(err)
-        }
+        settleCancel(err)
       },
     )
   }
 
-  if (handles.length === 0) {
-    userState = "finished"
-    willChangeCleanup?.()
-    resolveFinished()
-  }
+  if (handles.length === 0) settleFinish()
 
   return {
     pause() {
@@ -157,7 +169,15 @@ export function combineHandles(
       if (userState === "finished" || userState === "cancelled") return
       userState = "cancelled"
       for (const h of handles) h.cancel()
-      // Cancellation propagates via the .finished rejection above.
+      // Child rejections flow into settleCancel(), which fires
+      // willChangeCleanup and rejectFinished exactly once. If every
+      // child happens to be already settled (no handle rejects), we
+      // still need to run cleanup here.
+      if (!settled) {
+        settled = true
+        runCleanup()
+        rejectFinished(new Error("animation cancelled"))
+      }
     },
     get state() {
       return userState
