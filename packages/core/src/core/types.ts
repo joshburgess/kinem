@@ -24,6 +24,17 @@ export interface AnimationDef<T> {
   readonly interpolate: Interpolator<T>
   readonly duration: number
   readonly easing: EasingFn
+  /**
+   * Set by leaf constructors that produce an animation whose values at
+   * every progress point match `valueAtZero + easing(p) * (valueAtOne - valueAtZero)`
+   * componentwise, under browser-native linear interpolation of each
+   * property. When true, the WAAPI backend may emit a 2-keyframe
+   * animation with `easing` as the CSS timing function, bypassing dense
+   * sampling. Safe for plain numeric properties with CSS-tagged easings.
+   *
+   * @internal
+   */
+  readonly linearizable?: boolean
 }
 
 /** Extract the value type from an AnimationDef. */

@@ -1,5 +1,5 @@
 import { animation } from "../core/animation"
-import { isSpringEasing, linear } from "../core/easing"
+import { getCssEasing, isSpringEasing, linear } from "../core/easing"
 import type { AnimationDef, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
 
@@ -58,6 +58,7 @@ export function tween<P extends TweenProps>(
 
   const keys = Object.keys(props) as Array<keyof P & string>
   const perPropFns: Array<(p: number) => unknown> = new Array(keys.length)
+  let allPlainNumbers = true
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i] as string
     const pair = props[key] as readonly unknown[]
@@ -67,9 +68,12 @@ export function tween<P extends TweenProps>(
       )
     }
     perPropFns[i] = interpolate(pair[0], pair[1])
+    if (typeof pair[0] !== "number" || typeof pair[1] !== "number") {
+      allPlainNumbers = false
+    }
   }
 
-  return animation(
+  const def = animation(
     (progress) => {
       const out: Record<string, unknown> = {}
       for (let i = 0; i < keys.length; i++) {
@@ -81,4 +85,14 @@ export function tween<P extends TweenProps>(
     duration,
     easing,
   )
+
+  // Mark the tween as linearizable when every property is a plain
+  // number-to-number interpolation AND the easing has a CSS timing-
+  // function equivalent. The WAAPI backend uses this to emit a
+  // 2-keyframe animation with native CSS timing, skipping dense
+  // sampling.
+  if (allPlainNumbers && getCssEasing(easing) !== undefined) {
+    return { ...def, linearizable: true }
+  }
+  return def
 }

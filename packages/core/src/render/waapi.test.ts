@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { tween } from "../api/tween"
-import { easeOut } from "../core/easing"
+import { cubicBezier, easeOut } from "../core/easing"
 import { type Animatable, type WaapiAnimation, buildKeyframes, playWaapi } from "./waapi"
 
 function mockAnimation(): WaapiAnimation & {
@@ -156,5 +156,32 @@ describe("playWaapi", () => {
     h.cancel()
     expect(t.animations[0]!.cancel).toHaveBeenCalled()
     await expect(h.finished).rejects.toThrow(/cancelled/)
+  })
+
+  it("emits 2 keyframes + CSS timing for linearizable tweens", () => {
+    const t = mockTarget()
+    const easing = cubicBezier(0.4, 0, 0.2, 1)
+    playWaapi(tween({ opacity: [0, 1], x: [0, 100] }, { duration: 500, easing }), [t])
+    const call = t.lastCall as { keyframes: unknown[]; options: { easing: string } }
+    expect(call.keyframes.length).toBe(2)
+    expect(call.options.easing).toBe("cubic-bezier(0.4, 0, 0.2, 1)")
+  })
+
+  it("falls back to dense sampling for non-linearizable tweens", () => {
+    const t = mockTarget()
+    // Easeout is quadratic, not a tagged CSS cubic-bezier, so we sample.
+    playWaapi(tween({ opacity: [0, 1] }, { duration: 500, easing: easeOut }), [t])
+    const call = t.lastCall as { keyframes: unknown[]; options: { easing: string } }
+    expect(call.keyframes.length).toBeGreaterThan(2)
+    expect(call.options.easing).toBe("linear")
+  })
+
+  it("falls back to dense sampling when values are not plain numbers", () => {
+    const t = mockTarget()
+    // Unit string pairs aren't marked linearizable even under `linear`.
+    playWaapi(tween({ width: ["0px", "100px"] }, { duration: 500 }), [t])
+    const call = t.lastCall as { keyframes: unknown[]; options: { easing: string } }
+    expect(call.keyframes.length).toBeGreaterThan(2)
+    expect(call.options.easing).toBe("linear")
   })
 })

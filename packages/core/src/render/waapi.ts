@@ -15,6 +15,7 @@
  * single `transform` keyframe per sample in a canonical order.
  */
 
+import { getCssEasing } from "../core/easing"
 import type { AnimationDef } from "../core/types"
 import { classify, pseudoToTransformFn } from "./properties"
 
@@ -151,6 +152,28 @@ export function buildKeyframes(
   return frames
 }
 
+/**
+ * Decide how to hand this animation to WAAPI. For a leaf tween marked
+ * `linearizable` whose easing maps to a CSS timing function, we emit a
+ * 2-keyframe animation and let the browser apply the CSS cubic-bezier
+ * (or `linear`) between the endpoints. For everything else, we fall
+ * back to the sampled path where values already include the easing and
+ * WAAPI is told `linear`.
+ */
+function planWaapi(
+  def: AnimationDef<Readonly<Record<string, unknown>>>,
+  opts: WaapiOpts,
+): { frames: Keyframe[]; easing: string } {
+  const cssEasing = def.linearizable ? getCssEasing(def.easing) : undefined
+  if (cssEasing !== undefined) {
+    return {
+      frames: [toKeyframe(def.interpolate(0), 0), toKeyframe(def.interpolate(1), 1)],
+      easing: cssEasing,
+    }
+  }
+  return { frames: buildKeyframes(def, opts), easing: "linear" }
+}
+
 function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): Keyframe {
   const out: Keyframe = { offset }
   const pseudo: Record<string, unknown> = {}
@@ -203,10 +226,10 @@ export function playWaapi(
     throw new Error(`playWaapi(): animation duration must be finite and > 0 (got ${def.duration})`)
   }
 
-  const keyframes = buildKeyframes(def, opts)
+  const { frames, easing: waapiEasing } = planWaapi(def, opts)
   const fill = opts.fill ?? "forwards"
   const animations = targets.map((t) =>
-    t.animate(keyframes, { duration: def.duration, easing: "linear", fill }),
+    t.animate(frames, { duration: def.duration, easing: waapiEasing, fill }),
   )
 
   let state: WaapiState = "playing"
