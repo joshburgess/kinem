@@ -113,16 +113,35 @@ async function main() {
     } else {
       console.log(`[bench] compare n=${count} samples=${samples}`)
       const results = {}
-      // Warmup: one sample of each lib to shake out JIT / module init.
-      for (const lib of LIBS) {
-        await page.evaluate(
-          async ({ fn, n }) => window[fn]("startup-commit", n),
-          { fn: lib.fn, n: Math.min(100, count) },
+      // Each (lib, scenario) measurement runs on a fresh page. Running
+      // multiple scenarios or libs back-to-back in one page accumulates
+      // browser-side state (layer tree, composite cache, GC pressure,
+      // gsap's global ticker list, motion's registered observers, etc.)
+      // that inflates later samples by 2–10x across ALL libs. A reload
+      // per measurement is slow but gives apples-to-apples numbers.
+      const reload = async () => {
+        await page.goto(url, { waitUntil: "load" })
+        await page.waitForFunction(
+          () =>
+            typeof window.__runMotif === "function" &&
+            typeof window.__runMotifMain === "function" &&
+            typeof window.__runGsap === "function" &&
+            typeof window.__runMotion === "function",
+          { timeout: 15_000 },
         )
+        await page.bringToFront()
       }
       for (const scenario of SCENARIOS) {
         results[scenario] = {}
         for (const lib of LIBS) {
+          await reload()
+          // One small warmup to shake out JIT tiers / module init,
+          // without accumulating state at full n.
+          await page.evaluate(
+            async ({ fn, sc }) => window[fn](sc, 50),
+            { fn: lib.fn, sc: scenario },
+          )
+          await page.waitForTimeout(60)
           const xs = []
           for (let i = 0; i < samples; i++) {
             const ms = await page.evaluate(

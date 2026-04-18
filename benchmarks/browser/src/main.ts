@@ -1,5 +1,5 @@
 /**
- * Browser-side comparison harness for motif vs motion.
+ * Browser-side comparison harness for motif vs motion vs gsap.
  *
  * Three scenarios:
  *
@@ -62,6 +62,21 @@ type ProfileResult = {
   all: ProfileSample[]
 }
 
+type StartupPhaseSample = {
+  play: number
+  tick: number
+  cancel: number
+  total: number
+}
+
+type StartupPhaseResult = {
+  n: number
+  samples: number
+  scenario: "startup-commit" | "startup-shared-def"
+  median: StartupPhaseSample
+  all: StartupPhaseSample[]
+}
+
 declare global {
   interface Window {
     __bench?: BenchResult[]
@@ -71,6 +86,11 @@ declare global {
     __runGsap?: (scenario: Scenario, count: number) => Promise<number>
     __clearStage?: () => void
     __profileMain?: (count: number, samples?: number) => Promise<ProfileResult>
+    __profileStartupPhases?: (
+      scenario: "startup-commit" | "startup-shared-def",
+      count: number,
+      samples?: number,
+    ) => Promise<StartupPhaseResult>
   }
 }
 
@@ -358,12 +378,91 @@ async function profileMain(count: number, samples = 7): Promise<ProfileResult> {
   }
 }
 
+async function profileStartupPhases(
+  scenario: "startup-commit" | "startup-shared-def",
+  count: number,
+  samples = 7,
+): Promise<StartupPhaseResult> {
+  const oneSample = async (): Promise<StartupPhaseSample> => {
+    const targets = spawnTargets(count)
+    // biome-ignore lint/suspicious/noExplicitAny: handle type union
+    const handles = new Array<any>(count)
+
+    const t0 = performance.now()
+    if (scenario === "startup-shared-def") {
+      const def = tween({ opacity: [0, 1], x: [0, 100] }, { duration: 800 })
+      for (let i = 0; i < count; i++) {
+        handles[i] = play(def, targets[i]!, { mode: "main" })
+      }
+    } else {
+      for (let i = 0; i < count; i++) {
+        handles[i] = play(
+          tween({ opacity: [0, 1], x: [0, 100 + i] }, { duration: 800 }),
+          targets[i]!,
+          { mode: "main" },
+        )
+      }
+    }
+    const t1 = performance.now()
+
+    await nextFrame()
+    const t2 = performance.now()
+
+    for (let i = 0; i < count; i++) handles[i]!.cancel()
+    const t3 = performance.now()
+
+    clearStage()
+    return {
+      play: t1 - t0,
+      tick: t2 - t1,
+      cancel: t3 - t2,
+      total: t3 - t0,
+    }
+  }
+
+  const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 30))
+
+  // Warmup.
+  await oneSample()
+  await settle()
+
+  const all: StartupPhaseSample[] = []
+  for (let i = 0; i < samples; i++) {
+    all.push(await oneSample())
+    await settle()
+  }
+
+  const med = (key: keyof StartupPhaseSample): number => {
+    const arr = all.map((s) => s[key]).sort((a, b) => a - b)
+    return +(arr[Math.floor(arr.length / 2)] ?? 0).toFixed(2)
+  }
+
+  return {
+    n: count,
+    samples: all.length,
+    scenario,
+    median: {
+      play: med("play"),
+      tick: med("tick"),
+      cancel: med("cancel"),
+      total: med("total"),
+    },
+    all: all.map((s) => ({
+      play: +s.play.toFixed(2),
+      tick: +s.tick.toFixed(2),
+      cancel: +s.cancel.toFixed(2),
+      total: +s.total.toFixed(2),
+    })),
+  }
+}
+
 window.__runMotif = runMotif
 window.__runMotifMain = (scenario, count) => runMotif(scenario, count, "main")
 window.__runMotion = runMotion
 window.__runGsap = runGsap
 window.__clearStage = clearStage
 window.__profileMain = profileMain
+window.__profileStartupPhases = profileStartupPhases
 
 runMotifBtn.addEventListener("click", () => {
   void runHandler("motif")
