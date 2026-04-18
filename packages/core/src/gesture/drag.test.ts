@@ -87,6 +87,7 @@ function makeEnv() {
   let clockTime = 0
   const clock: Clock = {
     now: () => clockTime,
+    nowAt: () => clockTime,
     pause() {},
     resume() {},
     paused: false,
