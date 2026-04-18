@@ -14,7 +14,7 @@
  * property group based on capability detection.
  */
 
-import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
+import { createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
 import type { ElementShim, PropertyValue } from "./apply"
@@ -212,138 +212,6 @@ export function combineHandles(handles: readonly StrategyHandle[]): StrategyHand
 }
 
 /**
- * Wrap a handle factory so that the real handle is built on the next
- * scheduler tick instead of synchronously. Control-plane calls made
- * before the tick are queued and replayed once the inner handle exists;
- * `cancel()` before the tick short-circuits the factory entirely.
- *
- * Implemented as a class so the eight public methods/getters live on
- * the prototype once rather than being reallocated as fresh closures
- * per play. The factory tick and inner-settlement handlers use
- * `.bind(this)` to route through private methods, which V8 reliably
- * optimizes into direct calls once the class shape is stable.
- */
-// Shared ops for queued pause/resume (no captured args, so they can be
-// module-level constants instead of per-call arrow allocations).
-const queuedPause = (h: StrategyHandle): void => h.pause()
-const queuedResume = (h: StrategyHandle): void => h.resume()
-const queuedReverse = (h: StrategyHandle): void => h.reverse()
-
-class LazyHandleImpl implements StrategyHandle {
-  readonly #factory: () => StrategyHandle
-  readonly #lp: LazyPromise
-  #inner: StrategyHandle | null = null
-  #pendingState: StrategyState = "playing"
-  // Lazy-alloc: most plays queue nothing before the factory tick fires.
-  #pending: Array<(h: StrategyHandle) => void> | null = null
-
-  constructor(factory: () => StrategyHandle, scheduler: FrameScheduler) {
-    this.#factory = factory
-    this.#lp = createLazyPromise()
-    // One-shot schedule: cheaper than keepalive (plain array push vs
-    // linked-list + Map insert). `cancel()` before the tick fires can't
-    // extract the entry from the queue; instead it sets `#pendingState`
-    // and `#runFactory` short-circuits on drain. Tried routing this
-    // through a keepalive registration (so `cancel()` could call
-    // `scheduler.cancel()` for immediate removal) and measured a ~3x
-    // regression on cancel-before-first at n=1000 in exchange for
-    // preventing queue bloat in backgrounded tabs (a non-goal for
-    // foreground perf). Stay on the one-shot path.
-    scheduler.schedule("update", this.#runFactory.bind(this))
-  }
-
-  #runFactory(): void {
-    if (this.#pendingState === "cancelled") return
-    const inner = this.#factory()
-    this.#inner = inner
-    inner.finished.then(this.#onInnerResolve.bind(this), this.#onInnerReject.bind(this))
-    const pending = this.#pending
-    if (pending !== null) {
-      for (const op of pending) op(inner)
-      this.#pending = null
-    }
-  }
-
-  #onInnerResolve(): void {
-    this.#lp.resolve()
-  }
-
-  #onInnerReject(err: unknown): void {
-    this.#lp.reject(err)
-  }
-
-  #queue(op: (h: StrategyHandle) => void): void {
-    if (this.#pending === null) this.#pending = [op]
-    else this.#pending.push(op)
-  }
-
-  pause(): void {
-    const inner = this.#inner
-    if (inner !== null) {
-      inner.pause()
-      return
-    }
-    if (this.#pendingState === "playing") {
-      this.#pendingState = "paused"
-      this.#queue(queuedPause)
-    }
-  }
-
-  resume(): void {
-    const inner = this.#inner
-    if (inner !== null) {
-      inner.resume()
-      return
-    }
-    if (this.#pendingState === "paused") {
-      this.#pendingState = "playing"
-      this.#queue(queuedResume)
-    }
-  }
-
-  seek(p: number): void {
-    const inner = this.#inner
-    if (inner !== null) inner.seek(p)
-    else this.#queue((h) => h.seek(p))
-  }
-
-  reverse(): void {
-    const inner = this.#inner
-    if (inner !== null) inner.reverse()
-    else this.#queue(queuedReverse)
-  }
-
-  setSpeed(m: number): void {
-    const inner = this.#inner
-    if (inner !== null) inner.setSpeed(m)
-    else this.#queue((h) => h.setSpeed(m))
-  }
-
-  cancel(): void {
-    const inner = this.#inner
-    if (inner !== null) {
-      inner.cancel()
-      return
-    }
-    if (this.#pendingState === "cancelled" || this.#pendingState === "finished") return
-    this.#pendingState = "cancelled"
-    this.#lp.rejectCancelled()
-  }
-
-  get state(): StrategyState {
-    return this.#inner?.state ?? this.#pendingState
-  }
-
-  get finished(): Promise<void> {
-    return this.#lp.promise
-  }
-}
-
-function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): StrategyHandle {
-  return new LazyHandleImpl(factory, scheduler)
-}
-
-/**
  * Play an animation against pre-resolved targets, auto-picking the best
  * backend(s). Compositor-safe properties route to WAAPI (when supported),
  * and the rest route to the rAF backend. Both are synchronized by virtue
@@ -428,36 +296,34 @@ export function playStrategy(
   // (opacity, transform, filter) this is redundant: Chrome, Firefox,
   // and modern Safari all auto-promote elements with active WAAPI
   // transform/opacity animations, independent of will-change. And our
-  // own timing made it useless even as a hint: `applyWillChange` fired
-  // in the same rAF tick as `Element.animate()`, so the compositor saw
-  // both in the same paint cycle and had no chance to prepare a layer
-  // in advance. Removing it saves 2×N `setProperty` calls per play
-  // (~3 ms each at n=1000 on startup + cleanup) and collapses a pile
-  // of cleanup closures into a single path.
-  const lazy = opts.lazy ?? true
-  const scheduler = opts.scheduler ?? defaultFrame
-  const wrapWaapi = (build: () => StrategyHandle): StrategyHandle => {
-    if (!lazy) return build()
-    return lazyHandle(build, scheduler)
-  }
+  // own timing made it useless even as a hint: the write fired in the
+  // same rAF tick as `Element.animate()`, so the compositor saw both
+  // in the same paint cycle and had no chance to prepare a layer in
+  // advance. Removing it saves 2×N `setProperty` calls per play.
+  //
+  // Lazy WAAPI setup (deferring `Element.animate()` calls to the next
+  // scheduler tick) now lives inside `WaapiImpl` itself. Passing the
+  // scheduler opts it in; passing `null` runs synchronously. This
+  // replaced a `LazyHandleImpl` wrapper class that only ever wrapped
+  // `playWaapi`, so collapsing the two handles into one saves a
+  // LazyPromise + factory closure + inner-settle subscription per
+  // play. Cancel-before-first still short-circuits the same way: the
+  // deferred `Element.animate()` calls never run.
+  const waapiScheduler: FrameScheduler | null =
+    (opts.lazy ?? true) ? (opts.scheduler ?? defaultFrame) : null
 
-  // Note on why there's no `wrapRaf` equivalent: rAF's setup is cheap
-  // (one `createTiming` + two scheduler registrations). Wrapping it in
-  // `lazyHandle` to make cancel-before-first allocation-free turns out
-  // to be a net regression for the common path: the extra lazyHandle
-  // closures + its own scheduler.schedule cost more per play than
-  // createTiming does, so startup at n=1000 regressed by ~4 ms in
-  // exchange for ~1 ms off cancel-before-first. WAAPI lazy-wrapping
-  // works because Element.animate is genuinely expensive; rAF setup
-  // isn't, so we pay the setup eagerly and accept the slightly higher
-  // cancel-before-first cost.
+  // Note on why there's no rAF-lazy equivalent: rAF setup is cheap
+  // (one `createTiming` + two scheduler registrations). Deferring it
+  // to save cancel-before-first work regressed the common path by
+  // ~4 ms at n=1000 in earlier experiments. WAAPI lazy setup pays off
+  // because `Element.animate()` is genuinely expensive; rAF isn't.
 
   // Pure WAAPI fast path: only a compositor-tier handle, no projection,
   // no combineHandles wrapper. Covers `backend === "waapi"` and the
   // common `auto` case where every animated property is compositor-safe
   // (e.g. opacity/transform-only tweens).
   if (!needsMain) {
-    return wrapWaapi(() => playWaapi(def, targets, opts))
+    return playWaapi(def, targets, opts, waapiScheduler)
   }
 
   // Mixed auto path: both tiers have props. `project()` allocates an
@@ -465,7 +331,7 @@ export function playStrategy(
   // closure every tick, so only run it when the filter isn't the
   // identity (here it always is, since both tiers are non-empty).
   const handles: StrategyHandle[] = [
-    wrapWaapi(() => playWaapi(project(def, compositor), targets, opts)),
+    playWaapi(project(def, compositor), targets, opts, waapiScheduler),
     playRaf(project(def, mainProps), targets, opts),
   ]
 
