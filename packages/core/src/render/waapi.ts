@@ -17,7 +17,7 @@
 
 import { getCssEasing } from "../core/easing"
 import type { AnimationDef } from "../core/types"
-import { classify, pseudoToTransformFn } from "./properties"
+import { pseudoToTransformFn } from "./properties"
 
 export interface WaapiAnimation {
   pause(): void
@@ -122,10 +122,6 @@ function formatPseudo(fn: string, value: unknown): string {
   return `${fn}(${String(value)}${unit})`
 }
 
-function camelCase(name: string): string {
-  return name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-}
-
 function sampleCount(duration: number, opts: WaapiOpts): number {
   const rate = opts.sampleRateHz ?? 1 / 16
   const min = opts.minSamples ?? 5
@@ -176,9 +172,11 @@ function planWaapi(
 
 function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): Keyframe {
   const out: Keyframe = { offset }
-  const pseudo: Record<string, unknown> = {}
+  // Common case (opacity, transform, filter, etc.) never hits the pseudo
+  // branch, so defer allocating the parts bag until we see the first
+  // pseudo key. This saves two objects per keyframe per sample.
+  let pseudo: Record<string, unknown> | null = null
   let explicitTransform: string | null = null
-  let hasPseudo = false
 
   for (const key in values) {
     const value = values[key]
@@ -187,21 +185,19 @@ function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): 
       explicitTransform = value
       continue
     }
-    const info = classify(key)
-    if (info.apply === "transform") {
-      const fn = pseudoToTransformFn(key)
-      if (fn) {
-        pseudo[fn] = value
-        hasPseudo = true
-      }
+    const fn = pseudoToTransformFn(key)
+    if (fn !== null) {
+      if (pseudo === null) pseudo = {}
+      pseudo[fn] = value
       continue
     }
-    // WAAPI wants camelCase property names.
-    const name = camelCase(info.target)
-    out[name] = value as string | number
+    // Only compositor-safe and pseudo props reach this function (main-
+    // tier props route to rAF). Compositor keys are already in the
+    // camelCase shape WAAPI wants, so skip the classify/kebab round-trip.
+    out[key] = value as string | number
   }
 
-  if (hasPseudo) {
+  if (pseudo !== null) {
     const parts: string[] = []
     for (const fn of TRANSFORM_ORDER) {
       if (fn in pseudo) {

@@ -83,7 +83,15 @@ function toKebab(name: string): string {
   return name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
 }
 
-export function classify(property: string): PropertyInfo {
+// `classify()` is called many times per play() (once per property via
+// partitionByTier, and again per property per sample in toKeyframe()).
+// Every call previously minted a fresh PropertyInfo object; at n=1000
+// plays with 2-3 props each that's a measurable amount of GC pressure.
+// Property names come from a very small alphabet in practice, so a
+// module-level Map amortizes the classification cost across the process.
+const classifyCache = new Map<string, PropertyInfo>()
+
+function classifyUncached(property: string): PropertyInfo {
   if (property in PSEUDO_TO_TRANSFORM) {
     return { tier: "pseudo", target: "transform", apply: "transform" }
   }
@@ -96,6 +104,14 @@ export function classify(property: string): PropertyInfo {
     return { tier: "main", target, apply: "attr" }
   }
   return { tier: "main", target: toKebab(property), apply: "style" }
+}
+
+export function classify(property: string): PropertyInfo {
+  const cached = classifyCache.get(property)
+  if (cached !== undefined) return cached
+  const info = classifyUncached(property)
+  classifyCache.set(property, info)
+  return info
 }
 
 export function isCompositorSafe(property: string): boolean {

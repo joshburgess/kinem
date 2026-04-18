@@ -81,7 +81,10 @@ export function applyValues(
   el: ElementShim,
   values: Readonly<Record<string, PropertyValue>>,
 ): void {
-  const transformParts: Record<string, PropertyValue> = {}
+  // Defer allocating the transform-parts bag until we see the first
+  // pseudo key. Most per-frame applies have no pseudo props at all
+  // (opacity-only, width-only, etc.) and paid for an empty object.
+  let transformParts: Record<string, PropertyValue> | null = null
   let explicitTransform: string | null = null
 
   for (const key in values) {
@@ -94,7 +97,10 @@ export function applyValues(
     const info = classify(key)
     if (info.apply === "transform") {
       const fn = pseudoToTransformFn(key)
-      if (fn) transformParts[fn] = value
+      if (fn) {
+        if (transformParts === null) transformParts = {}
+        transformParts[fn] = value
+      }
       continue
     }
     const rendered = typeof value === "number" ? String(value) : value
@@ -105,8 +111,7 @@ export function applyValues(
     }
   }
 
-  const hasPseudo = Object.keys(transformParts).length > 0
-  if (hasPseudo) {
+  if (transformParts !== null) {
     el.style.setProperty("transform", composeTransform(transformParts))
   } else if (explicitTransform !== null) {
     el.style.setProperty("transform", explicitTransform)
