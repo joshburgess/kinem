@@ -169,4 +169,57 @@ describe("play", () => {
     })
     expect(() => controls.seekLabel("missing")).toThrow(/unknown label/)
   })
+
+  describe("mode", () => {
+    it("mode: 'main' routes compositor-safe props through rAF", () => {
+      // The fake target throws on `animate()`, so if mode=main didn't
+      // actually force rAF, opacity (compositor-safe) would hit WAAPI
+      // and throw.
+      const el = makeTarget()
+      const env = setup()
+      play(tween({ opacity: [0, 1] }, { duration: 100 }), el, {
+        mode: "main",
+        waapiSupported: true,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      expect(el.styles.get("opacity")).toBe("0")
+    })
+
+    it("mode: 'compositor' forces WAAPI even when the prop is main-tier", () => {
+      // `width` is main-tier and would normally route to rAF. Forcing
+      // compositor mode routes it to WAAPI, which trips the fake's
+      // animate() throw. Disable lazy so the animate() call fires
+      // synchronously inside play() rather than being deferred to a
+      // scheduler tick (whose throw wouldn't surface to the caller).
+      const el = makeTarget()
+      const env = setup()
+      expect(() =>
+        play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+          mode: "compositor",
+          lazy: false,
+          waapiSupported: true,
+          scheduler: env.scheduler,
+          clock: env.clock,
+        }),
+      ).toThrow(/WAAPI not used/)
+    })
+
+    it("backend wins over mode when both are passed", () => {
+      // backend=raf should override mode=compositor. Opacity would
+      // otherwise hit WAAPI and throw; with rAF forced it writes style.
+      const el = makeTarget()
+      const env = setup()
+      play(tween({ opacity: [0, 1] }, { duration: 100 }), el, {
+        mode: "compositor",
+        backend: "raf",
+        waapiSupported: true,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      expect(el.styles.get("opacity")).toBe("0")
+    })
+  })
 })
