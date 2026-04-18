@@ -157,7 +157,7 @@ export function playScrollTriggered(
   const actions = parseToggleActions(opts.toggleActions ?? DEFAULT_TOGGLE_ACTIONS)
 
   const handle = playStrategy(def, targets, opts)
-  const controls = createControls(handle, { duration: def.duration })
+  const controls = createControls(handle, def.duration)
   controls.pause()
   controls.seek(0)
 
