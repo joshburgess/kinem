@@ -14,7 +14,7 @@
  * property group based on capability detection.
  */
 
-import { createLazyPromise } from "../core/lazy-promise"
+import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
 import type { ElementShim, PropertyValue } from "./apply"
@@ -275,95 +275,143 @@ function applyWillChange(targets: readonly StrategyTarget[], props: readonly str
  * outer combineHandles wrapper that was previously needed to chain
  * cleanup onto the handle's `finished` promise. At n=1000 that's an
  * entire layer of closure + lazy-promise allocation removed per play.
+ *
+ * Implemented as a class so the eight public methods/getters live on
+ * the prototype once rather than being reallocated as fresh closures
+ * per play. The factory tick and inner-settlement handlers use
+ * `.bind(this)` to route through private methods, which V8 reliably
+ * optimizes into direct calls once the class shape is stable.
  */
+// Shared ops for queued pause/resume (no captured args, so they can be
+// module-level constants instead of per-call arrow allocations).
+const queuedPause = (h: StrategyHandle): void => h.pause()
+const queuedResume = (h: StrategyHandle): void => h.resume()
+const queuedReverse = (h: StrategyHandle): void => h.reverse()
+
+class LazyHandleImpl implements StrategyHandle {
+  readonly #factory: () => StrategyHandle
+  readonly #onSettle: (() => void) | null
+  readonly #lp: LazyPromise
+  #inner: StrategyHandle | null = null
+  #pendingState: StrategyState = "playing"
+  // Lazy-alloc: most plays queue nothing before the factory tick fires.
+  #pending: Array<(h: StrategyHandle) => void> | null = null
+
+  constructor(
+    factory: () => StrategyHandle,
+    scheduler: FrameScheduler,
+    onSettle: (() => void) | null,
+  ) {
+    this.#factory = factory
+    this.#onSettle = onSettle
+    this.#lp = createLazyPromise()
+    // One-shot schedule: cheaper than keepalive (plain array push vs
+    // linked-list + Map insert). `cancel()` before the tick fires can't
+    // extract the entry from the queue; instead it sets `#pendingState`
+    // and `#runFactory` short-circuits on drain. Tried routing this
+    // through a keepalive registration (so `cancel()` could call
+    // `scheduler.cancel()` for immediate removal) and measured a ~3x
+    // regression on cancel-before-first at n=1000 in exchange for
+    // preventing queue bloat in backgrounded tabs (a non-goal for
+    // foreground perf). Stay on the one-shot path.
+    scheduler.schedule("update", this.#runFactory.bind(this))
+  }
+
+  #runFactory(): void {
+    if (this.#pendingState === "cancelled") return
+    const inner = this.#factory()
+    this.#inner = inner
+    inner.finished.then(this.#onInnerResolve.bind(this), this.#onInnerReject.bind(this))
+    const pending = this.#pending
+    if (pending !== null) {
+      for (const op of pending) op(inner)
+      this.#pending = null
+    }
+  }
+
+  #onInnerResolve(): void {
+    this.#onSettle?.()
+    this.#lp.resolve()
+  }
+
+  #onInnerReject(err: unknown): void {
+    this.#onSettle?.()
+    this.#lp.reject(err)
+  }
+
+  #queue(op: (h: StrategyHandle) => void): void {
+    if (this.#pending === null) this.#pending = [op]
+    else this.#pending.push(op)
+  }
+
+  pause(): void {
+    const inner = this.#inner
+    if (inner !== null) {
+      inner.pause()
+      return
+    }
+    if (this.#pendingState === "playing") {
+      this.#pendingState = "paused"
+      this.#queue(queuedPause)
+    }
+  }
+
+  resume(): void {
+    const inner = this.#inner
+    if (inner !== null) {
+      inner.resume()
+      return
+    }
+    if (this.#pendingState === "paused") {
+      this.#pendingState = "playing"
+      this.#queue(queuedResume)
+    }
+  }
+
+  seek(p: number): void {
+    const inner = this.#inner
+    if (inner !== null) inner.seek(p)
+    else this.#queue((h) => h.seek(p))
+  }
+
+  reverse(): void {
+    const inner = this.#inner
+    if (inner !== null) inner.reverse()
+    else this.#queue(queuedReverse)
+  }
+
+  setSpeed(m: number): void {
+    const inner = this.#inner
+    if (inner !== null) inner.setSpeed(m)
+    else this.#queue((h) => h.setSpeed(m))
+  }
+
+  cancel(): void {
+    const inner = this.#inner
+    if (inner !== null) {
+      inner.cancel()
+      return
+    }
+    if (this.#pendingState === "cancelled" || this.#pendingState === "finished") return
+    this.#pendingState = "cancelled"
+    this.#lp.rejectCancelled()
+  }
+
+  get state(): StrategyState {
+    return this.#inner?.state ?? this.#pendingState
+  }
+
+  get finished(): Promise<void> {
+    return this.#lp.promise
+  }
+}
+
 function lazyHandle(
   factory: () => StrategyHandle,
   scheduler: FrameScheduler,
   onSettle: (() => void) | null = null,
 ): StrategyHandle {
-  let inner: StrategyHandle | null = null
-  let pendingState: StrategyState = "playing"
-  // Lazy-alloc: most plays queue nothing before the factory tick fires.
-  let pending: Array<(h: StrategyHandle) => void> | null = null
-
-  const lp = createLazyPromise()
-
-  // One-shot schedule: cheaper than keepalive (plain array push vs
-  // linked-list + Map insert). `cancel()` before the tick fires can't
-  // extract the entry from the queue; instead it sets `pendingState`
-  // and the factory short-circuits on drain. Tried routing this through
-  // a keepalive registration (so `cancel()` could call
-  // `scheduler.cancel()` for immediate removal) and measured a ~3x
-  // regression on cancel-before-first at n=1000 in exchange for
-  // preventing queue bloat in backgrounded tabs (a non-goal for
-  // foreground perf). Stay on the one-shot path.
-  scheduler.schedule("update", () => {
-    if (pendingState === "cancelled") return
-    inner = factory()
-    inner.finished.then(
-      () => {
-        onSettle?.()
-        lp.resolve()
-      },
-      (err) => {
-        onSettle?.()
-        lp.reject(err)
-      },
-    )
-    if (pending !== null) {
-      for (const op of pending) op(inner)
-      pending = null
-    }
-  })
-
-  const queue = (op: (h: StrategyHandle) => void): void => {
-    if (pending === null) pending = [op]
-    else pending.push(op)
-  }
-
-  return {
-    pause() {
-      if (inner) inner.pause()
-      else if (pendingState === "playing") {
-        pendingState = "paused"
-        queue((h) => h.pause())
-      }
-    },
-    resume() {
-      if (inner) inner.resume()
-      else if (pendingState === "paused") {
-        pendingState = "playing"
-        queue((h) => h.resume())
-      }
-    },
-    seek(p: number) {
-      if (inner) inner.seek(p)
-      else queue((h) => h.seek(p))
-    },
-    reverse() {
-      if (inner) inner.reverse()
-      else queue((h) => h.reverse())
-    },
-    setSpeed(m: number) {
-      if (inner) inner.setSpeed(m)
-      else queue((h) => h.setSpeed(m))
-    },
-    cancel() {
-      if (inner) {
-        inner.cancel()
-        return
-      }
-      if (pendingState === "cancelled" || pendingState === "finished") return
-      pendingState = "cancelled"
-      lp.rejectCancelled()
-    },
-    get state() {
-      return inner?.state ?? pendingState
-    },
-    get finished() {
-      return lp.promise
-    },
-  }
+  return new LazyHandleImpl(factory, scheduler, onSettle)
 }
 
 /**
