@@ -23,7 +23,7 @@
  */
 
 import gsap from "gsap"
-import { play, tween } from "motif-animate"
+import { type PlayMode, play, tween } from "motif-animate"
 import { animate } from "motion"
 
 type Scenario =
@@ -48,7 +48,8 @@ type BenchResult = {
 declare global {
   interface Window {
     __bench?: BenchResult[]
-    __runMotif?: (scenario: Scenario, count: number) => Promise<number>
+    __runMotif?: (scenario: Scenario, count: number, mode?: PlayMode) => Promise<number>
+    __runMotifMain?: (scenario: Scenario, count: number) => Promise<number>
     __runMotion?: (scenario: Scenario, count: number) => Promise<number>
     __runGsap?: (scenario: Scenario, count: number) => Promise<number>
     __clearStage?: () => void
@@ -90,7 +91,11 @@ function nextFrame(): Promise<number> {
   return new Promise((resolve) => requestAnimationFrame(resolve))
 }
 
-async function runMotif(scenario: Scenario, count: number): Promise<number> {
+async function runMotif(
+  scenario: Scenario,
+  count: number,
+  mode: PlayMode = "auto",
+): Promise<number> {
   const targets = spawnTargets(count)
   const start = performance.now()
   // biome-ignore lint/suspicious/noExplicitAny: union with handles we only need to cancel
@@ -99,12 +104,13 @@ async function runMotif(scenario: Scenario, count: number): Promise<number> {
     // Real-world pattern: one def reused across N targets. Exercises the
     // planWaapi cache so each play() after the first reuses the keyframes.
     const def = tween({ opacity: [0, 1], x: [0, 100] }, { duration: 800 })
-    for (let i = 0; i < count; i++) handles[i] = play(def, targets[i]!)
+    for (let i = 0; i < count; i++) handles[i] = play(def, targets[i]!, { mode })
   } else {
     for (let i = 0; i < count; i++) {
       handles[i] = play(
         tween({ opacity: [0, 1], x: [0, 100 + i] }, { duration: 800 }),
         targets[i]!,
+        { mode },
       )
     }
   }
@@ -244,6 +250,7 @@ async function runHandler(lib: Lib): Promise<void> {
 }
 
 window.__runMotif = runMotif
+window.__runMotifMain = (scenario, count) => runMotif(scenario, count, "main")
 window.__runMotion = runMotion
 window.__runGsap = runGsap
 window.__clearStage = clearStage
