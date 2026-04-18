@@ -13,6 +13,7 @@
  * output their `AnimationDef` produces.
  */
 
+import { createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type Clock, createClock } from "../scheduler/clock"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
@@ -69,12 +70,7 @@ export function createTiming<V>(
   let progress = 0
   let needsRender = true
 
-  let resolveFinished!: () => void
-  let rejectFinished!: (err: unknown) => void
-  const finished = new Promise<void>((res, rej) => {
-    resolveFinished = res
-    rejectFinished = rej
-  })
+  const lp = createLazyPromise()
 
   const computeProgress = (): number => {
     const elapsed = (clock.now() - anchorTime) / duration
@@ -115,7 +111,7 @@ export function createTiming<V>(
       state = "finished"
       disarm()
       opts.onFinish?.()
-      resolveFinished()
+      lp.resolve()
     }
   }
 
@@ -185,7 +181,7 @@ export function createTiming<V>(
       if (state === "finished" || state === "cancelled") return
       state = "cancelled"
       disarm()
-      rejectFinished(new Error("animation cancelled"))
+      lp.reject(new Error("animation cancelled"))
     },
     get state() {
       return state
@@ -197,7 +193,7 @@ export function createTiming<V>(
       return direction
     },
     get finished() {
-      return finished
+      return lp.promise
     },
   }
 }

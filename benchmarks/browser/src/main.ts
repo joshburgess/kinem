@@ -108,23 +108,17 @@ async function runMotif(scenario: Scenario, count: number): Promise<number> {
       )
     }
   }
+  // No defensive `.finished.catch()` here: motif's lazy-promise silences
+  // unhandled-rejection surface internally for fire-and-forget cancel,
+  // matching the motion and gsap bench paths which also don't catch.
   if (scenario === "cancel-before-first") {
-    for (let i = 0; i < count; i++) {
-      handles[i]!.finished.catch(() => {})
-      handles[i]!.cancel()
-    }
+    for (let i = 0; i < count; i++) handles[i]!.cancel()
   } else if (scenario === "startup-commit" || scenario === "startup-shared-def") {
     await nextFrame()
-    for (let i = 0; i < count; i++) {
-      handles[i]!.finished.catch(() => {})
-      handles[i]!.cancel()
-    }
+    for (let i = 0; i < count; i++) handles[i]!.cancel()
   } else {
     for (let k = 0; k < 10; k++) await nextFrame()
-    for (let i = 0; i < count; i++) {
-      handles[i]!.finished.catch(() => {})
-      handles[i]!.cancel()
-    }
+    for (let i = 0; i < count; i++) handles[i]!.cancel()
   }
   const elapsed = performance.now() - start
   clearStage()

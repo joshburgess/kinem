@@ -14,6 +14,7 @@
  * property group based on capability detection.
  */
 
+import { createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
 import type { ElementShim, PropertyValue } from "./apply"
@@ -140,13 +141,15 @@ export function combineHandles(
   if (handles.length === 1) {
     const only = handles[0] as StrategyHandle
     if (willChangeCleanup === null) return only
-    const finished = only.finished.then(
+    const lp = createLazyPromise()
+    only.finished.then(
       () => {
         willChangeCleanup()
+        lp.resolve()
       },
       (err) => {
         willChangeCleanup()
-        throw err
+        lp.reject(err)
       },
     )
     return {
@@ -160,7 +163,7 @@ export function combineHandles(
         return only.state
       },
       get finished() {
-        return finished
+        return lp.promise
       },
     }
   }
@@ -168,12 +171,7 @@ export function combineHandles(
   let userState: StrategyState = "playing"
   let settled = false
   let cleanupRan = false
-  let resolveFinished!: () => void
-  let rejectFinished!: (err: unknown) => void
-  const finished = new Promise<void>((res, rej) => {
-    resolveFinished = res
-    rejectFinished = rej
-  })
+  const lp = createLazyPromise()
 
   const runCleanup = (): void => {
     if (cleanupRan) return
@@ -186,7 +184,7 @@ export function combineHandles(
     settled = true
     userState = "finished"
     runCleanup()
-    resolveFinished()
+    lp.resolve()
   }
 
   const settleCancel = (err: unknown): void => {
@@ -194,7 +192,7 @@ export function combineHandles(
     settled = true
     userState = "cancelled"
     runCleanup()
-    rejectFinished(err)
+    lp.reject(err)
   }
 
   let pending = handles.length
@@ -236,21 +234,21 @@ export function combineHandles(
       if (userState === "finished" || userState === "cancelled") return
       userState = "cancelled"
       for (const h of handles) h.cancel()
-      // Child rejections flow into settleCancel(), which fires
-      // willChangeCleanup and rejectFinished exactly once. If every
-      // child happens to be already settled (no handle rejects), we
-      // still need to run cleanup here.
+      // Child rejections flow into settleCancel(), which runs cleanup
+      // and rejects the lazy promise once. If every child happens to
+      // be already settled (no handle rejects), we still need to run
+      // cleanup and reject here.
       if (!settled) {
         settled = true
         runCleanup()
-        rejectFinished(new Error("animation cancelled"))
+        lp.reject(new Error("animation cancelled"))
       }
     },
     get state() {
       return userState
     },
     get finished() {
-      return finished
+      return lp.promise
     },
   }
 }
@@ -273,49 +271,55 @@ function applyWillChange(targets: readonly StrategyTarget[], props: readonly str
 function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): StrategyHandle {
   let inner: StrategyHandle | null = null
   let pendingState: StrategyState = "playing"
-  const pending: Array<(h: StrategyHandle) => void> = []
+  // Lazy-alloc: most plays queue nothing before the factory tick fires.
+  let pending: Array<(h: StrategyHandle) => void> | null = null
 
-  let resolveFinished!: () => void
-  let rejectFinished!: (err: unknown) => void
-  const finished = new Promise<void>((res, rej) => {
-    resolveFinished = res
-    rejectFinished = rej
-  })
+  const lp = createLazyPromise()
 
   scheduler.schedule("update", () => {
     if (pendingState === "cancelled") return
     inner = factory()
-    inner.finished.then(resolveFinished, rejectFinished)
-    for (const op of pending) op(inner)
-    pending.length = 0
+    inner.finished.then(
+      () => lp.resolve(),
+      (err) => lp.reject(err),
+    )
+    if (pending !== null) {
+      for (const op of pending) op(inner)
+      pending = null
+    }
   })
+
+  const queue = (op: (h: StrategyHandle) => void): void => {
+    if (pending === null) pending = [op]
+    else pending.push(op)
+  }
 
   return {
     pause() {
       if (inner) inner.pause()
       else if (pendingState === "playing") {
         pendingState = "paused"
-        pending.push((h) => h.pause())
+        queue((h) => h.pause())
       }
     },
     resume() {
       if (inner) inner.resume()
       else if (pendingState === "paused") {
         pendingState = "playing"
-        pending.push((h) => h.resume())
+        queue((h) => h.resume())
       }
     },
     seek(p: number) {
       if (inner) inner.seek(p)
-      else pending.push((h) => h.seek(p))
+      else queue((h) => h.seek(p))
     },
     reverse() {
       if (inner) inner.reverse()
-      else pending.push((h) => h.reverse())
+      else queue((h) => h.reverse())
     },
     setSpeed(m: number) {
       if (inner) inner.setSpeed(m)
-      else pending.push((h) => h.setSpeed(m))
+      else queue((h) => h.setSpeed(m))
     },
     cancel() {
       if (inner) {
@@ -324,13 +328,13 @@ function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): S
       }
       if (pendingState === "cancelled" || pendingState === "finished") return
       pendingState = "cancelled"
-      rejectFinished(new Error("animation cancelled"))
+      lp.reject(new Error("animation cancelled"))
     },
     get state() {
       return inner?.state ?? pendingState
     },
     get finished() {
-      return finished
+      return lp.promise
     },
   }
 }

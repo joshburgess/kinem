@@ -64,12 +64,11 @@ export function play(
 ): Controls {
   const targets = resolveTargets(target, opts)
   const handle = playStrategy(def, targets, opts)
-  // Cancellation is a normal completion mode, not a programmer error.
-  // Attaching a silent handler here prevents "fire-and-forget" cancel
-  // patterns (cancel without awaiting) from surfacing as unhandled
-  // rejections. Users who want the rejection still get it through any
-  // derived promise they chain (.then / .catch / await).
-  handle.finished.catch(() => {})
+  // No eager `handle.finished.catch(noop)`: with lazy-allocated
+  // promises, fire-and-forget cancel never creates a Promise, so there
+  // is nothing to surface as unhandled. Callers that do access
+  // `.finished` on a rejected handle get a pre-settled promise that
+  // silences its own unhandled-rejection warning (see `lazy-promise`).
   const controls = createControls(handle, { duration: def.duration })
   trackAnimation(controls, targets, opts.backend ?? "auto")
   return controls

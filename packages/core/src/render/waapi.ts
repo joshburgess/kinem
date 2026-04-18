@@ -16,6 +16,7 @@
  */
 
 import { getCssEasing } from "../core/easing"
+import { createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { pseudoToTransformFn } from "./properties"
 
@@ -262,17 +263,12 @@ export function playWaapi(
   let direction: 1 | -1 = 1
   let speed = 1
 
-  let resolveFinished!: () => void
-  let rejectFinished!: (err: unknown) => void
-  const finished = new Promise<void>((res, rej) => {
-    resolveFinished = res
-    rejectFinished = rej
-  })
+  const lp = createLazyPromise()
 
   let remaining = animations.length
   if (remaining === 0) {
     state = "finished"
-    resolveFinished()
+    lp.resolve()
   }
 
   const syncPlaybackRate = (): void => {
@@ -284,13 +280,13 @@ export function playWaapi(
       remaining--
       if (remaining === 0 && state === "playing") {
         state = "finished"
-        resolveFinished()
+        lp.resolve()
       }
     }
     a.oncancel = () => {
       if (state === "playing" || state === "paused") {
         state = "cancelled"
-        rejectFinished(new Error("animation cancelled"))
+        lp.reject(new Error("animation cancelled"))
       }
     }
   }
@@ -341,7 +337,7 @@ export function playWaapi(
       if (state === "finished" || state === "cancelled") return
       state = "cancelled"
       for (const a of animations) a.cancel()
-      rejectFinished(new Error("animation cancelled"))
+      lp.reject(new Error("animation cancelled"))
     },
     get state() {
       return state
@@ -350,7 +346,7 @@ export function playWaapi(
       return direction
     },
     get finished() {
-      return finished
+      return lp.promise
     },
   }
 }
