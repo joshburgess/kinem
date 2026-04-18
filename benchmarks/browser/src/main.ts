@@ -45,6 +45,23 @@ type BenchResult = {
   max: number
 }
 
+type ProfileSample = {
+  tween: number
+  play: number
+  cancel: number
+  total: number
+  play_shared: number
+  cancel_shared: number
+  total_shared: number
+}
+
+type ProfileResult = {
+  n: number
+  samples: number
+  median: ProfileSample
+  all: ProfileSample[]
+}
+
 declare global {
   interface Window {
     __bench?: BenchResult[]
@@ -53,6 +70,7 @@ declare global {
     __runMotion?: (scenario: Scenario, count: number) => Promise<number>
     __runGsap?: (scenario: Scenario, count: number) => Promise<number>
     __clearStage?: () => void
+    __profileMain?: (count: number, samples?: number) => Promise<ProfileResult>
   }
 }
 
@@ -249,11 +267,103 @@ async function runHandler(lib: Lib): Promise<void> {
   }
 }
 
+async function profileMain(count: number, samples = 7): Promise<ProfileResult> {
+  const oneSample = async (): Promise<ProfileSample> => {
+    const targets = spawnTargets(count)
+    const defs = new Array(count)
+    // biome-ignore lint/suspicious/noExplicitAny: handle type union
+    const handles = new Array<any>(count)
+
+    const t0 = performance.now()
+    for (let i = 0; i < count; i++) {
+      defs[i] = tween({ opacity: [0, 1], x: [0, 100 + i] }, { duration: 800 })
+    }
+    const t1 = performance.now()
+    for (let i = 0; i < count; i++) {
+      handles[i] = play(defs[i], targets[i]!, { mode: "main" })
+    }
+    const t2 = performance.now()
+    for (let i = 0; i < count; i++) {
+      handles[i]!.cancel()
+    }
+    const t3 = performance.now()
+    clearStage()
+
+    const sharedDef = tween({ opacity: [0, 1], x: [0, 100] }, { duration: 800 })
+    const targets2 = spawnTargets(count)
+    // biome-ignore lint/suspicious/noExplicitAny: handle type union
+    const handles2 = new Array<any>(count)
+    const u0 = performance.now()
+    for (let i = 0; i < count; i++) {
+      handles2[i] = play(sharedDef, targets2[i]!, { mode: "main" })
+    }
+    const u1 = performance.now()
+    for (let i = 0; i < count; i++) {
+      handles2[i]!.cancel()
+    }
+    const u2 = performance.now()
+    clearStage()
+
+    return {
+      tween: t1 - t0,
+      play: t2 - t1,
+      cancel: t3 - t2,
+      total: t3 - t0,
+      play_shared: u1 - u0,
+      cancel_shared: u2 - u1,
+      total_shared: u2 - u0,
+    }
+  }
+
+  // Warmup. Use setTimeout between samples instead of requestAnimationFrame,
+  // since this runner is driven from the MCP extension with the tab often
+  // backgrounded — rAF is throttled to ~1/sec under that condition.
+  const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 30))
+
+  await oneSample()
+  await settle()
+
+  const all: ProfileSample[] = []
+  for (let i = 0; i < samples; i++) {
+    all.push(await oneSample())
+    await settle()
+  }
+
+  const median = (key: keyof ProfileSample): number => {
+    const arr = all.map((s) => s[key]).sort((a, b) => a - b)
+    return +(arr[Math.floor(arr.length / 2)] ?? 0).toFixed(2)
+  }
+
+  return {
+    n: count,
+    samples: all.length,
+    median: {
+      tween: median("tween"),
+      play: median("play"),
+      cancel: median("cancel"),
+      total: median("total"),
+      play_shared: median("play_shared"),
+      cancel_shared: median("cancel_shared"),
+      total_shared: median("total_shared"),
+    },
+    all: all.map((s) => ({
+      tween: +s.tween.toFixed(2),
+      play: +s.play.toFixed(2),
+      cancel: +s.cancel.toFixed(2),
+      total: +s.total.toFixed(2),
+      play_shared: +s.play_shared.toFixed(2),
+      cancel_shared: +s.cancel_shared.toFixed(2),
+      total_shared: +s.total_shared.toFixed(2),
+    })),
+  }
+}
+
 window.__runMotif = runMotif
 window.__runMotifMain = (scenario, count) => runMotif(scenario, count, "main")
 window.__runMotion = runMotion
 window.__runGsap = runGsap
 window.__clearStage = clearStage
+window.__profileMain = profileMain
 
 runMotifBtn.addEventListener("click", () => {
   void runHandler("motif")
