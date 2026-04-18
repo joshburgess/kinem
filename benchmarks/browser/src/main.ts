@@ -1,5 +1,5 @@
 /**
- * Browser-side comparison harness for motif vs motion.
+ * Browser-side comparison harness for motif vs motion vs gsap.
  *
  * Three scenarios:
  *
