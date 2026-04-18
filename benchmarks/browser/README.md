@@ -58,28 +58,28 @@ are defensible for different workloads.
 
 ## Observed results (2026-04, Chrome, M-series Mac)
 
-Absolute wall time in milliseconds at n=1000, median of 7 samples,
-median across 3 back-to-back runs. Driven by `bench:compare`
-(Playwright, foregrounded tab, no rAF throttling, page reload per
-`(lib, scenario)` pair).
+Absolute wall time in milliseconds at n=1000, median of 11 samples.
+Driven by `bench:compare` (Playwright, foregrounded tab, no rAF
+throttling, page reload per `(lib, scenario)` pair).
 
 | scenario            | motif (auto) | motif (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
 | startup-commit      |         11.9 |          3.4 |   11.5 |  11.1 |
 | startup-shared-def  |          8.1 |          1.9 |   11.8 |  11.8 |
-| cancel-before-first |          0.5 |          0.4 |    4.0 |   0.4 |
+| cancel-before-first |          0.5 |          0.4 |    4.0 |   0.2 |
 | steady-state        |         79.2 |         70.5 |   86.4 |  80.0 |
 
 Headline:
 
-- With `mode: "main"`, motif is fastest on all four scenarios.
-  Startup is ~3.3x faster than GSAP (3.4 vs 11.1), shared-def is
-  ~6.2x faster (1.9 vs 11.8), and steady-state beats GSAP
-  (70.5 vs 80.0) and motion (70.5 vs 86.4).
-- Cancel-before-first is now tied with GSAP at ~0.4 ms. Previous
-  reports showed a gap (0.7 vs 0.3); that gap was an artifact of
-  cumulative JIT warmth in the old harness sample order. With
-  per-pair page reloads both libs come in at the same floor.
+- With `mode: "main"`, motif is fastest on startup-commit,
+  startup-shared-def, and steady-state. Startup is ~3.3x faster
+  than GSAP (3.4 vs 11.1), shared-def is ~6.2x faster (1.9 vs 11.8),
+  and steady-state beats GSAP (70.5 vs 80.0) and motion (70.5 vs 86.4).
+- GSAP still wins cancel-before-first at 0.2 ms. motif-main is at
+  0.4 ms. The remaining gap is Timing + clock allocation inside
+  playRaf (which still runs eagerly because deferring it regressed
+  the steady-state path). GSAP's whole fast path is "alloc tween,
+  unlink from global list."
 - Default `mode: "auto"` pays compositor-setup cost on startup in
   exchange for compositor-driven ticking that's resilient to main-
   thread jank. Cancel-before-first is 0.5 ms; motion is 4.0.
