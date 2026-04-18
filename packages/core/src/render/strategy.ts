@@ -389,20 +389,14 @@ interface TierSplit {
 const tierCache = new WeakMap<AnimationDef<AnimationProps>, TierSplit>()
 
 function splitDef(def: AnimationDef<AnimationProps>): TierSplit {
-  if (def.tierSplit !== undefined && def.properties !== undefined) {
-    // Leaf fast path: both fields were set together at construction.
-    // No WeakMap round-trip, no classification work.
-    return {
-      props: def.properties,
-      compositor: def.tierSplit.compositor,
-      main: def.tierSplit.main,
-    }
-  }
+  // Leaf fast path: `tierSplit` was built at construction with `props`
+  // included, so we can return it directly. No per-play object alloc,
+  // no WeakMap round-trip, no classification work.
+  if (def.tierSplit !== undefined) return def.tierSplit
   const cached = tierCache.get(def)
   if (cached !== undefined) return cached
   const props = discoverProperties(def)
-  const { compositor, main } = partitionByTier(props)
-  const split: TierSplit = { props, compositor, main }
+  const split = partitionByTier(props)
   tierCache.set(def, split)
   return split
 }
