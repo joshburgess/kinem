@@ -1,7 +1,7 @@
 import { getCssEasing, isSpringEasing, linear } from "../core/easing"
-import type { AnimationDef, EasingFn } from "../core/types"
+import type { AnimationDef, CommitTarget, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
-import { partitionByTier } from "../render/properties"
+import { classify, partitionByTier, pseudoToTransformFn } from "../render/properties"
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
@@ -42,6 +42,148 @@ export interface TweenOpts {
 
 const DEFAULT_DURATION = 400
 
+// Default unit appended when a pseudo transform prop is given as a
+// plain number. Kept in sync with apply.ts::PSEUDO_DEFAULT_UNIT.
+const PSEUDO_DEFAULT_UNIT: Record<string, string> = {
+  translateX: "px",
+  translateY: "px",
+  translateZ: "px",
+  scale: "",
+  scaleX: "",
+  scaleY: "",
+  scaleZ: "",
+  rotate: "deg",
+  rotateX: "deg",
+  rotateY: "deg",
+  rotateZ: "deg",
+  skew: "deg",
+  skewX: "deg",
+  skewY: "deg",
+}
+
+// Canonical order for composing transform functions. Must match
+// apply.ts::TRANSFORM_ORDER so that the direct-commit path produces
+// byte-identical output to the applyValues path.
+const TRANSFORM_ORDER: readonly string[] = [
+  "translateX",
+  "translateY",
+  "translateZ",
+  "rotate",
+  "rotateX",
+  "rotateY",
+  "rotateZ",
+  "scale",
+  "scaleX",
+  "scaleY",
+  "scaleZ",
+  "skew",
+  "skewX",
+  "skewY",
+]
+const TRANSFORM_RANK: Record<string, number> = (() => {
+  const m: Record<string, number> = {}
+  for (let i = 0; i < TRANSFORM_ORDER.length; i++) m[TRANSFORM_ORDER[i] as string] = i
+  return m
+})()
+
+type Interp = (p: number) => unknown
+
+interface StyleOp {
+  readonly target: string
+  readonly interp: Interp
+}
+interface AttrOp {
+  readonly target: string
+  readonly interp: Interp
+}
+interface TransformOp {
+  readonly fn: string
+  readonly unit: string
+  readonly interp: Interp
+}
+
+interface CommitPlan {
+  readonly styleOps: readonly StyleOp[]
+  readonly attrOps: readonly AttrOp[]
+  readonly transformOps: readonly TransformOp[]
+  // An explicit `transform: [a, b]` pair (string-valued) takes over the
+  // whole transform slot when there are no pseudo ops.
+  readonly explicitTransform: Interp | null
+}
+
+function buildCommitPlan(
+  keys: readonly string[],
+  perPropFns: readonly Interp[],
+): CommitPlan {
+  const styleOps: StyleOp[] = []
+  const attrOps: AttrOp[] = []
+  const transformOps: TransformOp[] = []
+  let explicitTransform: Interp | null = null
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i] as string
+    const interp = perPropFns[i] as Interp
+    if (key === "transform") {
+      explicitTransform = interp
+      continue
+    }
+    const info = classify(key)
+    if (info.apply === "transform") {
+      const fn = pseudoToTransformFn(key)
+      if (fn) {
+        transformOps.push({ fn, unit: PSEUDO_DEFAULT_UNIT[fn] ?? "", interp })
+      }
+    } else if (info.apply === "attr") {
+      attrOps.push({ target: info.target, interp })
+    } else {
+      styleOps.push({ target: info.target, interp })
+    }
+  }
+
+  transformOps.sort((a, b) => (TRANSFORM_RANK[a.fn] ?? 0) - (TRANSFORM_RANK[b.fn] ?? 0))
+
+  return { styleOps, attrOps, transformOps, explicitTransform }
+}
+
+function renderValue(v: unknown): string {
+  return typeof v === "number" ? String(v) : (v as string)
+}
+
+function commitWithPlan(
+  plan: CommitPlan,
+  easing: EasingFn,
+  p: number,
+  el: CommitTarget,
+): void {
+  const eased = easing(clamp01(p))
+  const { styleOps, attrOps, transformOps, explicitTransform } = plan
+
+  for (let i = 0; i < styleOps.length; i++) {
+    const op = styleOps[i] as StyleOp
+    el.style.setProperty(op.target, renderValue(op.interp(eased)))
+  }
+  for (let i = 0; i < attrOps.length; i++) {
+    const op = attrOps[i] as AttrOp
+    el.setAttribute(op.target, renderValue(op.interp(eased)))
+  }
+  if (transformOps.length > 0) {
+    let s = ""
+    for (let i = 0; i < transformOps.length; i++) {
+      const op = transformOps[i] as TransformOp
+      const v = op.interp(eased)
+      if (i > 0) s += " "
+      if (typeof v === "string") {
+        s += `${op.fn}(${v})`
+      } else {
+        s += `${op.fn}(${v}${op.unit})`
+      }
+    }
+    el.style.setProperty("transform", s)
+  } else if (explicitTransform !== null) {
+    el.style.setProperty("transform", renderValue(explicitTransform(eased)))
+  }
+}
+
 /**
  * Construct a multi-property tween. Each entry in `props` is a
  * `[from, to]` tuple; the interpolation registry selects the right
@@ -75,15 +217,18 @@ export function tween<P extends TweenProps>(
     }
   }
 
-  // Build the def literal in one shot with `properties` + pre-computed
-  // `tierSplit` so the strategy router can skip both `discoverProperties`
-  // and `partitionByTier` on first play. `linearizable` is set when
-  // every property is a plain number-to-number interpolation AND the
-  // easing has a CSS timing-function equivalent; the WAAPI backend uses
-  // this to emit a 2-keyframe animation with native CSS timing.
   const properties = keys as readonly string[]
   const tierSplit = partitionByTier(properties)
   const linearizable = allPlainNumbers && getCssEasing(easing) !== undefined
+
+  // Pre-classified commit plan. The rAF backend uses this to write
+  // property values directly to the element, skipping the intermediate
+  // `Record<string, unknown>` allocation and the per-frame `classify()`
+  // loop in `applyValues`.
+  const plan = buildCommitPlan(keys, perPropFns)
+  const commit = (p: number, el: CommitTarget): void => {
+    commitWithPlan(plan, easing, p, el)
+  }
 
   return {
     duration,
@@ -100,5 +245,6 @@ export function tween<P extends TweenProps>(
     properties,
     tierSplit,
     linearizable,
+    commit,
   }
 }

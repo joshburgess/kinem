@@ -1,4 +1,17 @@
 /**
+ * Minimal DOM-like shim used by `commit(p, el)`. Declared here rather
+ * than re-imported from the render layer so the type graph stays
+ * acyclic.
+ */
+export interface CommitStyle {
+  setProperty(name: string, value: string): void
+}
+export interface CommitTarget {
+  readonly style: CommitStyle
+  setAttribute(name: string, value: string): void
+}
+
+/**
  * An Interpolator is a pure function from normalized progress [0, 1] to a value.
  * Progress values outside [0, 1] are valid for extrapolation scenarios but
  * most combinators clamp before invoking.
@@ -64,6 +77,19 @@ export interface AnimationDef<T> {
     readonly compositor: readonly string[]
     readonly main: readonly string[]
   }
+  /**
+   * Optional direct-commit path. When present, the rAF backend calls
+   * `commit(p, el)` per target per frame instead of `interpolate(p)` +
+   * `applyValues(el, values)`. Leaf defs that know their full property
+   * plan at construction time (currently `tween`) implement this to
+   * skip the intermediate `Record<string, unknown>` allocation and the
+   * per-frame `classify` + branch loop in `applyValues`. Callers that
+   * need raw values (stagger, non-DOM surfaces) use `interpolate` as
+   * before.
+   *
+   * @internal
+   */
+  readonly commit?: (p: number, el: CommitTarget) => void
 }
 
 /** Extract the value type from an AnimationDef. */
