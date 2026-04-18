@@ -58,30 +58,44 @@ are defensible for different workloads.
 
 ## Observed results (2026-04, Chrome, M-series Mac)
 
-Absolute wall time in milliseconds at n=1000, median of 7 runs. Driven
-by `bench:compare` (Playwright, foregrounded tab, no rAF throttling).
+Absolute wall time in milliseconds at n=1000, median of 21 samples,
+median across 3 back-to-back runs. Driven by `bench:compare`
+(Playwright, foregrounded tab, no rAF throttling, page reload per
+`(lib, scenario)` pair). 21 samples rather than the obvious 11:
+GSAP's cancel-before-first median is unstable at 11 (any one slow
+sample shifts it from 0.2 to 0.5); 21 converges cleanly.
 
 | scenario            | motif (auto) | motif (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
-| startup-commit      |         10.4 |          2.0 |   13.5 |  11.7 |
-| startup-shared-def  |         12.2 |          2.0 |    9.7 |  11.9 |
-| cancel-before-first |          0.8 |          0.7 |    3.5 |   0.3 |
-| steady-state        |         78.9 |         70.3 |   79.4 |  78.7 |
+| startup-commit      |          8.6 |          2.4 |    9.1 |  10.8 |
+| startup-shared-def  |          8.6 |          2.0 |   11.8 |  11.3 |
+| cancel-before-first |          0.6 |          0.7 |    4.5 |   0.4 |
+| steady-state        |         79.5 |         70.0 |   86.4 |  79.0 |
 
 Headline:
 
-- With `mode: "main"`, motif is fastest on three of four scenarios.
-  Startup is ~5.9x faster than GSAP (2.0 vs 11.7) and ~6.0x on
-  shared-def (2.0 vs 11.9). Steady-state beats GSAP (70.3 vs 78.7)
-  and motion (70.3 vs 79.4).
+- With `mode: "main"`, motif is fastest on startup-commit,
+  startup-shared-def, and steady-state. Startup is ~4.5x faster
+  than GSAP (2.4 vs 10.8), shared-def is ~5.7x faster (2.0 vs 11.3),
+  and steady-state beats GSAP (70.0 vs 79.0) and motion (70.0 vs 86.4).
+- GSAP still wins cancel-before-first at 0.4 ms vs motif-main 0.7.
+  The remaining overhead is Timing + clock allocation inside
+  playRaf; the follow-up PR defers `createClock()` until first
+  tick and closes this gap.
 - Default `mode: "auto"` pays compositor-setup cost on startup in
   exchange for compositor-driven ticking that's resilient to main-
-  thread jank. Cancel-before-first is 0.8 ms; motion is 3.5.
-- GSAP still wins cancel-before-first at 0.3 ms. motif-main is at
-  0.7 ms. The remaining gap is Timing + clock allocation inside
-  playRaf (which still runs eagerly because deferring it regressed
-  the steady-state path). GSAP's whole fast path is "alloc tween,
-  unlink from global list."
+  thread jank. Cancel-before-first is 0.6 ms; motion is 4.5.
+
+### Harness notes
+
+Running all libs × all scenarios in a single page accumulates
+browser-side state (composite cache, layer tree, GC pressure, gsap's
+global ticker list, motion's observers) that inflates later samples
+by 2–10x across all libraries. `bench:compare` reloads the page
+between every `(lib, scenario)` pair and applies a small per-pair
+warmup before taking samples; this matters more than anything else
+for reproducibility. If you see startup-shared-def running multiples
+slower than startup-commit, the harness isn't isolating properly.
 
 Pick `mode: "main"` when you want raw throughput and can tolerate
 animation pauses if the main thread is blocked. Pick the default
