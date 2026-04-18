@@ -267,8 +267,20 @@ function applyWillChange(targets: readonly StrategyTarget[], props: readonly str
  * scheduler tick instead of synchronously. Control-plane calls made
  * before the tick are queued and replayed once the inner handle exists;
  * `cancel()` before the tick short-circuits the factory entirely.
+ *
+ * `onSettle`, if provided, runs when the inner handle finishes or is
+ * cancelled after the factory has fired. For the cancel-before-first
+ * path, `onSettle` does NOT run: the factory never executed, so there's
+ * nothing (e.g. will-change) to undo. Callers can use this to skip the
+ * outer combineHandles wrapper that was previously needed to chain
+ * cleanup onto the handle's `finished` promise. At n=1000 that's an
+ * entire layer of closure + lazy-promise allocation removed per play.
  */
-function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): StrategyHandle {
+function lazyHandle(
+  factory: () => StrategyHandle,
+  scheduler: FrameScheduler,
+  onSettle: (() => void) | null = null,
+): StrategyHandle {
   let inner: StrategyHandle | null = null
   let pendingState: StrategyState = "playing"
   // Lazy-alloc: most plays queue nothing before the factory tick fires.
@@ -280,8 +292,14 @@ function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): S
     if (pendingState === "cancelled") return
     inner = factory()
     inner.finished.then(
-      () => lp.resolve(),
-      (err) => lp.reject(err),
+      () => {
+        onSettle?.()
+        lp.resolve()
+      },
+      (err) => {
+        onSettle?.()
+        lp.reject(err)
+      },
     )
     if (pending !== null) {
       for (const op of pending) op(inner)
@@ -395,15 +413,25 @@ export function playStrategy(
     }
   }
 
+  // For the lazy path, cleanup (will-change undo) is integrated into
+  // `lazyHandle` itself. This lets us skip the combineHandles single-
+  // handle wrapper that used to exist solely to chain cleanup onto the
+  // handle's `finished`. For the eager path, cleanup still flows
+  // through combineHandles (see `cleanupThunk` below).
+  const onWaapiSettle = willChangeProps !== null ? () => cleanupWillChange?.() : null
   const wrapWaapi = (build: () => StrategyHandle): StrategyHandle => {
     if (!lazy) {
       ensureWillChange()
       return build()
     }
-    return lazyHandle(() => {
-      ensureWillChange()
-      return build()
-    }, scheduler)
+    return lazyHandle(
+      () => {
+        ensureWillChange()
+        return build()
+      },
+      scheduler,
+      onWaapiSettle,
+    )
   }
 
   if (backend === "waapi") {
@@ -429,7 +457,10 @@ export function playStrategy(
   }
 
   // combineHandles needs a stable cleanup thunk; route through a closure
-  // so it sees whichever value ensureWillChange() set (if any).
-  const cleanupThunk = willChangeProps !== null ? () => cleanupWillChange?.() : null
+  // so it sees whichever value ensureWillChange() set (if any). In the
+  // lazy path, cleanup is already integrated into the WAAPI `lazyHandle`,
+  // so combineHandles sees a null cleanup and can take the single-handle
+  // fast path (which returns the handle directly with no wrapper).
+  const cleanupThunk = !lazy && willChangeProps !== null ? () => cleanupWillChange?.() : null
   return combineHandles(handles, cleanupThunk)
 }
