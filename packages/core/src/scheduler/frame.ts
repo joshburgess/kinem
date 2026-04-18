@@ -19,8 +19,16 @@
  * phase has pending jobs or a pending "keepalive" registration. When
  * everything drains, it cancels RAF and sleeps.
  *
- * Jobs may reschedule themselves by passing `keepalive: true`. This is
- * how the rAF rendering backend keeps ticking while an animation plays.
+ * Keepalive has two call shapes:
+ *   - fn-based: `schedule(phase, fn, { keepalive: true })` +
+ *     `cancel(phase, fn)`. The scheduler internally allocates a
+ *     wrapper node per registration and keeps a `Map<fn, node>` for
+ *     lookup on cancel. Convenient for ad-hoc callers.
+ *   - node-based: `scheduleNode(phase, node)` + `cancelNode(node)`,
+ *     where `node` implements `KeepaliveNode`. No wrapper alloc, no
+ *     Map lookup. The caller's object IS the linked-list node. Used
+ *     by hot-path classes (the animation-timing loop) where one node
+ *     is allocated per play and we don't want any extras.
  */
 
 export type FrameJob = (state: FrameState) => void
@@ -63,44 +71,71 @@ export interface FrameSchedulerOpts {
 }
 
 /**
- * Doubly-linked-list node for the keepalive registry. Replaces what
- * was a `Set<FrameJob>` in earlier versions. Iteration walks pointers
- * instead of a hash table, which at steady-state n=1000 (every job
- * runs every tick) trims a couple percent off the per-tick cost and
- * avoids allocating a fresh iterator object each phase per frame.
+ * A node in the keepalive list. Consumers can implement this directly
+ * on their hot-path class to avoid the wrapper-node + Map-lookup
+ * allocation that `schedule(phase, fn, { keepalive: true })` pays per
+ * registration. The `_ka*` fields are scheduler-owned. Consumers must
+ * initialize them to the values shown below and never write to them
+ * afterwards.
  *
- * Dedupe (registering the same fn twice is a no-op, matching the old
- * Set contract) is preserved via the `lookup` Map in `PhaseQueue`.
+ * State machine:
+ *   (phase=null, dead=false)   not linked (initial)
+ *   (phase=X,    dead=false)   linked and alive
+ *   (phase=X,    dead=true)    linked but cancelled (awaiting unlink)
+ * The walker unlinks dead nodes when it reaches them, at which point
+ * the node returns to the "not linked" state and can be re-registered.
  */
-interface KeepaliveNode {
-  fn: FrameJob
-  prev: KeepaliveNode | null
-  next: KeepaliveNode | null
-  /**
-   * Nodes deleted during iteration are flagged rather than unlinked,
-   * so the currently-running walk isn't disrupted. The walker skips
-   * dead nodes and unlinks them opportunistically.
-   */
-  dead: boolean
+export interface KeepaliveNode {
+  _kaPrev: KeepaliveNode | null
+  _kaNext: KeepaliveNode | null
+  _kaPhase: Phase | null
+  _kaDead: boolean
+  _kaTick(state: FrameState): void
+}
+
+/**
+ * Internal adapter for the fn-based keepalive API. One instance
+ * allocated per `schedule(phase, fn, { keepalive: true })` call.
+ * External callers that want zero wrapper overhead should implement
+ * `KeepaliveNode` directly and use `scheduleNode`/`cancelNode`.
+ */
+class FnNode implements KeepaliveNode {
+  _kaPrev: KeepaliveNode | null = null
+  _kaNext: KeepaliveNode | null = null
+  _kaPhase: Phase | null = null
+  _kaDead = false
+  constructor(public fn: FrameJob) {}
+  _kaTick(state: FrameState): void {
+    this.fn(state)
+  }
 }
 
 interface PhaseQueue {
   /** Jobs to run on the next tick only. */
   jobs: FrameJob[]
   /** Head/tail of the keepalive linked list (insertion-ordered). */
-  keepaliveHead: KeepaliveNode | null
-  keepaliveTail: KeepaliveNode | null
-  /** Fn -> node lookup for O(1) dedupe and cancel. */
-  keepaliveLookup: Map<FrameJob, KeepaliveNode>
-  /** Count of alive nodes. Kept in sync so empty-phase skip stays O(1). */
-  keepaliveSize: number
+  head: KeepaliveNode | null
+  tail: KeepaliveNode | null
+  /** fn -> FnNode lookup for the fn-based API (O(1) dedupe + cancel). */
+  fnLookup: Map<FrameJob, FnNode>
+  /** Count of alive (non-dead) nodes. Kept in sync so empty-phase skip stays O(1). */
+  size: number
 }
 
 export interface FrameScheduler {
   /** Enqueue `fn` to run in `phase` on the next frame. */
   schedule(phase: Phase, fn: FrameJob, opts?: { keepalive?: boolean }): void
-  /** Remove a keepalive job. No-op if the job is not registered. */
+  /** Remove a keepalive fn. No-op if the fn is not registered. */
   cancel(phase: Phase, fn: FrameJob): void
+  /**
+   * Link a KeepaliveNode into `phase`'s keepalive list. No-op if the
+   * node is already linked in the same phase (dedupe). Reviving a
+   * dead-but-still-linked node un-dies it in place (preserves list
+   * position).
+   */
+  scheduleNode(phase: Phase, node: KeepaliveNode): void
+  /** Unlink a KeepaliveNode. No-op if the node is not registered. */
+  cancelNode(node: KeepaliveNode): void
   /** Force a tick synchronously. Test-only; returns the consumed state. */
   flushSync(time?: number): FrameState
   /** Current tick index (advances after each tick). */
@@ -117,10 +152,10 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
 
   const makeQueue = (): PhaseQueue => ({
     jobs: [],
-    keepaliveHead: null,
-    keepaliveTail: null,
-    keepaliveLookup: new Map(),
-    keepaliveSize: 0,
+    head: null,
+    tail: null,
+    fnLookup: new Map(),
+    size: 0,
   })
 
   const queues: Record<Phase, PhaseQueue> = {
@@ -136,11 +171,24 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
   // O(1) work counter: incremented on schedule/add, decremented on
   // drain/cancel. Replaces the per-tick 4-phase scan hasWork() used to
   // do. `jobsCount` tracks one-shot jobs in flight; `keepCount` tracks
-  // keepalive registrations. `hasWork()` is `(jobsCount + keepCount) > 0`.
+  // alive keepalive registrations. `hasWork()` is
+  // `(jobsCount + keepCount) > 0`.
   let jobsCount = 0
   let keepCount = 0
 
   const hasWork = (): boolean => jobsCount + keepCount > 0
+
+  const linkAtTail = (q: PhaseQueue, node: KeepaliveNode, phase: Phase): void => {
+    node._kaPhase = phase
+    node._kaDead = false
+    node._kaPrev = q.tail
+    node._kaNext = null
+    if (q.tail) q.tail._kaNext = node
+    else q.head = node
+    q.tail = node
+    q.size++
+    keepCount++
+  }
 
   const runTick = (time: number): FrameState => {
     const delta = lastTime < 0 ? 0 : time - lastTime
@@ -150,10 +198,8 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     for (const phase of PHASES) {
       const q = queues[phase]
       const jobsLen = q.jobs.length
-      const keepSize = q.keepaliveSize
-      // Skip the whole phase when there's nothing to run. Avoids an
-      // empty-array swap and an empty walk per empty phase, which in
-      // steady state is 3 of 4 phases for a typical animation.
+      const keepSize = q.size
+      // Skip the whole phase when there's nothing to run.
       if (jobsLen === 0 && keepSize === 0) continue
 
       if (jobsLen > 0) {
@@ -169,23 +215,24 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
       }
 
       if (keepSize > 0) {
-        // Walk the linked list. Nodes cancelled during this walk (e.g.
-        // a finish handler removing itself) get flagged `dead` instead
-        // of unlinked, so the walker's `next` pointer stays valid.
-        // Dead nodes are unlinked here as we pass them — lazy compaction
-        // keeps the register/cancel path branch-light.
-        let node = q.keepaliveHead
+        // Walk the linked list. Nodes cancelled during this walk get
+        // marked `dead`; the walker unlinks dead nodes it encounters,
+        // so the `next` pointer for the current cursor stays valid.
+        let node = q.head
         while (node !== null) {
-          const next = node.next
-          if (node.dead) {
-            // Unlink.
-            if (node.prev) node.prev.next = next
-            else q.keepaliveHead = next
-            if (next) next.prev = node.prev
-            else q.keepaliveTail = node.prev
-            node.prev = node.next = null
+          const next = node._kaNext
+          if (node._kaDead) {
+            // Unlink, then reset so the node can be re-registered.
+            if (node._kaPrev) node._kaPrev._kaNext = next
+            else q.head = next
+            if (next) next._kaPrev = node._kaPrev
+            else q.tail = node._kaPrev
+            node._kaPrev = null
+            node._kaNext = null
+            node._kaPhase = null
+            node._kaDead = false
           } else {
-            node.fn(state)
+            node._kaTick(state)
           }
           node = next
         }
@@ -211,49 +258,77 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     rafId = raf.request(loop)
   }
 
+  const cancelRafIfIdle = (): void => {
+    if (!hasWork() && rafId !== null) {
+      raf.cancel(rafId)
+      rafId = null
+      lastTime = -1
+    }
+  }
+
+  const scheduleNode = (phase: Phase, node: KeepaliveNode): void => {
+    if (node._kaPhase !== null) {
+      // Already linked. Enforce same-phase (migrating across phases
+      // is out of scope). If dead-but-linked, revive in place.
+      if (node._kaPhase !== phase) return
+      if (node._kaDead) {
+        node._kaDead = false
+        queues[phase].size++
+        keepCount++
+      }
+      wake()
+      return
+    }
+    linkAtTail(queues[phase], node, phase)
+    wake()
+  }
+
+  const cancelNode = (node: KeepaliveNode): void => {
+    if (node._kaPhase === null || node._kaDead) return
+    node._kaDead = true
+    queues[node._kaPhase].size--
+    keepCount--
+    cancelRafIfIdle()
+  }
+
   return {
     schedule(phase, fn, o) {
       const q = queues[phase]
       if (o?.keepalive) {
-        // Dedupe: registering the same fn twice is a no-op, matching
-        // the old Set-based contract.
-        if (q.keepaliveLookup.has(fn)) {
+        const existing = q.fnLookup.get(fn)
+        if (existing !== undefined) {
+          // Same fn: dedupe. Revive if dead, else no-op.
+          if (existing._kaDead) {
+            existing._kaDead = false
+            q.size++
+            keepCount++
+          }
           wake()
           return
         }
-        const node: KeepaliveNode = {
-          fn,
-          prev: q.keepaliveTail,
-          next: null,
-          dead: false,
-        }
-        if (q.keepaliveTail) q.keepaliveTail.next = node
-        else q.keepaliveHead = node
-        q.keepaliveTail = node
-        q.keepaliveLookup.set(fn, node)
-        q.keepaliveSize++
-        keepCount++
+        const node = new FnNode(fn)
+        q.fnLookup.set(fn, node)
+        linkAtTail(q, node, phase)
+        wake()
       } else {
         q.jobs.push(fn)
         jobsCount++
+        wake()
       }
-      wake()
     },
     cancel(phase, fn) {
       const q = queues[phase]
-      const node = q.keepaliveLookup.get(fn)
-      if (node !== undefined && !node.dead) {
-        node.dead = true
-        q.keepaliveLookup.delete(fn)
-        q.keepaliveSize--
+      const node = q.fnLookup.get(fn)
+      if (node !== undefined && !node._kaDead) {
+        node._kaDead = true
+        q.fnLookup.delete(fn)
+        q.size--
         keepCount--
-      }
-      if (!hasWork() && rafId !== null) {
-        raf.cancel(rafId)
-        rafId = null
-        lastTime = -1
+        cancelRafIfIdle()
       }
     },
+    scheduleNode,
+    cancelNode,
     flushSync(time = nowFn()) {
       if (rafId !== null) {
         raf.cancel(rafId)
