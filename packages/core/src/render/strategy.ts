@@ -348,13 +348,33 @@ function lazyHandle(factory: () => StrategyHandle, scheduler: FrameScheduler): S
  * Users should prefer the public `play()` in `api/play`, which also
  * handles target resolution and returns a richer `Controls` object.
  */
+// Cache tier partitions per AnimationDef. Shared-def patterns (one
+// def played against N targets) previously re-ran discoverProperties
+// + partitionByTier on every call; both are pure functions of the def
+// so the result is reusable. Parallels the planWaapi cache.
+interface TierSplit {
+  readonly props: readonly string[]
+  readonly compositor: readonly string[]
+  readonly main: readonly string[]
+}
+const tierCache = new WeakMap<AnimationDef<AnimationProps>, TierSplit>()
+
+function splitDef(def: AnimationDef<AnimationProps>): TierSplit {
+  const cached = tierCache.get(def)
+  if (cached !== undefined) return cached
+  const props = discoverProperties(def)
+  const { compositor, main } = partitionByTier(props)
+  const split: TierSplit = { props, compositor, main }
+  tierCache.set(def, split)
+  return split
+}
+
 export function playStrategy(
   def: AnimationDef<AnimationProps>,
   targets: readonly StrategyTarget[],
   opts: StrategyOpts = {},
 ): StrategyHandle {
-  const props = discoverProperties(def)
-  const { compositor, main } = partitionByTier(props)
+  const { props, compositor, main } = splitDef(def)
 
   const backend: StrategyBackend = opts.backend ?? "auto"
   const waapiCap = opts.waapiSupported ?? detectWaapi()

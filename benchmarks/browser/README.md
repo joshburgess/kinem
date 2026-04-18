@@ -45,18 +45,18 @@ Absolute wall time in milliseconds, median of 5 runs:
 
 | scenario                 | n    | motif | motion |  gsap |
 |--------------------------|------|-------|--------|-------|
-| startup-commit           |  100 |   8.8 |   10.9 |   9.1 |
-| startup-commit           |  500 |  15.5 |   23.3 |  11.8 |
-| startup-commit           | 1000 |  22.5 |   46.0 |  14.2 |
-| startup-shared-def       |  100 |   9.7 |   10.9 |   8.9 |
-| startup-shared-def       |  500 |  14.3 |   21.5 |  10.9 |
-| startup-shared-def       | 1000 |  22.4 |   40.3 |  13.0 |
-| cancel-before-first      |  100 |   0.8 |    1.4 |   0.1 |
-| cancel-before-first      |  500 |   3.9 |    6.2 |   0.2 |
-| cancel-before-first      | 1000 |   7.7 |   13.4 |   0.3 |
-| steady-state (10 frames) |  100 |  84.1 |   83.6 |  83.3 |
-| steady-state (10 frames) |  500 |  86.7 |   92.4 |  83.2 |
-| steady-state (10 frames) | 1000 | 105.6 |  111.5 |  83.3 |
+| startup-commit           |  100 |   9.7 |   10.4 |   8.5 |
+| startup-commit           |  500 |  14.5 |   19.8 |  11.0 |
+| startup-commit           | 1000 |  21.4 |   40.8 |  14.2 |
+| startup-shared-def       |  100 |   9.4 |    9.9 |   8.9 |
+| startup-shared-def       |  500 |  13.5 |   18.8 |  10.8 |
+| startup-shared-def       | 1000 |  19.5 |   40.2 |  13.4 |
+| cancel-before-first      |  100 |   0.7 |    1.4 |   0.1 |
+| cancel-before-first      |  500 |   3.4 |    5.8 |   0.2 |
+| cancel-before-first      | 1000 |   6.6 |   13.8 |   0.3 |
+| steady-state (10 frames) |  100 |  83.9 |   83.3 |  82.8 |
+| steady-state (10 frames) |  500 |  85.8 |   84.1 |  83.0 |
+| steady-state (10 frames) | 1000 |  97.2 |  109.4 |  82.9 |
 
 Takeaways:
 
