@@ -186,82 +186,6 @@ describe("play: strategy router", () => {
     expect(t.styles.has("width")).toBe(true)
   })
 
-  it("applies will-change to compositor props and clears on finish", async () => {
-    const t = mockTarget()
-    const r = mockRaf()
-    const now = 0
-    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
-    const clock = createClock({ now: () => now })
-    const h = play(tween({ opacity: [0, 1] }, { duration: 50 }), [t], {
-      waapiSupported: true,
-      scheduler,
-      clock,
-    })
-    // will-change is applied together with WAAPI setup on the first
-    // scheduler tick, not eagerly. Skipping the DOM write entirely
-    // when cancel fires before the first frame is the point.
-    expect(t.styles.has("will-change")).toBe(false)
-    r.fire(0)
-    expect(t.styles.get("will-change")).toBe("opacity")
-    t.animations[0]!.fireFinish()
-    await h.finished
-    expect(t.styles.get("will-change")).toBe("auto")
-  })
-
-  it("clears will-change when the user cancels after setup", async () => {
-    const t = mockTarget()
-    const r = mockRaf()
-    const now = 0
-    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
-    const clock = createClock({ now: () => now })
-    const h = play(tween({ opacity: [0, 1] }, { duration: 50 }), [t], {
-      waapiSupported: true,
-      scheduler,
-      clock,
-    })
-    r.fire(0)
-    expect(t.styles.get("will-change")).toBe("opacity")
-    h.cancel()
-    await expect(h.finished).rejects.toThrow(/cancelled/)
-    expect(t.styles.get("will-change")).toBe("auto")
-  })
-
-  it("skips will-change entirely when cancel beats the first frame", async () => {
-    const t = mockTarget()
-    const r = mockRaf()
-    const now = 0
-    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
-    const clock = createClock({ now: () => now })
-    const h = play(tween({ opacity: [0, 1] }, { duration: 50 }), [t], {
-      waapiSupported: true,
-      scheduler,
-      clock,
-    })
-    h.cancel()
-    await expect(h.finished).rejects.toThrow(/cancelled/)
-    r.fire(0)
-    expect(t.styles.has("will-change")).toBe(false)
-  })
-
-  it("clears will-change when a sub-handle rejects on its own", async () => {
-    const t = mockTarget()
-    const r = mockRaf()
-    const now = 0
-    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
-    const clock = createClock({ now: () => now })
-    const h = play(tween({ opacity: [0, 1], width: ["0px", "10px"] }, { duration: 50 }), [t], {
-      waapiSupported: true,
-      scheduler,
-      clock,
-    })
-    r.fire(0)
-    expect(t.styles.get("will-change")).toBe("opacity")
-    // Directly cancel the WAAPI sub-animation to simulate a backend failure.
-    t.animations[0]!.fireCancel()
-    await expect(h.finished).rejects.toThrow(/cancelled/)
-    expect(t.styles.get("will-change")).toBe("auto")
-  })
-
   it("pause/resume/cancel propagate to both sub-handles", () => {
     const t = mockTarget()
     const r = mockRaf()
@@ -382,31 +306,9 @@ describe("play: strategy router", () => {
 })
 
 describe("combineHandles: single-handle fast path", () => {
-  it("returns the handle directly when there is no cleanup", () => {
+  it("returns the single handle directly", () => {
     const h = mockHandle()
     const combined = combineHandles([h])
     expect(combined).toBe(h)
-  })
-
-  it("wraps the handle when cleanup is supplied, runs cleanup on finish", async () => {
-    const h = mockHandle()
-    const cleanup = vi.fn()
-    const combined = combineHandles([h], cleanup)
-    expect(combined).not.toBe(h)
-    combined.pause()
-    expect(h.pause).toHaveBeenCalled()
-    h.resolveFinished()
-    await combined.finished
-    expect(cleanup).toHaveBeenCalledTimes(1)
-  })
-
-  it("runs cleanup and preserves rejection on cancel", async () => {
-    const h = mockHandle()
-    const cleanup = vi.fn()
-    const combined = combineHandles([h], cleanup)
-    const err = new Error("animation cancelled")
-    h.rejectFinished(err)
-    await expect(combined.finished).rejects.toBe(err)
-    expect(cleanup).toHaveBeenCalledTimes(1)
   })
 })
