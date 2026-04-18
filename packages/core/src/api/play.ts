@@ -39,10 +39,8 @@ export type Target = string | StrategyTarget | readonly StrategyTarget[] | Array
  *    the current value to `element.style`. Setup is essentially free
  *    (no keyframe sampling, no compositor negotiation), which makes
  *    this the right pick for hover microinteractions, rapid toggles,
- *    or anywhere startup latency dominates. Paint and composite are
- *    still GPU-accelerated because `will-change` promotes the element
- *    to its own layer. If the main thread blocks, timing pauses along
- *    with it.
+ *    or anywhere startup latency dominates. If the main thread blocks,
+ *    timing pauses along with it.
  *
  *  - `"auto"` (default): compositor-safe properties route to
  *    `"compositor"`, the rest to `"main"`. This is the right pick
