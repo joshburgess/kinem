@@ -31,7 +31,7 @@ import {
   playStrategy,
 } from "../render/strategy"
 import { type Controls, createControls } from "./controls"
-import { type PlayOpts, type Target, resolveTargets } from "./play"
+import { type PlayOpts, type Target, resolveStrategyOpts, resolveTargets } from "./play"
 
 export type TimelinePosition = number | "<" | ">" | string
 
@@ -168,11 +168,12 @@ export function timeline(): Timeline {
         })
       }
 
+      const strategyOpts = resolveStrategyOpts(opts)
       const handles: StrategyHandle[] = []
       for (const e of entries) {
         const targets = resolveTargets(e.target, opts)
         if (targets.length === 0) continue
-        handles.push(playStrategy(slotted(e.def, e.startMs, totalMs), targets, opts))
+        handles.push(playStrategy(slotted(e.def, e.startMs, totalMs), targets, strategyOpts))
       }
 
       return createControls(combineHandles(handles), {
