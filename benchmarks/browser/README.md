@@ -45,30 +45,40 @@ Absolute wall time in milliseconds, median of 5 runs:
 
 | scenario                 | n    | motif | motion |  gsap |
 |--------------------------|------|-------|--------|-------|
-| startup-commit           |  100 |   3.2 |    6.8 |   0.3 |
-| startup-commit           |  500 |  13.5 |   21.5 |  11.6 |
-| startup-commit           | 1000 |  25.0 |   39.8 |   9.6 |
-| startup-shared-def       |  100 |   8.6 |    8.4 |   5.9 |
-| startup-shared-def       |  500 |  12.6 |   19.6 |   7.1 |
-| startup-shared-def       | 1000 |  21.6 |   37.6 |   8.6 |
-| cancel-before-first      |  100 |   1.5 |    1.3 |   0.2 |
-| cancel-before-first      |  500 |   5.1 |    6.7 |   0.4 |
-| cancel-before-first      | 1000 |  11.7 |   12.0 |   0.5 |
-| steady-state (10 frames) |  100 |  76.6 |   81.3 |  81.6 |
-| steady-state (10 frames) |  500 |  83.0 |   86.1 |  76.4 |
-| steady-state (10 frames) | 1000 |  99.5 |  114.2 |  79.2 |
+| startup-commit           |  100 |   8.8 |   10.9 |   9.1 |
+| startup-commit           |  500 |  15.5 |   23.3 |  11.8 |
+| startup-commit           | 1000 |  22.5 |   46.0 |  14.2 |
+| startup-shared-def       |  100 |   9.7 |   10.9 |   8.9 |
+| startup-shared-def       |  500 |  14.3 |   21.5 |  10.9 |
+| startup-shared-def       | 1000 |  22.4 |   40.3 |  13.0 |
+| cancel-before-first      |  100 |   0.8 |    1.4 |   0.1 |
+| cancel-before-first      |  500 |   3.9 |    6.2 |   0.2 |
+| cancel-before-first      | 1000 |   7.7 |   13.4 |   0.3 |
+| steady-state (10 frames) |  100 |  84.1 |   83.6 |  83.3 |
+| steady-state (10 frames) |  500 |  86.7 |   92.4 |  83.2 |
+| steady-state (10 frames) | 1000 | 105.6 |  111.5 |  83.3 |
 
 Takeaways:
 
-- motif is consistently ahead of motion on startup, and at parity or
-  better on steady-state. The 1.4x-1.9x startup gap is the clearest
-  win from the recent perf work (lazy WAAPI, planWaapi memo cache,
-  scheduler tightening, allocation cleanup).
-- GSAP wins startup and cancel by a lot. That's the flip side of its
-  JS-ticker model: no `Element.animate()` calls at all, so there's
-  nothing to set up or tear down. For "churn through many short-lived
-  tweens" patterns, it's hard to beat.
-- GSAP is ~20% ahead of motif at steady-state n=1000. Its global
-  ticker is tight; we're still paying per-handle scheduler overhead.
-  Room to close the gap at very high n.
+- motif beats motion across the board, with startup-commit at n=1000
+  roughly 2x faster (22.5 vs 46.0 ms). Shared-def and cancel scenarios
+  show the same 2x gap as n grows.
+- motif is competitive with gsap at small n (startup-commit n=100:
+  motif 8.8 vs gsap 9.1). At n=1000 gsap still leads by ~1.6x on
+  startup because it skips WAAPI entirely, and by 25x on cancel-
+  before-first because its kill is a linked-list unlink. The
+  compositor hand-off we pay on startup is what buys free ticking
+  later on; gsap trades that for cheap setup + per-tick JS cost.
+- At steady-state n=1000, gsap is ~20% faster. That gap is the per-
+  handle scheduler overhead (Set iteration in `keepalive`, per-tick
+  scheduler re-arm). Lever B on the roadmap is swapping the
+  `keepalive: Set` for a packed linked list to close this.
 - At steady-state n=100, all three are within noise (paint-bound).
+
+Recent work:
+
+- Lazy-allocated `finished` promises. Handles no longer allocate the
+  promise up front; it materializes on first access. For fire-and-
+  forget cancel patterns (create N, cancel N without awaiting), motif
+  now allocates zero promises at all. Pre-change cancel-before-first
+  at n=1000 was ~11.7 ms; now 7.7 ms.
