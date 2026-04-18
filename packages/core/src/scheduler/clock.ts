@@ -6,6 +6,11 @@
  * The clock is a *value*, not a global: callers can construct their own
  * (e.g. a mock clock in tests) and pass it wherever a `Clock` is expected.
  * A shared process-wide default is exposed as `defaultClock`.
+ *
+ * Implemented as a class so the public methods live on the prototype
+ * once rather than being reallocated as closures per clock. Every
+ * `createTiming` constructs a fresh clock when the caller doesn't supply
+ * one, so at n=1000 plays that's 6000 fewer closure allocs per cycle.
  */
 
 export type NowFn = () => number
@@ -40,58 +45,72 @@ const realNow: NowFn = (() => {
   return () => Date.now()
 })()
 
-export function createClock(opts: ClockOpts = {}): Clock {
-  const nowFn = opts.now ?? realNow
-  let speed = opts.speed ?? 1
-  if (!(speed > 0)) {
-    throw new Error(`createClock(): speed must be > 0 (got ${speed}); use pause() to halt`)
-  }
-
+class ClockImpl implements Clock {
+  readonly #nowFn: NowFn
+  #speed: number
   // Virtual time accrues from an anchor expressed in real time.
   // Invariant while running: virtual = (real - anchorReal) * speed + anchorVirtual.
-  let anchorReal = nowFn()
-  let anchorVirtual = 0
-  let paused = false
+  #anchorReal: number
+  #anchorVirtual = 0
+  #paused = false
 
-  const flush = (): void => {
-    const real = nowFn()
-    anchorVirtual += (real - anchorReal) * speed
-    anchorReal = real
+  constructor(opts: ClockOpts) {
+    const speed = opts.speed ?? 1
+    if (!(speed > 0)) {
+      throw new Error(`createClock(): speed must be > 0 (got ${speed}); use pause() to halt`)
+    }
+    this.#nowFn = opts.now ?? realNow
+    this.#speed = speed
+    this.#anchorReal = this.#nowFn()
   }
 
-  return {
-    now() {
-      if (paused) return anchorVirtual
-      return anchorVirtual + (nowFn() - anchorReal) * speed
-    },
-    pause() {
-      if (paused) return
-      flush()
-      paused = true
-    },
-    resume() {
-      if (!paused) return
-      anchorReal = nowFn()
-      paused = false
-    },
-    get paused() {
-      return paused
-    },
-    setSpeed(multiplier: number) {
-      if (!(multiplier > 0)) {
-        throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
-      }
-      if (!paused) flush()
-      speed = multiplier
-    },
-    get speed() {
-      return speed
-    },
-    reset() {
-      anchorReal = nowFn()
-      anchorVirtual = 0
-    },
+  #flush(): void {
+    const real = this.#nowFn()
+    this.#anchorVirtual += (real - this.#anchorReal) * this.#speed
+    this.#anchorReal = real
   }
+
+  now(): number {
+    if (this.#paused) return this.#anchorVirtual
+    return this.#anchorVirtual + (this.#nowFn() - this.#anchorReal) * this.#speed
+  }
+
+  pause(): void {
+    if (this.#paused) return
+    this.#flush()
+    this.#paused = true
+  }
+
+  resume(): void {
+    if (!this.#paused) return
+    this.#anchorReal = this.#nowFn()
+    this.#paused = false
+  }
+
+  get paused(): boolean {
+    return this.#paused
+  }
+
+  setSpeed(multiplier: number): void {
+    if (!(multiplier > 0)) {
+      throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
+    }
+    if (!this.#paused) this.#flush()
+    this.#speed = multiplier
+  }
+
+  get speed(): number {
+    return this.#speed
+  }
+
+  reset(): void {
+    this.#anchorReal = this.#nowFn()
+    this.#anchorVirtual = 0
+  }
+}
+
+export function createClock(opts: ClockOpts = {}): Clock {
+  return new ClockImpl(opts)
 }
 
 /** Shared default clock for production use. Tests should create their own. */
