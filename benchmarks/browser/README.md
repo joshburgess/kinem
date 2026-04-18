@@ -45,40 +45,54 @@ Absolute wall time in milliseconds, median of 5 runs:
 
 | scenario                 | n    | motif | motion |  gsap |
 |--------------------------|------|-------|--------|-------|
-| startup-commit           |  100 |   9.7 |   10.4 |   8.5 |
-| startup-commit           |  500 |  14.5 |   19.8 |  11.0 |
-| startup-commit           | 1000 |  21.4 |   40.8 |  14.2 |
-| startup-shared-def       |  100 |   9.4 |    9.9 |   8.9 |
-| startup-shared-def       |  500 |  13.5 |   18.8 |  10.8 |
-| startup-shared-def       | 1000 |  19.5 |   40.2 |  13.4 |
-| cancel-before-first      |  100 |   0.7 |    1.4 |   0.1 |
-| cancel-before-first      |  500 |   3.4 |    5.8 |   0.2 |
-| cancel-before-first      | 1000 |   6.6 |   13.8 |   0.3 |
-| steady-state (10 frames) |  100 |  83.9 |   83.3 |  82.8 |
-| steady-state (10 frames) |  500 |  85.8 |   84.1 |  83.0 |
-| steady-state (10 frames) | 1000 |  97.2 |  109.4 |  82.9 |
+| startup-commit           |  100 |   9.3 |   10.9 |   9.2 |
+| startup-commit           |  500 |  14.5 |   20.0 |  10.7 |
+| startup-commit           | 1000 |  21.4 |   38.9 |  12.5 |
+| startup-shared-def       |  100 |   8.8 |   10.3 |   8.9 |
+| startup-shared-def       |  500 |  14.2 |   19.4 |  10.5 |
+| startup-shared-def       | 1000 |  19.9 |   38.1 |  12.3 |
+| cancel-before-first      |  100 |   0.2 |    1.3 |   0.1 |
+| cancel-before-first      |  500 |   1.3 |    5.8 |   0.1 |
+| cancel-before-first      | 1000 |   2.5 |   13.5 |   0.2 |
+| steady-state (10 frames) |  100 |  84.0 |   83.5 |  83.3 |
+| steady-state (10 frames) |  500 |  86.0 |   85.3 |  83.2 |
+| steady-state (10 frames) | 1000 |  97.7 |  110.8 |  83.1 |
 
 Takeaways:
 
-- motif beats motion across the board, with startup-commit at n=1000
-  roughly 2x faster (22.5 vs 46.0 ms). Shared-def and cancel scenarios
-  show the same 2x gap as n grows.
-- motif is competitive with gsap at small n (startup-commit n=100:
-  motif 8.8 vs gsap 9.1). At n=1000 gsap still leads by ~1.6x on
-  startup because it skips WAAPI entirely, and by 25x on cancel-
+- motif beats motion across the board. At n=1000: startup-commit is
+  ~1.8x faster (21.4 vs 38.9 ms), shared-def ~1.9x (19.9 vs 38.1),
+  cancel-before-first ~5.4x (2.5 vs 13.5).
+- motif is competitive with gsap on small workloads (startup-commit
+  n=100: motif 9.3 vs gsap 9.2). At n=1000 gsap still leads by ~1.7x
+  on startup because it skips WAAPI entirely, and by ~12x on cancel-
   before-first because its kill is a linked-list unlink. The
   compositor hand-off we pay on startup is what buys free ticking
   later on; gsap trades that for cheap setup + per-tick JS cost.
-- At steady-state n=1000, gsap is ~20% faster. That gap is the per-
-  handle scheduler overhead (Set iteration in `keepalive`, per-tick
-  scheduler re-arm). Lever B on the roadmap is swapping the
-  `keepalive: Set` for a packed linked list to close this.
-- At steady-state n=100, all three are within noise (paint-bound).
+- At steady-state n=1000, gsap is ~15% faster. The remaining gap is
+  the per-handle scheduler overhead for non-compositor bookkeeping
+  (the `keepalive` linked list walk) plus the scheduler re-arm cost.
+  At n=100, all three are within noise (paint-bound).
 
 Recent work:
 
-- Lazy-allocated `finished` promises. Handles no longer allocate the
-  promise up front; it materializes on first access. For fire-and-
-  forget cancel patterns (create N, cancel N without awaiting), motif
-  now allocates zero promises at all. Pre-change cancel-before-first
-  at n=1000 was ~11.7 ms; now 7.7 ms.
+- Integrated will-change cleanup into the lazy WAAPI handle. The
+  previous single-handle `combineHandles` wrapper existed only to
+  chain cleanup onto `finished`; moving that into `lazyHandle`
+  removes a whole layer of closure + lazy-promise allocation per
+  play. Pre-change cancel-before-first at n=1000 was 6.6 ms; now
+  2.5 ms (-62%).
+- Cached tier partition per `AnimationDef`. Shared-def plays no
+  longer re-run `discoverProperties` + `partitionByTier` each
+  time; the result is memoized via WeakMap alongside the existing
+  `planWaapi` cache.
+- Converted `Controls` to a class with prototype methods, so the
+  ~15 methods per play are shared instead of reallocated as fresh
+  closures.
+- Swapped the frame scheduler's `keepalive: Set` for a doubly-
+  linked list. Iteration walks pointers; registration and cancel
+  are O(1) via a Map sidecar.
+- Lazy-allocated `finished` promises. Handles no longer allocate
+  the promise up front; it materializes on first access. For fire-
+  and-forget cancel patterns, motif now allocates zero promises
+  at all.
