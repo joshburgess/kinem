@@ -62,11 +62,38 @@ export interface FrameSchedulerOpts {
   readonly now?: () => number
 }
 
+/**
+ * Doubly-linked-list node for the keepalive registry. Replaces what
+ * was a `Set<FrameJob>` in earlier versions. Iteration walks pointers
+ * instead of a hash table, which at steady-state n=1000 (every job
+ * runs every tick) trims a couple percent off the per-tick cost and
+ * avoids allocating a fresh iterator object each phase per frame.
+ *
+ * Dedupe (registering the same fn twice is a no-op, matching the old
+ * Set contract) is preserved via the `lookup` Map in `PhaseQueue`.
+ */
+interface KeepaliveNode {
+  fn: FrameJob
+  prev: KeepaliveNode | null
+  next: KeepaliveNode | null
+  /**
+   * Nodes deleted during iteration are flagged rather than unlinked,
+   * so the currently-running walk isn't disrupted. The walker skips
+   * dead nodes and unlinks them opportunistically.
+   */
+  dead: boolean
+}
+
 interface PhaseQueue {
   /** Jobs to run on the next tick only. */
   jobs: FrameJob[]
-  /** Jobs to run every tick until explicitly cancelled. */
-  keepalive: Set<FrameJob>
+  /** Head/tail of the keepalive linked list (insertion-ordered). */
+  keepaliveHead: KeepaliveNode | null
+  keepaliveTail: KeepaliveNode | null
+  /** Fn -> node lookup for O(1) dedupe and cancel. */
+  keepaliveLookup: Map<FrameJob, KeepaliveNode>
+  /** Count of alive nodes. Kept in sync so empty-phase skip stays O(1). */
+  keepaliveSize: number
 }
 
 export interface FrameScheduler {
@@ -88,11 +115,19 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     opts.now ??
     ((): number => (typeof performance !== "undefined" ? performance.now() : Date.now()))
 
+  const makeQueue = (): PhaseQueue => ({
+    jobs: [],
+    keepaliveHead: null,
+    keepaliveTail: null,
+    keepaliveLookup: new Map(),
+    keepaliveSize: 0,
+  })
+
   const queues: Record<Phase, PhaseQueue> = {
-    read: { jobs: [], keepalive: new Set() },
-    compute: { jobs: [], keepalive: new Set() },
-    update: { jobs: [], keepalive: new Set() },
-    render: { jobs: [], keepalive: new Set() },
+    read: makeQueue(),
+    compute: makeQueue(),
+    update: makeQueue(),
+    render: makeQueue(),
   }
 
   let rafId: number | null = null
@@ -115,10 +150,10 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     for (const phase of PHASES) {
       const q = queues[phase]
       const jobsLen = q.jobs.length
-      const keepSize = q.keepalive.size
+      const keepSize = q.keepaliveSize
       // Skip the whole phase when there's nothing to run. Avoids an
-      // empty-array swap and an empty Set iteration per empty phase,
-      // which in steady state is 3 of 4 phases for a typical animation.
+      // empty-array swap and an empty walk per empty phase, which in
+      // steady state is 3 of 4 phases for a typical animation.
       if (jobsLen === 0 && keepSize === 0) continue
 
       if (jobsLen > 0) {
@@ -134,16 +169,26 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
       }
 
       if (keepSize > 0) {
-        // Iterate the Set in place. V8/JSC/SpiderMonkey all honor the
-        // Set iterator contract that `.delete()` during iteration is
-        // safe: the removed entry won't be visited again, and entries
-        // added during iteration may or may not be visited. That's
-        // fine for animation teardown (the finish handler removes
-        // itself) because the semantics we care about is "this entry
-        // ran this frame; any new entry will run next frame." Skipping
-        // the Array.from() copy saves an allocation per non-empty
-        // phase per tick.
-        for (const job of q.keepalive) job(state)
+        // Walk the linked list. Nodes cancelled during this walk (e.g.
+        // a finish handler removing itself) get flagged `dead` instead
+        // of unlinked, so the walker's `next` pointer stays valid.
+        // Dead nodes are unlinked here as we pass them — lazy compaction
+        // keeps the register/cancel path branch-light.
+        let node = q.keepaliveHead
+        while (node !== null) {
+          const next = node.next
+          if (node.dead) {
+            // Unlink.
+            if (node.prev) node.prev.next = next
+            else q.keepaliveHead = next
+            if (next) next.prev = node.prev
+            else q.keepaliveTail = node.prev
+            node.prev = node.next = null
+          } else {
+            node.fn(state)
+          }
+          node = next
+        }
       }
     }
 
@@ -170,9 +215,24 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     schedule(phase, fn, o) {
       const q = queues[phase]
       if (o?.keepalive) {
-        const before = q.keepalive.size
-        q.keepalive.add(fn)
-        if (q.keepalive.size !== before) keepCount++
+        // Dedupe: registering the same fn twice is a no-op, matching
+        // the old Set-based contract.
+        if (q.keepaliveLookup.has(fn)) {
+          wake()
+          return
+        }
+        const node: KeepaliveNode = {
+          fn,
+          prev: q.keepaliveTail,
+          next: null,
+          dead: false,
+        }
+        if (q.keepaliveTail) q.keepaliveTail.next = node
+        else q.keepaliveHead = node
+        q.keepaliveTail = node
+        q.keepaliveLookup.set(fn, node)
+        q.keepaliveSize++
+        keepCount++
       } else {
         q.jobs.push(fn)
         jobsCount++
@@ -181,7 +241,13 @@ export function createFrameScheduler(opts: FrameSchedulerOpts = {}): FrameSchedu
     },
     cancel(phase, fn) {
       const q = queues[phase]
-      if (q.keepalive.delete(fn)) keepCount--
+      const node = q.keepaliveLookup.get(fn)
+      if (node !== undefined && !node.dead) {
+        node.dead = true
+        q.keepaliveLookup.delete(fn)
+        q.keepaliveSize--
+        keepCount--
+      }
       if (!hasWork() && rafId !== null) {
         raf.cancel(rafId)
         rafId = null
