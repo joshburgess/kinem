@@ -127,20 +127,32 @@ export function pseudoToTransformFn(property: string): string | null {
   return PSEUDO_TO_TRANSFORM[property] ?? null
 }
 
+// Shared empty reference reused whenever a partition has no props in
+// one of the two tiers. At n=1000 unique-def plays that would otherwise
+// be 1000 fresh `[]` allocations per side; the common tween workload
+// (opacity/transform/x/y/scale only) falls into the all-compositor case.
+const EMPTY: readonly string[] = Object.freeze([])
+
 /**
  * Partition a list of property names by tier. Pseudo props are folded
- * into the compositor set (they resolve to transform).
+ * into the compositor set (they resolve to transform). Only allocates
+ * an array for a tier if at least one property belongs to it; the other
+ * side is the shared `EMPTY` reference.
  */
 export function partitionByTier(props: readonly string[]): {
   readonly compositor: readonly string[]
   readonly main: readonly string[]
 } {
-  const compositor: string[] = []
-  const main: string[] = []
+  let compositor: string[] | null = null
+  let main: string[] | null = null
   for (const p of props) {
-    const { tier } = classify(p)
-    if (tier === "main") main.push(p)
-    else compositor.push(p)
+    if (classify(p).tier === "main") {
+      if (main === null) main = []
+      main.push(p)
+    } else {
+      if (compositor === null) compositor = []
+      compositor.push(p)
+    }
   }
-  return { compositor, main }
+  return { compositor: compositor ?? EMPTY, main: main ?? EMPTY }
 }

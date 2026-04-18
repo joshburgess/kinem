@@ -337,6 +337,28 @@ describe("play: strategy router", () => {
     expect(t.styles.has("opacity")).toBe(true)
   })
 
+  it("backend: 'raf' cancel-before-first writes no styles", () => {
+    // rAF setup is eager (see the 'why no wrapRaf' note in strategy.ts),
+    // so createTiming does run. But cancel() disarms the compute/update
+    // ticks before the first scheduler frame fires, so no style commit
+    // happens.
+    const t = mockTarget()
+    const r = mockRaf()
+    const now = 0
+    const scheduler = createFrameScheduler({ raf: r.raf, now: () => now })
+    const clock = createClock({ now: () => now })
+    const h = play(tween({ opacity: [0, 1] }, { duration: 100 }), [t], {
+      waapiSupported: true,
+      backend: "raf",
+      scheduler,
+      clock,
+    })
+    h.cancel()
+    r.fire(0)
+    expect(t.styles.has("opacity")).toBe(false)
+    expect(h.state).toBe("cancelled")
+  })
+
   it("seek propagates to both backends", () => {
     const t = mockTarget()
     const r = mockRaf()

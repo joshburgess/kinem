@@ -288,6 +288,15 @@ function lazyHandle(
 
   const lp = createLazyPromise()
 
+  // One-shot schedule: cheaper than keepalive (plain array push vs
+  // linked-list + Map insert). `cancel()` before the tick fires can't
+  // extract the entry from the queue; instead it sets `pendingState`
+  // and the factory short-circuits on drain. Tried routing this through
+  // a keepalive registration (so `cancel()` could call
+  // `scheduler.cancel()` for immediate removal) and measured a ~3x
+  // regression on cancel-before-first at n=1000 in exchange for
+  // preventing queue bloat in backgrounded tabs (a non-goal for
+  // foreground perf). Stay on the one-shot path.
   scheduler.schedule("update", () => {
     if (pendingState === "cancelled") return
     inner = factory()
@@ -366,10 +375,12 @@ function lazyHandle(
  * Users should prefer the public `play()` in `api/play`, which also
  * handles target resolution and returns a richer `Controls` object.
  */
-// Cache tier partitions per AnimationDef. Shared-def patterns (one
-// def played against N targets) previously re-ran discoverProperties
-// + partitionByTier on every call; both are pure functions of the def
-// so the result is reusable. Parallels the planWaapi cache.
+// Tier partition for a def. Leaf constructors (`tween`, `keyframes`)
+// populate `def.tierSplit` at construction time so first-play unique-
+// def workloads skip this work. For non-leaf defs (combinators,
+// user-built animations), fall back to a WeakMap cache so shared-def
+// replay (one def, N targets) also avoids re-running
+// `discoverProperties + partitionByTier`. Parallels the planWaapi cache.
 interface TierSplit {
   readonly props: readonly string[]
   readonly compositor: readonly string[]
@@ -378,6 +389,15 @@ interface TierSplit {
 const tierCache = new WeakMap<AnimationDef<AnimationProps>, TierSplit>()
 
 function splitDef(def: AnimationDef<AnimationProps>): TierSplit {
+  if (def.tierSplit !== undefined && def.properties !== undefined) {
+    // Leaf fast path: both fields were set together at construction.
+    // No WeakMap round-trip, no classification work.
+    return {
+      props: def.properties,
+      compositor: def.tierSplit.compositor,
+      main: def.tierSplit.main,
+    }
+  }
   const cached = tierCache.get(def)
   if (cached !== undefined) return cached
   const props = discoverProperties(def)
@@ -433,6 +453,17 @@ export function playStrategy(
       onWaapiSettle,
     )
   }
+
+  // Note on why there's no `wrapRaf` equivalent: rAF's setup is cheap
+  // (one `createTiming` + two scheduler registrations). Wrapping it in
+  // `lazyHandle` to make cancel-before-first allocation-free turns out
+  // to be a net regression for the common path: the extra lazyHandle
+  // closures + its own scheduler.schedule cost more per play than
+  // createTiming does, so startup at n=1000 regressed by ~4 ms in
+  // exchange for ~1 ms off cancel-before-first. WAAPI lazy-wrapping
+  // works because Element.animate is genuinely expensive; rAF setup
+  // isn't, so we pay the setup eagerly and accept the slightly higher
+  // cancel-before-first cost.
 
   if (backend === "waapi") {
     handles.push(wrapWaapi(() => playWaapi(def, targets, opts)))

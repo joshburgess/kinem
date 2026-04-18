@@ -47,6 +47,22 @@ export interface AnimationDef<T> {
    * @internal
    */
   readonly properties?: readonly string[]
+  /**
+   * Optional pre-computed tier partition. Leaf constructors classify
+   * properties once at construction time and stash the result here so
+   * the strategy router can skip `discoverProperties` +
+   * `partitionByTier` on first play. Parallels `properties` in spirit:
+   * trades a small constructor-time cost for zero first-play work on
+   * unique-def workloads (where the WeakMap tier cache misses). When
+   * all properties fall into one tier, the other array is a shared
+   * frozen empty reference to avoid per-def allocation.
+   *
+   * @internal
+   */
+  readonly tierSplit?: {
+    readonly compositor: readonly string[]
+    readonly main: readonly string[]
+  }
 }
 
 /** Extract the value type from an AnimationDef. */
