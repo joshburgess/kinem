@@ -63,24 +63,25 @@ by `bench:compare` (Playwright, foregrounded tab, no rAF throttling).
 
 | scenario            | motif (auto) | motif (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
-| startup-commit      |         11.5 |          2.0 |   10.6 |  12.6 |
-| startup-shared-def  |         12.2 |          1.8 |    9.4 |  12.0 |
-| cancel-before-first |          0.7 |          0.9 |    4.5 |   0.2 |
-| steady-state        |         78.7 |         70.6 |   79.5 |  78.8 |
+| startup-commit      |         10.4 |          2.0 |   13.5 |  11.7 |
+| startup-shared-def  |         12.2 |          2.0 |    9.7 |  11.9 |
+| cancel-before-first |          0.8 |          0.7 |    3.5 |   0.3 |
+| steady-state        |         78.9 |         70.3 |   79.4 |  78.7 |
 
 Headline:
 
 - With `mode: "main"`, motif is fastest on three of four scenarios.
-  Startup is ~6.3x faster than GSAP (2.0 vs 12.6) and ~6.7x on
-  shared-def (1.8 vs 12.0). Steady-state beats GSAP (70.6 vs 78.8)
-  and motion (70.6 vs 79.5).
+  Startup is ~5.9x faster than GSAP (2.0 vs 11.7) and ~6.0x on
+  shared-def (2.0 vs 11.9). Steady-state beats GSAP (70.3 vs 78.7)
+  and motion (70.3 vs 79.4).
 - Default `mode: "auto"` pays compositor-setup cost on startup in
   exchange for compositor-driven ticking that's resilient to main-
-  thread jank. Cancel-before-first is 0.7 ms; motion is 4.5.
-- GSAP still wins cancel-before-first at 0.2 ms. motif-main is at
-  0.9 ms. The remaining gap is Controls allocation plus the target
-  resolution walk; GSAP's whole fast path is "alloc tween, unlink
-  from global list" and motif still does a bit more work per play.
+  thread jank. Cancel-before-first is 0.8 ms; motion is 3.5.
+- GSAP still wins cancel-before-first at 0.3 ms. motif-main is at
+  0.7 ms. The remaining gap is Timing + clock allocation inside
+  playRaf (which still runs eagerly because deferring it regressed
+  the steady-state path). GSAP's whole fast path is "alloc tween,
+  unlink from global list."
 
 Pick `mode: "main"` when you want raw throughput and can tolerate
 animation pauses if the main thread is blocked. Pick the default
@@ -91,6 +92,15 @@ layer.
 
 ### Recent optimizations
 
+- **Raf-only fast path in `playStrategy`.** When `mode: "main"` (or
+  `backend: "raf"` directly), the strategy router now short-circuits
+  to `playRaf()` without allocating the WAAPI scaffolding: no
+  `handles` array, no `ensureWillChange`/`wrapWaapi`/`onWaapiSettle`
+  closures, no `combineHandles` single-handle wrapper. Combined with
+  inlining the `mode → backend` resolution in `play()` (so opts
+  stops being spread per play) and collapsing `createControls`'s
+  opts bag into positional args, cancel-before-first drops from
+  ~0.9 ms to ~0.7 ms at n=1000.
 - **Leaf defs stash the full tier split on the def.** `tween` /
   `keyframes` now publish `tierSplit: { props, compositor, main }`
   at construction, and `splitDef` returns it directly on the leaf

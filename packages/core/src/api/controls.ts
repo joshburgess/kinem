@@ -41,11 +41,6 @@ export interface Controls extends PromiseLike<void> {
   finally(onfinally?: (() => void) | null): Promise<void>
 }
 
-export interface ControlsOpts {
-  readonly duration: number
-  readonly labels?: ReadonlyMap<string, number>
-}
-
 const EMPTY_LABELS: ReadonlyMap<string, number> = new Map()
 
 class ControlsImpl implements Controls {
@@ -55,10 +50,10 @@ class ControlsImpl implements Controls {
   readonly #labels: ReadonlyMap<string, number>
   #speed = 1
 
-  constructor(handle: StrategyHandle, opts: ControlsOpts) {
+  constructor(handle: StrategyHandle, duration: number, labels: ReadonlyMap<string, number>) {
     this.#handle = handle
-    this.#duration = opts.duration
-    this.#labels = opts.labels ?? EMPTY_LABELS
+    this.#duration = duration
+    this.#labels = labels
   }
 
   pause(): Controls {
@@ -125,6 +120,10 @@ class ControlsImpl implements Controls {
   }
 }
 
-export function createControls(handle: StrategyHandle, opts: ControlsOpts): Controls {
-  return new ControlsImpl(handle, opts)
+export function createControls(
+  handle: StrategyHandle,
+  duration: number,
+  labels: ReadonlyMap<string, number> = EMPTY_LABELS,
+): Controls {
+  return new ControlsImpl(handle, duration, labels)
 }

@@ -160,7 +160,7 @@ export {
 } from "./text/stagger-patterns"
 export { type SplitBy, type SplitOpts, type SplitResult, splitText } from "./text/split"
 
-export type { Controls, ControlsOpts } from "./api/controls"
+export type { Controls } from "./api/controls"
 export { type PlayMode, type PlayOpts, type Target, play } from "./api/play"
 export {
   type AnimationRecord,

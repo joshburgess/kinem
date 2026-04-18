@@ -405,21 +405,55 @@ export function playStrategy(
   def: AnimationDef<AnimationProps>,
   targets: readonly StrategyTarget[],
   opts: StrategyOpts = {},
+  // Optional explicit backend. Lets callers (notably `play()`, which has
+  // `mode` → backend mapping) bypass `resolveStrategyOpts`'s spread of
+  // `opts` to inject a backend. When undefined we fall back to
+  // `opts.backend ?? "auto"`.
+  backendOverride?: StrategyBackend,
 ): StrategyHandle {
-  const { props, compositor, main } = splitDef(def)
+  const backend: StrategyBackend = backendOverride ?? opts.backend ?? "auto"
 
-  const backend: StrategyBackend = opts.backend ?? "auto"
+  // Backend-independent fast path for the rAF-only case: skip the
+  // compositor-tier machinery entirely (splitDef, WAAPI closures, the
+  // handles array, combineHandles). This is what the default
+  // `mode: "main"` path hits for every play, so every alloc we save
+  // here shows up in cancel-before-first and startup-commit.
+  if (backend === "raf") {
+    return playRaf(def, targets, opts)
+  }
+
   const waapiCap = opts.waapiSupported ?? detectWaapi()
-  const useWaapi = backend === "waapi" || (backend === "auto" && waapiCap)
+  // `backend === "waapi"` forces WAAPI regardless of capability; `auto`
+  // needs the capability probe. `backend === "raf"` was handled above.
+  const useWaapi = backend === "waapi" || waapiCap
 
-  const handles: StrategyHandle[] = []
+  // If `auto` is asked but WAAPI isn't available, the whole animation
+  // must run on rAF. Fast path out like the explicit "raf" case.
+  if (!useWaapi) return playRaf(def, targets, opts)
+
+  const { compositor, main } = splitDef(def)
+  // `mainProps` is the set of properties we route to rAF. For `auto` we
+  // take whatever `splitDef` classified as main-tier; for `backend ===
+  // "waapi"` we force everything onto WAAPI, so mainProps is empty.
+  const mainProps = backend === "auto" ? main : EMPTY_PROPS
+  const needsMain = mainProps.length > 0
+  const hasCompProps = compositor.length > 0
+
+  // `auto` where every property is main-tier: no compositor handle to
+  // build, no will-change to manage. Straight to rAF. (`backend ===
+  // "waapi"` can't land here because mainProps is empty.)
+  if (!hasCompProps && backend === "auto") return playRaf(def, targets, opts)
+
+  // Past this point there is a compositor-bound handle to build. Set up
+  // the lazy-handle scaffolding + will-change lifecycle once. The
+  // closures here are only allocated on the WAAPI-bearing path; the
+  // rAF-only paths exited above without paying for them.
   const lazy = opts.lazy ?? true
   const scheduler = opts.scheduler ?? defaultFrame
-  const willChangeProps = useWaapi && compositor.length > 0 ? compositor : null
+  // `backend === "waapi"` with all-main props is a user-forced override;
+  // don't apply will-change in that case (no compositor props to hint on).
+  const willChangeProps = hasCompProps ? compositor : null
 
-  // Cleanup captured here so combineHandles can run it on finish/cancel
-  // regardless of whether will-change was actually applied (lazy path:
-  // cancel-before-first-frame means neither apply nor cleanup runs).
   let cleanupWillChange: (() => void) | null = null
   const ensureWillChange = (): void => {
     if (willChangeProps !== null && cleanupWillChange === null) {
@@ -459,27 +493,22 @@ export function playStrategy(
   // isn't, so we pay the setup eagerly and accept the slightly higher
   // cancel-before-first cost.
 
-  if (backend === "waapi") {
-    handles.push(wrapWaapi(() => playWaapi(def, targets, opts)))
-  } else if (backend === "raf") {
-    handles.push(playRaf(def, targets, opts))
-  } else {
-    // auto: split by tier. When all properties live in one tier, skip
-    // the projection wrapper: project() allocates an AnimationDef +
-    // closure per call and the backends re-invoke that closure every
-    // tick for no gain when the filter is the identity.
-    const mainProps = useWaapi ? main : props
-    const splitNeeded = useWaapi && compositor.length > 0 && mainProps.length > 0
-
-    if (compositor.length > 0 && useWaapi) {
-      const compDef = splitNeeded ? project(def, compositor) : def
-      handles.push(wrapWaapi(() => playWaapi(compDef, targets, opts)))
-    }
-    if (mainProps.length > 0) {
-      const mainDef = splitNeeded ? project(def, mainProps) : def
-      handles.push(playRaf(mainDef, targets, opts))
-    }
+  // Pure WAAPI fast path: only a compositor-tier handle, no projection,
+  // no combineHandles wrapper. Covers `backend === "waapi"` and the
+  // common `auto` case where every animated property is compositor-safe
+  // (e.g. opacity/transform-only tweens).
+  if (!needsMain) {
+    return wrapWaapi(() => playWaapi(def, targets, opts))
   }
+
+  // Mixed auto path: both tiers have props. `project()` allocates an
+  // AnimationDef + closure per call and the backends re-invoke that
+  // closure every tick, so only run it when the filter isn't the
+  // identity (here it always is, since both tiers are non-empty).
+  const handles: StrategyHandle[] = [
+    wrapWaapi(() => playWaapi(project(def, compositor), targets, opts)),
+    playRaf(project(def, mainProps), targets, opts),
+  ]
 
   // combineHandles needs a stable cleanup thunk; route through a closure
   // so it sees whichever value ensureWillChange() set (if any). In the
@@ -489,3 +518,5 @@ export function playStrategy(
   const cleanupThunk = !lazy && willChangeProps !== null ? () => cleanupWillChange?.() : null
   return combineHandles(handles, cleanupThunk)
 }
+
+const EMPTY_PROPS: readonly string[] = Object.freeze([])
