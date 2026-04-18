@@ -1,7 +1,9 @@
-import { animation } from "../core/animation"
 import { isSpringEasing, linear } from "../core/easing"
 import type { AnimationDef, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
+import { partitionByTier } from "../render/properties"
+
+const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
 export type KeyframeStops = Record<string, readonly unknown[]>
 
@@ -96,17 +98,25 @@ export function keyframes<P extends KeyframeStops>(
     }
   }
 
-  const def = animation(
-    (progress) => {
+  // Build the def literal directly with `properties` + pre-computed
+  // `tierSplit` so the strategy router can skip both `discoverProperties`
+  // and `partitionByTier` on first play.
+  const properties = keys as readonly string[]
+  const tierSplit = partitionByTier(properties)
+
+  return {
+    duration,
+    easing,
+    interpolate: (p) => {
+      const eased = easing(clamp01(p))
       const out: Record<string, unknown> = {}
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i] as string
-        out[key] = (perPropFns[i] as (p: number) => unknown)(progress)
+        out[key] = (perPropFns[i] as (q: number) => unknown)(eased)
       }
       return out as KeyframesValue<P>
     },
-    duration,
-    easing,
-  )
-  return { ...def, properties: keys as readonly string[] }
+    properties,
+    tierSplit,
+  }
 }

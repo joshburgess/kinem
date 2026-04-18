@@ -1,7 +1,9 @@
-import { animation } from "../core/animation"
 import { getCssEasing, isSpringEasing, linear } from "../core/easing"
 import type { AnimationDef, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
+import { partitionByTier } from "../render/properties"
+
+const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
 /**
  * Widen literal types to their base type so that `[0, 100]` produces a
@@ -73,27 +75,30 @@ export function tween<P extends TweenProps>(
     }
   }
 
-  const def = animation(
-    (progress) => {
+  // Build the def literal in one shot with `properties` + pre-computed
+  // `tierSplit` so the strategy router can skip both `discoverProperties`
+  // and `partitionByTier` on first play. `linearizable` is set when
+  // every property is a plain number-to-number interpolation AND the
+  // easing has a CSS timing-function equivalent; the WAAPI backend uses
+  // this to emit a 2-keyframe animation with native CSS timing.
+  const properties = keys as readonly string[]
+  const tierSplit = partitionByTier(properties)
+  const linearizable = allPlainNumbers && getCssEasing(easing) !== undefined
+
+  return {
+    duration,
+    easing,
+    interpolate: (p) => {
+      const eased = easing(clamp01(p))
       const out: Record<string, unknown> = {}
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i] as string
-        out[key] = (perPropFns[i] as (p: number) => unknown)(progress)
+        out[key] = (perPropFns[i] as (q: number) => unknown)(eased)
       }
       return out as TweenValue<P>
     },
-    duration,
-    easing,
-  )
-
-  // Mark the tween as linearizable when every property is a plain
-  // number-to-number interpolation AND the easing has a CSS timing-
-  // function equivalent. The WAAPI backend uses this to emit a
-  // 2-keyframe animation with native CSS timing, skipping dense
-  // sampling.
-  const properties = keys as readonly string[]
-  if (allPlainNumbers && getCssEasing(easing) !== undefined) {
-    return { ...def, properties, linearizable: true }
+    properties,
+    tierSplit,
+    linearizable,
   }
-  return { ...def, properties }
 }
