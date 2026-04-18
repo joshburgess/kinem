@@ -6,13 +6,13 @@
  * the surface needs: applying DOM properties, drawing to a canvas, or
  * uploading a uniform.
  *
- * Implemented as a class so the public methods and most internal
- * helpers live on the prototype rather than being reallocated as
- * closures per play. Per instance we allocate just: the instance
- * itself, one arrow-field closure for the scheduler tick callback
- * (`#tick`, which needs per-instance identity for `scheduler.schedule`/
- * `cancel` pairing), a lazy promise, and a clock if one wasn't
- * supplied.
+ * Implemented as a class so the public methods live on the prototype
+ * rather than being reallocated as closures per play. The class also
+ * directly implements `KeepaliveNode`, which lets it register into
+ * the scheduler's keepalive list without allocating a wrapper node
+ * or storing a `Map<fn, node>` entry. Per play, we allocate: the
+ * Timing instance itself, a lazy promise, and a clock if one wasn't
+ * supplied. No per-instance tick closure.
  *
  * A single tick runs in the scheduler's `update` phase and does both
  * progress computation and the `commit()` render. The 4-phase
@@ -29,7 +29,13 @@
 import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type Clock, createClock } from "../scheduler/clock"
-import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
+import {
+  type FrameScheduler,
+  type FrameState,
+  type KeepaliveNode,
+  type Phase,
+  frame as defaultFrame,
+} from "../scheduler/frame"
 
 export type TimingState = "idle" | "playing" | "paused" | "finished" | "cancelled"
 
@@ -58,7 +64,7 @@ export interface TimingOpts {
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
-class Timing<V> implements TimingHandle {
+class Timing<V> implements TimingHandle, KeepaliveNode {
   readonly #scheduler: FrameScheduler
   readonly #clock: Clock
   readonly #def: AnimationDef<V>
@@ -73,10 +79,34 @@ class Timing<V> implements TimingHandle {
   #progress = 0
   #needsRender = true
 
-  // Arrow field: the scheduler dedupes and cancels by function
-  // reference, so a prototype method (shared across instances) would
-  // collide. This closure is the only per-instance one.
-  readonly #tick = (): void => {
+  // KeepaliveNode fields. Scheduler-owned; do not touch outside the
+  // scheduler. Initialized so the scheduler sees a fresh node on
+  // first registration.
+  _kaPrev: KeepaliveNode | null = null
+  _kaNext: KeepaliveNode | null = null
+  _kaPhase: Phase | null = null
+  _kaDead = false
+
+  constructor(def: AnimationDef<V>, commit: (values: V) => void, opts: TimingOpts = {}) {
+    const duration = def.duration
+    if (!(duration > 0) || !Number.isFinite(duration)) {
+      throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
+    }
+    this.#scheduler = opts.scheduler ?? defaultFrame
+    this.#clock = opts.clock ?? createClock()
+    this.#clock.reset()
+    this.#def = def
+    this.#commit = commit
+    this.#opts = opts
+    this.#duration = duration
+    this.#lp = createLazyPromise()
+    this.#armKeepalive()
+  }
+
+  // Prototype method (shared across all Timing instances) — no per-
+  // instance closure allocation. The scheduler walks the keepalive
+  // list and calls `_kaTick(state)` on each node.
+  _kaTick(_state: FrameState): void {
     if (this.#state === "playing") {
       this.#progress = this.#computeProgress()
       this.#needsRender = true
@@ -98,22 +128,6 @@ class Timing<V> implements TimingHandle {
     }
   }
 
-  constructor(def: AnimationDef<V>, commit: (values: V) => void, opts: TimingOpts = {}) {
-    const duration = def.duration
-    if (!(duration > 0) || !Number.isFinite(duration)) {
-      throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
-    }
-    this.#scheduler = opts.scheduler ?? defaultFrame
-    this.#clock = opts.clock ?? createClock()
-    this.#clock.reset()
-    this.#def = def
-    this.#commit = commit
-    this.#opts = opts
-    this.#duration = duration
-    this.#lp = createLazyPromise()
-    this.#armKeepalive()
-  }
-
   #computeProgress(): number {
     const elapsed = (this.#clock.now() - this.#anchorTime) / this.#duration
     const raw = this.#anchorProgress + this.#direction * elapsed
@@ -128,11 +142,19 @@ class Timing<V> implements TimingHandle {
   }
 
   #armKeepalive(): void {
-    this.#scheduler.schedule("update", this.#tick, { keepalive: true })
+    this.#scheduler.scheduleNode("update", this)
   }
 
   #disarm(): void {
-    this.#scheduler.cancel("update", this.#tick)
+    this.#scheduler.cancelNode(this)
+  }
+
+  // One-shot re-render scheduled after seek/reverse from a paused
+  // state. Allocates an arrow closure (the fn-based one-shot API
+  // takes a FrameJob); cold path, runs once per user-initiated
+  // seek/reverse, so the alloc is fine.
+  #scheduleOneShotTick(): void {
+    this.#scheduler.schedule("update", (state) => this._kaTick(state))
   }
 
   #isFinished(p: number): boolean {
@@ -172,7 +194,7 @@ class Timing<V> implements TimingHandle {
       this.#state = "playing"
       this.#armKeepalive()
     } else if (this.#state === "paused") {
-      this.#scheduler.schedule("update", this.#tick)
+      this.#scheduleOneShotTick()
     }
   }
 
@@ -186,7 +208,7 @@ class Timing<V> implements TimingHandle {
       this.#state = "playing"
       this.#armKeepalive()
     } else if (this.#state === "paused") {
-      this.#scheduler.schedule("update", this.#tick)
+      this.#scheduleOneShotTick()
     }
   }
 
@@ -201,7 +223,7 @@ class Timing<V> implements TimingHandle {
     if (this.#state === "finished" || this.#state === "cancelled") return
     this.#state = "cancelled"
     this.#disarm()
-    this.#lp.reject(new Error("animation cancelled"))
+    this.#lp.rejectCancelled()
   }
 
   get state(): TimingState {
