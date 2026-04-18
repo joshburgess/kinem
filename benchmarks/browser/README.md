@@ -67,21 +67,18 @@ sample shifts it from 0.2 to 0.5); 21 converges cleanly.
 
 | scenario            | motif (auto) | motif (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
-| startup-commit      |          8.6 |          2.4 |    9.1 |  10.8 |
-| startup-shared-def  |          8.6 |          2.0 |   11.8 |  11.3 |
-| cancel-before-first |          0.6 |          0.7 |    4.5 |   0.4 |
+| startup-commit      |          8.6 |          2.0 |    9.1 |  10.8 |
+| startup-shared-def  |          8.6 |          1.7 |   11.8 |  11.3 |
+| cancel-before-first |          0.6 |          0.3 |    4.5 |   0.4 |
 | steady-state        |         79.5 |         70.0 |   86.4 |  79.0 |
 
 Headline:
 
-- With `mode: "main"`, motif is fastest on startup-commit,
-  startup-shared-def, and steady-state. Startup is ~4.5x faster
-  than GSAP (2.4 vs 10.8), shared-def is ~5.7x faster (2.0 vs 11.3),
-  and steady-state beats GSAP (70.0 vs 79.0) and motion (70.0 vs 86.4).
-- GSAP still wins cancel-before-first at 0.4 ms vs motif-main 0.7.
-  The remaining overhead is Timing + clock allocation inside
-  playRaf; the follow-up PR defers `createClock()` until first
-  tick and closes this gap.
+- With `mode: "main"`, motif is fastest on all four scenarios.
+  Startup is ~5.4x faster than GSAP (2.0 vs 10.8), shared-def is
+  ~6.6x faster (1.7 vs 11.3), cancel-before-first beats GSAP
+  (0.3 vs 0.4), and steady-state beats GSAP (70.0 vs 79.0) and
+  motion (70.0 vs 86.4).
 - Default `mode: "auto"` pays compositor-setup cost on startup in
   exchange for compositor-driven ticking that's resilient to main-
   thread jank. Cancel-before-first is 0.6 ms; motion is 4.5.
@@ -106,6 +103,19 @@ layer.
 
 ### Recent optimizations
 
+- **Lazy `Clock` construction inside `Timing`.** The `Timing`
+  constructor used to call `createClock()` unconditionally, which
+  allocates a `Clock` object and calls `performance.now()` to anchor
+  real-time. `cancel()` never reads the clock, so fire-and-forget
+  cancel was paying for both. `Timing` now defers `createClock()`
+  until `#ensureClock()` is first called (inside `#computeProgress`,
+  `#rebase`, `pause`, `resume`, or `setSpeed`). Callers that pass
+  `opts.clock` (tests) skip the lazy path entirely. Combined with
+  dropping the now-redundant `this.#clock.reset()` call, at n=1000
+  this takes startup-commit `mode:main` from 3.4 ms to 2.0 ms and
+  cancel-before-first from 0.6 ms to 0.3 ms. No steady-state
+  regression (the branch materializes on the first tick and every
+  subsequent tick sees a monomorphic non-null `#clock`).
 - **Class-based `Clock` and `LazyPromise`.** Both are constructed once
   per play (inside `createTiming`) and previously allocated 5-6 fresh
   closures each from their factory functions. Converting to classes
