@@ -66,7 +66,10 @@ const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
 class Timing<V> implements TimingHandle, KeepaliveNode {
   readonly #scheduler: FrameScheduler
-  readonly #clock: Clock
+  // Lazy. `null` until first access if the caller didn't supply one.
+  // `createClock()` costs an object alloc + a `performance.now()` call;
+  // cancel-before-first never needs a clock, so we skip both there.
+  #clock: Clock | null
   readonly #def: AnimationDef<V>
   readonly #commit: (values: V) => void
   readonly #opts: TimingOpts
@@ -93,14 +96,25 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
       throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
     }
     this.#scheduler = opts.scheduler ?? defaultFrame
-    this.#clock = opts.clock ?? createClock()
-    this.#clock.reset()
+    // Accept a caller-supplied clock eagerly (tests use this). Otherwise
+    // defer `createClock()` until first tick. No `.reset()` — a freshly
+    // constructed clock is already anchored to the current moment.
+    this.#clock = opts.clock ?? null
     this.#def = def
     this.#commit = commit
     this.#opts = opts
     this.#duration = duration
     this.#lp = createLazyPromise()
     this.#armKeepalive()
+  }
+
+  #ensureClock(): Clock {
+    let c = this.#clock
+    if (c === null) {
+      c = createClock()
+      this.#clock = c
+    }
+    return c
   }
 
   // Prototype method (shared across all Timing instances) — no per-
@@ -129,7 +143,7 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
   }
 
   #computeProgress(): number {
-    const elapsed = (this.#clock.now() - this.#anchorTime) / this.#duration
+    const elapsed = (this.#ensureClock().now() - this.#anchorTime) / this.#duration
     const raw = this.#anchorProgress + this.#direction * elapsed
     if (this.#opts.repeat) {
       return ((raw % 1) + 1) % 1
@@ -164,13 +178,13 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
 
   #rebase(): void {
     this.#anchorProgress = this.#progress
-    this.#anchorTime = this.#clock.now()
+    this.#anchorTime = this.#ensureClock().now()
   }
 
   pause(): void {
     if (this.#state !== "playing") return
     this.#progress = this.#computeProgress()
-    this.#clock.pause()
+    this.#ensureClock().pause()
     this.#rebase()
     this.#state = "paused"
     this.#needsRender = true
@@ -178,7 +192,7 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
 
   resume(): void {
     if (this.#state !== "paused") return
-    this.#clock.resume()
+    this.#ensureClock().resume()
     this.#rebase()
     this.#state = "playing"
     this.#armKeepalive()
@@ -216,7 +230,7 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
     if (this.#state === "cancelled") return
     if (this.#state === "playing") this.#progress = this.#computeProgress()
     this.#rebase()
-    this.#clock.setSpeed(multiplier)
+    this.#ensureClock().setSpeed(multiplier)
   }
 
   cancel(): void {
