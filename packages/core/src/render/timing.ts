@@ -6,14 +6,27 @@
  * the surface needs: applying DOM properties, drawing to a canvas, or
  * uploading a uniform.
  *
- * Extracting this into a dedicated helper keeps playRaf and playCanvas
- * from duplicating ~150 lines of timing logic. The contract is
- * minimal: the state machine never touches the commit function's
- * arguments, so surfaces can use whatever `PropertyValue`-shaped
- * output their `AnimationDef` produces.
+ * Implemented as a class so the public methods and most internal
+ * helpers live on the prototype rather than being reallocated as
+ * closures per play. Per instance we allocate just: the instance
+ * itself, one arrow-field closure for the scheduler tick callback
+ * (`#tick`, which needs per-instance identity for `scheduler.schedule`/
+ * `cancel` pairing), a lazy promise, and a clock if one wasn't
+ * supplied.
+ *
+ * A single tick runs in the scheduler's `update` phase and does both
+ * progress computation and the `commit()` render. The 4-phase
+ * scheduler separates `compute` from `update` to support systems that
+ * need strict read-before-write ordering (e.g. DOM-reading then
+ * DOM-writing animations that would otherwise layout-thrash). Our
+ * compute side just samples clock time and runs the def's pure
+ * interpolator; it never touches the DOM, so splitting it from update
+ * would pay two scheduler ops per tick in exchange for a batching
+ * opportunity we can't use. Halving the scheduler ops per play and
+ * per steady-state frame is the real win.
  */
 
-import { createLazyPromise } from "../core/lazy-promise"
+import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { type Clock, createClock } from "../scheduler/clock"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
@@ -45,6 +58,169 @@ export interface TimingOpts {
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
+class Timing<V> implements TimingHandle {
+  readonly #scheduler: FrameScheduler
+  readonly #clock: Clock
+  readonly #def: AnimationDef<V>
+  readonly #commit: (values: V) => void
+  readonly #opts: TimingOpts
+  readonly #duration: number
+  readonly #lp: LazyPromise
+  #state: TimingState = "playing"
+  #direction: 1 | -1 = 1
+  #anchorProgress = 0
+  #anchorTime = 0
+  #progress = 0
+  #needsRender = true
+
+  // Arrow field: the scheduler dedupes and cancels by function
+  // reference, so a prototype method (shared across instances) would
+  // collide. This closure is the only per-instance one.
+  readonly #tick = (): void => {
+    if (this.#state === "playing") {
+      this.#progress = this.#computeProgress()
+      this.#needsRender = true
+      if (this.#isFinished(this.#progress)) {
+        this.#progress = this.#direction === 1 ? 1 : 0
+        this.#render()
+        this.#needsRender = false
+        this.#state = "finished"
+        this.#disarm()
+        this.#opts.onFinish?.()
+        this.#lp.resolve()
+        return
+      }
+    }
+    if (this.#needsRender) {
+      this.#render()
+      this.#needsRender = false
+      if (this.#state === "paused") this.#disarm()
+    }
+  }
+
+  constructor(def: AnimationDef<V>, commit: (values: V) => void, opts: TimingOpts = {}) {
+    const duration = def.duration
+    if (!(duration > 0) || !Number.isFinite(duration)) {
+      throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
+    }
+    this.#scheduler = opts.scheduler ?? defaultFrame
+    this.#clock = opts.clock ?? createClock()
+    this.#clock.reset()
+    this.#def = def
+    this.#commit = commit
+    this.#opts = opts
+    this.#duration = duration
+    this.#lp = createLazyPromise()
+    this.#armKeepalive()
+  }
+
+  #computeProgress(): number {
+    const elapsed = (this.#clock.now() - this.#anchorTime) / this.#duration
+    const raw = this.#anchorProgress + this.#direction * elapsed
+    if (this.#opts.repeat) {
+      return ((raw % 1) + 1) % 1
+    }
+    return clamp01(raw)
+  }
+
+  #render(): void {
+    this.#commit(this.#def.interpolate(this.#progress))
+  }
+
+  #armKeepalive(): void {
+    this.#scheduler.schedule("update", this.#tick, { keepalive: true })
+  }
+
+  #disarm(): void {
+    this.#scheduler.cancel("update", this.#tick)
+  }
+
+  #isFinished(p: number): boolean {
+    if (this.#opts.repeat) return false
+    return (this.#direction === 1 && p >= 1) || (this.#direction === -1 && p <= 0)
+  }
+
+  #rebase(): void {
+    this.#anchorProgress = this.#progress
+    this.#anchorTime = this.#clock.now()
+  }
+
+  pause(): void {
+    if (this.#state !== "playing") return
+    this.#progress = this.#computeProgress()
+    this.#clock.pause()
+    this.#rebase()
+    this.#state = "paused"
+    this.#needsRender = true
+  }
+
+  resume(): void {
+    if (this.#state !== "paused") return
+    this.#clock.resume()
+    this.#rebase()
+    this.#state = "playing"
+    this.#armKeepalive()
+  }
+
+  seek(p: number): void {
+    if (this.#state === "cancelled") return
+    const clamped = clamp01(p)
+    this.#progress = clamped
+    this.#rebase()
+    this.#needsRender = true
+    if (this.#state === "finished" && !this.#isFinished(clamped)) {
+      this.#state = "playing"
+      this.#armKeepalive()
+    } else if (this.#state === "paused") {
+      this.#scheduler.schedule("update", this.#tick)
+    }
+  }
+
+  reverse(): void {
+    if (this.#state === "cancelled") return
+    this.#progress = this.#computeProgress()
+    this.#rebase()
+    this.#direction = (this.#direction === 1 ? -1 : 1) as 1 | -1
+    this.#needsRender = true
+    if (this.#state === "finished" && !this.#isFinished(this.#progress)) {
+      this.#state = "playing"
+      this.#armKeepalive()
+    } else if (this.#state === "paused") {
+      this.#scheduler.schedule("update", this.#tick)
+    }
+  }
+
+  setSpeed(multiplier: number): void {
+    if (this.#state === "cancelled") return
+    if (this.#state === "playing") this.#progress = this.#computeProgress()
+    this.#rebase()
+    this.#clock.setSpeed(multiplier)
+  }
+
+  cancel(): void {
+    if (this.#state === "finished" || this.#state === "cancelled") return
+    this.#state = "cancelled"
+    this.#disarm()
+    this.#lp.reject(new Error("animation cancelled"))
+  }
+
+  get state(): TimingState {
+    return this.#state
+  }
+
+  get progress(): number {
+    return this.#progress
+  }
+
+  get direction(): 1 | -1 {
+    return this.#direction
+  }
+
+  get finished(): Promise<void> {
+    return this.#lp.promise
+  }
+}
+
 /**
  * Build a `TimingHandle` that drives `def.interpolate(progress)` and
  * calls `commit(values)` whenever a new frame should be rendered.
@@ -54,146 +230,5 @@ export function createTiming<V>(
   commit: (values: V) => void,
   opts: TimingOpts = {},
 ): TimingHandle {
-  const scheduler = opts.scheduler ?? defaultFrame
-  const clock = opts.clock ?? createClock()
-  clock.reset()
-
-  const duration = def.duration
-  if (!(duration > 0) || !Number.isFinite(duration)) {
-    throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
-  }
-
-  let state: TimingState = "playing"
-  let direction: 1 | -1 = 1
-  let anchorProgress = 0
-  let anchorTime = 0
-  let progress = 0
-  let needsRender = true
-
-  const lp = createLazyPromise()
-
-  const computeProgress = (): number => {
-    const elapsed = (clock.now() - anchorTime) / duration
-    const raw = anchorProgress + direction * elapsed
-    if (opts.repeat) {
-      const r = ((raw % 1) + 1) % 1
-      return r
-    }
-    return clamp01(raw)
-  }
-
-  const render = (): void => {
-    commit(def.interpolate(progress))
-  }
-
-  const armKeepalive = (): void => {
-    scheduler.schedule("compute", tickCompute, { keepalive: true })
-    scheduler.schedule("update", tickUpdate, { keepalive: true })
-  }
-
-  const disarm = (): void => {
-    scheduler.cancel("compute", tickCompute)
-    scheduler.cancel("update", tickUpdate)
-  }
-
-  const isFinished = (p: number): boolean => {
-    if (opts.repeat) return false
-    return (direction === 1 && p >= 1) || (direction === -1 && p <= 0)
-  }
-
-  const tickCompute = (): void => {
-    if (state !== "playing") return
-    progress = computeProgress()
-    needsRender = true
-    if (isFinished(progress)) {
-      progress = direction === 1 ? 1 : 0
-      render()
-      state = "finished"
-      disarm()
-      opts.onFinish?.()
-      lp.resolve()
-    }
-  }
-
-  const tickUpdate = (): void => {
-    if (!needsRender) return
-    render()
-    needsRender = false
-    if (state === "paused") disarm()
-  }
-
-  const rebase = (): void => {
-    anchorProgress = progress
-    anchorTime = clock.now()
-  }
-
-  armKeepalive()
-
-  return {
-    pause() {
-      if (state !== "playing") return
-      progress = computeProgress()
-      clock.pause()
-      rebase()
-      state = "paused"
-      needsRender = true
-    },
-    resume() {
-      if (state !== "paused") return
-      clock.resume()
-      rebase()
-      state = "playing"
-      armKeepalive()
-    },
-    seek(p: number) {
-      if (state === "cancelled") return
-      const clamped = clamp01(p)
-      progress = clamped
-      rebase()
-      needsRender = true
-      if (state === "finished" && !isFinished(clamped)) {
-        state = "playing"
-        armKeepalive()
-      } else if (state === "paused") {
-        scheduler.schedule("update", tickUpdate)
-      }
-    },
-    reverse() {
-      if (state === "cancelled") return
-      progress = computeProgress()
-      rebase()
-      direction = (direction === 1 ? -1 : 1) as 1 | -1
-      needsRender = true
-      if (state === "finished" && !isFinished(progress)) {
-        state = "playing"
-        armKeepalive()
-      } else if (state === "paused") {
-        scheduler.schedule("update", tickUpdate)
-      }
-    },
-    setSpeed(multiplier: number) {
-      if (state === "cancelled") return
-      if (state === "playing") progress = computeProgress()
-      rebase()
-      clock.setSpeed(multiplier)
-    },
-    cancel() {
-      if (state === "finished" || state === "cancelled") return
-      state = "cancelled"
-      disarm()
-      lp.reject(new Error("animation cancelled"))
-    },
-    get state() {
-      return state
-    },
-    get progress() {
-      return progress
-    },
-    get direction() {
-      return direction
-    },
-    get finished() {
-      return lp.promise
-    },
-  }
+  return new Timing(def, commit, opts)
 }
