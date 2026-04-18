@@ -148,18 +148,36 @@ export function buildKeyframes(
   return frames
 }
 
-/**
- * Decide how to hand this animation to WAAPI. For a leaf tween marked
- * `linearizable` whose easing maps to a CSS timing function, we emit a
- * 2-keyframe animation and let the browser apply the CSS cubic-bezier
- * (or `linear`) between the endpoints. For everything else, we fall
- * back to the sampled path where values already include the easing and
- * WAAPI is told `linear`.
- */
-function planWaapi(
+interface WaapiPlan {
+  readonly frames: Keyframe[]
+  readonly easing: string
+}
+
+// Common real-world pattern: one AnimationDef shared across many targets
+// (`const def = tween(...); els.forEach(el => play(def, el))`). Each play
+// goes through planWaapi and used to re-sample the same def to the same
+// keyframes from scratch. Cache per def so only the first play does the
+// work; the rest share the keyframes array (which WAAPI's `animate()`
+// treats as read-only input).
+//
+// Only cache when opts use the defaults that affect sampleCount. Callers
+// that override sampleRateHz / minSamples / maxSamples would need a
+// second-level key; they're rare enough that bypassing the cache is the
+// right trade.
+const planCache = new WeakMap<AnimationDef<Readonly<Record<string, unknown>>>, WaapiPlan>()
+
+function hasDefaultSamplingOpts(opts: WaapiOpts): boolean {
+  return (
+    opts.sampleRateHz === undefined &&
+    opts.minSamples === undefined &&
+    opts.maxSamples === undefined
+  )
+}
+
+function planWaapiUncached(
   def: AnimationDef<Readonly<Record<string, unknown>>>,
   opts: WaapiOpts,
-): { frames: Keyframe[]; easing: string } {
+): WaapiPlan {
   const cssEasing = def.linearizable ? getCssEasing(def.easing) : undefined
   if (cssEasing !== undefined) {
     return {
@@ -168,6 +186,18 @@ function planWaapi(
     }
   }
   return { frames: buildKeyframes(def, opts), easing: "linear" }
+}
+
+function planWaapi(
+  def: AnimationDef<Readonly<Record<string, unknown>>>,
+  opts: WaapiOpts,
+): WaapiPlan {
+  if (!hasDefaultSamplingOpts(opts)) return planWaapiUncached(def, opts)
+  const cached = planCache.get(def)
+  if (cached !== undefined) return cached
+  const plan = planWaapiUncached(def, opts)
+  planCache.set(def, plan)
+  return plan
 }
 
 function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): Keyframe {

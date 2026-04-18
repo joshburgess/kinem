@@ -25,7 +25,11 @@
 import { play, tween } from "motif-animate"
 import { animate } from "motion"
 
-type Scenario = "startup-commit" | "cancel-before-first" | "steady-state"
+type Scenario =
+  | "startup-commit"
+  | "startup-shared-def"
+  | "cancel-before-first"
+  | "steady-state"
 
 type BenchResult = {
   lib: "motif" | "motion"
@@ -86,21 +90,25 @@ async function runMotif(scenario: Scenario, count: number): Promise<number> {
   const start = performance.now()
   // biome-ignore lint/suspicious/noExplicitAny: union with handles we only need to cancel
   const handles = new Array<any>(count)
-  for (let i = 0; i < count; i++) {
-    handles[i] = play(
-      tween(
-        { opacity: [0, 1], x: [0, 100 + i] },
-        { duration: 800 },
-      ),
-      targets[i]!,
-    )
+  if (scenario === "startup-shared-def") {
+    // Real-world pattern: one def reused across N targets. Exercises the
+    // planWaapi cache so each play() after the first reuses the keyframes.
+    const def = tween({ opacity: [0, 1], x: [0, 100] }, { duration: 800 })
+    for (let i = 0; i < count; i++) handles[i] = play(def, targets[i]!)
+  } else {
+    for (let i = 0; i < count; i++) {
+      handles[i] = play(
+        tween({ opacity: [0, 1], x: [0, 100 + i] }, { duration: 800 }),
+        targets[i]!,
+      )
+    }
   }
   if (scenario === "cancel-before-first") {
     for (let i = 0; i < count; i++) {
       handles[i]!.finished.catch(() => {})
       handles[i]!.cancel()
     }
-  } else if (scenario === "startup-commit") {
+  } else if (scenario === "startup-commit" || scenario === "startup-shared-def") {
     await nextFrame()
     for (let i = 0; i < count; i++) {
       handles[i]!.finished.catch(() => {})
@@ -123,12 +131,20 @@ async function runMotion(scenario: Scenario, count: number): Promise<number> {
   const start = performance.now()
   // biome-ignore lint/suspicious/noExplicitAny: motion's handle type
   const handles = new Array<any>(count)
-  for (let i = 0; i < count; i++) {
-    handles[i] = animate(targets[i]!, { opacity: 1, x: 100 + i }, { duration: 0.8 })
+  if (scenario === "startup-shared-def") {
+    // motion has no "reusable def" handle; closest equivalent is passing
+    // the same object literal each time. Keep the work symmetrical.
+    const props = { opacity: 1, x: 100 }
+    const opts = { duration: 0.8 }
+    for (let i = 0; i < count; i++) handles[i] = animate(targets[i]!, props, opts)
+  } else {
+    for (let i = 0; i < count; i++) {
+      handles[i] = animate(targets[i]!, { opacity: 1, x: 100 + i }, { duration: 0.8 })
+    }
   }
   if (scenario === "cancel-before-first") {
     for (let i = 0; i < count; i++) handles[i]!.stop()
-  } else if (scenario === "startup-commit") {
+  } else if (scenario === "startup-commit" || scenario === "startup-shared-def") {
     await nextFrame()
     for (let i = 0; i < count; i++) handles[i]!.stop()
   } else {
