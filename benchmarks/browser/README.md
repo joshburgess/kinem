@@ -92,6 +92,12 @@ layer.
 
 ### Recent optimizations
 
+- **Class-based `Clock` and `LazyPromise`.** Both are constructed once
+  per play (inside `createTiming`) and previously allocated 5-6 fresh
+  closures each from their factory functions. Converting to classes
+  with prototype methods shares them across instances. Measured with
+  `bench:profile` at n=1000, the unique-def play loop drops from
+  ~0.7 ms to ~0.4 ms and shared-def from ~0.7 ms to ~0.4 ms.
 - **Raf-only fast path in `playStrategy`.** When `mode: "main"` (or
   `backend: "raf"` directly), the strategy router now short-circuits
   to `playRaf()` without allocating the WAAPI scaffolding: no
