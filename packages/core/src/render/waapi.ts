@@ -286,7 +286,7 @@ export function playWaapi(
     a.oncancel = () => {
       if (state === "playing" || state === "paused") {
         state = "cancelled"
-        lp.reject(new Error("animation cancelled"))
+        lp.rejectCancelled()
       }
     }
   }
@@ -337,7 +337,7 @@ export function playWaapi(
       if (state === "finished" || state === "cancelled") return
       state = "cancelled"
       for (const a of animations) a.cancel()
-      lp.reject(new Error("animation cancelled"))
+      lp.rejectCancelled()
     },
     get state() {
       return state

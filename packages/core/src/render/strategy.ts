@@ -241,7 +241,7 @@ export function combineHandles(
       if (!settled) {
         settled = true
         runCleanup()
-        lp.reject(new Error("animation cancelled"))
+        lp.rejectCancelled()
       }
     },
     get state() {
@@ -355,7 +355,7 @@ function lazyHandle(
       }
       if (pendingState === "cancelled" || pendingState === "finished") return
       pendingState = "cancelled"
-      lp.reject(new Error("animation cancelled"))
+      lp.rejectCancelled()
     },
     get state() {
       return inner?.state ?? pendingState

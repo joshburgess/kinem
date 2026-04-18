@@ -24,6 +24,13 @@ type LazyState = "pending" | "resolved" | "rejected"
 export interface LazyPromise {
   resolve(): void
   reject(err: unknown): void
+  /**
+   * Mark as rejected with a standard "animation cancelled" Error. The
+   * Error object is only allocated (and its stack captured) if/when
+   * `.promise` is read. For fire-and-forget cancel patterns where the
+   * handle's `finished` is never awaited, this pays zero.
+   */
+  rejectCancelled(): void
   readonly promise: Promise<void>
   readonly settled: boolean
 }
@@ -31,6 +38,7 @@ export interface LazyPromise {
 export function createLazyPromise(): LazyPromise {
   let state: LazyState = "pending"
   let reason: unknown = undefined
+  let wasCancelled = false
   let promise: Promise<void> | null = null
   let resolveFn: (() => void) | null = null
   let rejectFn: ((err: unknown) => void) | null = null
@@ -47,12 +55,19 @@ export function createLazyPromise(): LazyPromise {
       reason = err
       rejectFn?.(err)
     },
+    rejectCancelled() {
+      if (state !== "pending") return
+      state = "rejected"
+      wasCancelled = true
+      if (rejectFn) rejectFn(new Error("animation cancelled"))
+    },
     get promise() {
       if (promise !== null) return promise
       if (state === "resolved") {
         promise = Promise.resolve()
       } else if (state === "rejected") {
-        promise = Promise.reject(reason)
+        const err = wasCancelled ? new Error("animation cancelled") : reason
+        promise = Promise.reject(err)
         promise.catch(noop)
       } else {
         promise = new Promise<void>((res, rej) => {
