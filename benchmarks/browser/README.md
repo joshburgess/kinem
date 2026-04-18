@@ -32,9 +32,9 @@ significant at n=1000.
 
 | scenario                 |   n=100 |   n=500 |  n=1000 |
 |--------------------------|---------|---------|---------|
-| cancel-before-first      |   0.77x |   0.88x |   1.05x |
-| startup-commit           |   0.53x |   0.65x |   0.73x |
-| steady-state (10 frames) |   1.03x |   0.90x |   0.91x |
+| cancel-before-first      |   0.77x |   0.93x |   0.77x |
+| startup-commit           |   0.51x |   0.57x |   0.57x |
+| steady-state (10 frames) |   1.04x |   0.89x |   0.89x |
 
 Ratios are motif/motion (< 1.0 means motif is faster). Startup is a
 clear motif win across the board (motion's keyframe resolver and
