@@ -16,7 +16,7 @@
  */
 
 import { getCssEasing } from "../core/easing"
-import { createLazyPromise } from "../core/lazy-promise"
+import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import { pseudoToTransformFn } from "./properties"
 
@@ -244,6 +244,129 @@ function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): 
   return out
 }
 
+// Class-based handle. The nine public methods + three getters live on
+// the prototype once instead of being allocated as fresh closures per
+// play, and the two per-animation event handlers share a single bound
+// pair across all targets. At n=1000 plays that's ~12,000 fewer closure
+// allocations per bench cycle, which shows up in both wall time
+// (closure alloc cost) and GC pressure (the profile sampled 91 GC
+// hits while `playWaapi` + its closures accounted for ~89 self-hits).
+class WaapiImpl implements WaapiHandle {
+  readonly #animations: readonly WaapiAnimation[]
+  readonly #duration: number
+  readonly #lp: LazyPromise
+  #state: WaapiState = "playing"
+  #direction: 1 | -1 = 1
+  #speed = 1
+  #remaining: number
+
+  constructor(animations: readonly WaapiAnimation[], duration: number) {
+    this.#animations = animations
+    this.#duration = duration
+    this.#lp = createLazyPromise()
+    this.#remaining = animations.length
+    if (this.#remaining === 0) {
+      this.#state = "finished"
+      this.#lp.resolve()
+      return
+    }
+    // Bind once, assign N times. `.bind()` allocates a function object
+    // per call, so two binds total per play regardless of target count.
+    const onFinish = this.#onAnimationFinish.bind(this)
+    const onCancel = this.#onAnimationCancel.bind(this)
+    for (let i = 0; i < animations.length; i++) {
+      const a = animations[i] as WaapiAnimation
+      a.onfinish = onFinish
+      a.oncancel = onCancel
+    }
+  }
+
+  #onAnimationFinish(): void {
+    this.#remaining--
+    if (this.#remaining === 0 && this.#state === "playing") {
+      this.#state = "finished"
+      this.#lp.resolve()
+    }
+  }
+
+  #onAnimationCancel(): void {
+    if (this.#state === "playing" || this.#state === "paused") {
+      this.#state = "cancelled"
+      this.#lp.rejectCancelled()
+    }
+  }
+
+  #syncPlaybackRate(): void {
+    const rate = this.#direction * this.#speed
+    for (const a of this.#animations) a.playbackRate = rate
+  }
+
+  pause(): void {
+    if (this.#state !== "playing") return
+    for (const a of this.#animations) a.pause()
+    this.#state = "paused"
+  }
+
+  resume(): void {
+    if (this.#state !== "paused") return
+    for (const a of this.#animations) a.play()
+    this.#state = "playing"
+  }
+
+  seek(p: number): void {
+    if (this.#state === "cancelled") return
+    const clamped = p < 0 ? 0 : p > 1 ? 1 : p
+    const t = clamped * this.#duration
+    for (const a of this.#animations) a.currentTime = t
+    if (this.#state === "finished") {
+      this.#state = "playing"
+      this.#remaining = this.#animations.length
+      for (const a of this.#animations) a.play()
+    }
+  }
+
+  reverse(): void {
+    if (this.#state === "cancelled") return
+    this.#direction = (this.#direction === 1 ? -1 : 1) as 1 | -1
+    this.#syncPlaybackRate()
+    if (this.#state === "finished") {
+      // WAAPI resumes automatically when we flip playbackRate from
+      // a finished state at currentTime=duration, playing back to 0.
+      this.#state = "playing"
+      this.#remaining = this.#animations.length
+      for (const a of this.#animations) a.play()
+    }
+  }
+
+  setSpeed(multiplier: number): void {
+    if (this.#state === "cancelled") return
+    if (!(multiplier > 0)) {
+      throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
+    }
+    this.#speed = multiplier
+    this.#syncPlaybackRate()
+  }
+
+  cancel(): void {
+    if (this.#state === "finished" || this.#state === "cancelled") return
+    this.#state = "cancelled"
+    for (const a of this.#animations) a.cancel()
+    this.#lp.rejectCancelled()
+  }
+
+  get state(): WaapiState {
+    return this.#state
+  }
+
+  get direction(): 1 | -1 {
+    return this.#direction
+  }
+
+  get finished(): Promise<void> {
+    return this.#lp.promise
+  }
+}
+
 export function playWaapi(
   def: AnimationDef<Readonly<Record<string, unknown>>>,
   targets: readonly Animatable[],
@@ -255,98 +378,12 @@ export function playWaapi(
 
   const { frames, easing: waapiEasing } = planWaapi(def, opts)
   const fill = opts.fill ?? "forwards"
-  const animations = targets.map((t) =>
-    t.animate(frames, { duration: def.duration, easing: waapiEasing, fill }),
-  )
-
-  let state: WaapiState = "playing"
-  let direction: 1 | -1 = 1
-  let speed = 1
-
-  const lp = createLazyPromise()
-
-  let remaining = animations.length
-  if (remaining === 0) {
-    state = "finished"
-    lp.resolve()
+  // Build the animations array inline (no `.map()` callback allocation)
+  // so we don't pay for an extra closure on the hot path.
+  const animations: WaapiAnimation[] = new Array(targets.length)
+  const animateOpts = { duration: def.duration, easing: waapiEasing, fill }
+  for (let i = 0; i < targets.length; i++) {
+    animations[i] = (targets[i] as Animatable).animate(frames, animateOpts)
   }
-
-  const syncPlaybackRate = (): void => {
-    for (const a of animations) a.playbackRate = direction * speed
-  }
-
-  for (const a of animations) {
-    a.onfinish = () => {
-      remaining--
-      if (remaining === 0 && state === "playing") {
-        state = "finished"
-        lp.resolve()
-      }
-    }
-    a.oncancel = () => {
-      if (state === "playing" || state === "paused") {
-        state = "cancelled"
-        lp.rejectCancelled()
-      }
-    }
-  }
-
-  return {
-    pause() {
-      if (state !== "playing") return
-      for (const a of animations) a.pause()
-      state = "paused"
-    },
-    resume() {
-      if (state !== "paused") return
-      for (const a of animations) a.play()
-      state = "playing"
-    },
-    seek(p: number) {
-      if (state === "cancelled") return
-      const clamped = p < 0 ? 0 : p > 1 ? 1 : p
-      const t = clamped * def.duration
-      for (const a of animations) a.currentTime = t
-      if (state === "finished") {
-        state = "playing"
-        remaining = animations.length
-        for (const a of animations) a.play()
-      }
-    },
-    reverse() {
-      if (state === "cancelled") return
-      direction = (direction === 1 ? -1 : 1) as 1 | -1
-      syncPlaybackRate()
-      if (state === "finished") {
-        // WAAPI resumes automatically when we flip playbackRate from
-        // a finished state at currentTime=duration, playing back to 0.
-        state = "playing"
-        remaining = animations.length
-        for (const a of animations) a.play()
-      }
-    },
-    setSpeed(multiplier: number) {
-      if (state === "cancelled") return
-      if (!(multiplier > 0)) {
-        throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
-      }
-      speed = multiplier
-      syncPlaybackRate()
-    },
-    cancel() {
-      if (state === "finished" || state === "cancelled") return
-      state = "cancelled"
-      for (const a of animations) a.cancel()
-      lp.rejectCancelled()
-    },
-    get state() {
-      return state
-    },
-    get direction() {
-      return direction
-    },
-    get finished() {
-      return lp.promise
-    },
-  }
+  return new WaapiImpl(animations, def.duration)
 }
