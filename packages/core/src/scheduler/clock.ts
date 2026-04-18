@@ -18,6 +18,13 @@ export type NowFn = () => number
 export interface Clock {
   /** Current virtual time in milliseconds. Monotonically non-decreasing. */
   now(): number
+  /**
+   * Same semantics as `now()`, but uses the caller-supplied real-time
+   * timestamp instead of calling the internal `nowFn` again. Lets the
+   * rAF-driven Timing reuse the scheduler's frame time and avoid a
+   * redundant `performance.now()` per tick per animation.
+   */
+  nowAt(realTime: number): number
   pause(): void
   resume(): void
   readonly paused: boolean
@@ -73,6 +80,11 @@ class ClockImpl implements Clock {
   now(): number {
     if (this.#paused) return this.#anchorVirtual
     return this.#anchorVirtual + (this.#nowFn() - this.#anchorReal) * this.#speed
+  }
+
+  nowAt(realTime: number): number {
+    if (this.#paused) return this.#anchorVirtual
+    return this.#anchorVirtual + (realTime - this.#anchorReal) * this.#speed
   }
 
   pause(): void {
