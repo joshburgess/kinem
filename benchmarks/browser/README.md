@@ -63,23 +63,22 @@ by `bench:compare` (Playwright, foregrounded tab, no rAF throttling).
 
 | scenario            | motif (auto) | motif (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
-| startup-commit      |         12.3 |          1.8 |   11.1 |  11.9 |
-| startup-shared-def  |         11.3 |          1.4 |    9.8 |  12.3 |
-| cancel-before-first |          1.0 |          0.7 |    2.9 |   0.3 |
-| steady-state        |         86.2 |         71.0 |   86.3 |  79.0 |
+| startup-commit      |         11.5 |          2.0 |   10.6 |  12.6 |
+| startup-shared-def  |         12.2 |          1.8 |    9.4 |  12.0 |
+| cancel-before-first |          0.7 |          0.9 |    4.5 |   0.2 |
+| steady-state        |         78.7 |         70.6 |   79.5 |  78.8 |
 
 Headline:
 
 - With `mode: "main"`, motif is fastest on three of four scenarios.
-  Startup is ~6.6x faster than GSAP (1.8 vs 11.9) and ~8.8x on
-  shared-def (1.4 vs 12.3). Steady-state beats GSAP (71.0 vs 79.0)
-  and motion (71.0 vs 86.3).
+  Startup is ~6.3x faster than GSAP (2.0 vs 12.6) and ~6.7x on
+  shared-def (1.8 vs 12.0). Steady-state beats GSAP (70.6 vs 78.8)
+  and motion (70.6 vs 79.5).
 - Default `mode: "auto"` pays compositor-setup cost on startup in
   exchange for compositor-driven ticking that's resilient to main-
-  thread jank. Cancel-before-first is now 1.0 ms (down from 2.2) and
-  motion is 2.9.
-- GSAP still wins cancel-before-first at 0.3 ms. motif-main is at
-  0.7 ms. The remaining gap is Controls allocation plus the target
+  thread jank. Cancel-before-first is 0.7 ms; motion is 4.5.
+- GSAP still wins cancel-before-first at 0.2 ms. motif-main is at
+  0.9 ms. The remaining gap is Controls allocation plus the target
   resolution walk; GSAP's whole fast path is "alloc tween, unlink
   from global list" and motif still does a bit more work per play.
 
@@ -92,6 +91,14 @@ layer.
 
 ### Recent optimizations
 
+- **Leaf defs stash the full tier split on the def.** `tween` /
+  `keyframes` now publish `tierSplit: { props, compositor, main }`
+  at construction, and `splitDef` returns it directly on the leaf
+  path. Previously the router allocated a fresh three-field object
+  per play to adapt the leaf's two-field split plus `def.properties`
+  into the shape it consumed. One object per play at n=1000 was
+  measurable; removing it makes the profile's unique-def `play`
+  drop from ~1.1 ms to ~0.8 ms.
 - **Defer Error alloc on cancel via `LazyPromise.rejectCancelled`.**
   `handle.cancel()` used to construct a `new Error("animation
   cancelled")` and stash it in the lazy promise in case anything

@@ -60,6 +60,7 @@ export interface AnimationDef<T> {
    * @internal
    */
   readonly tierSplit?: {
+    readonly props: readonly string[]
     readonly compositor: readonly string[]
     readonly main: readonly string[]
   }

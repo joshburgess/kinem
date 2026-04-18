@@ -138,8 +138,13 @@ const EMPTY: readonly string[] = Object.freeze([])
  * into the compositor set (they resolve to transform). Only allocates
  * an array for a tier if at least one property belongs to it; the other
  * side is the shared `EMPTY` reference.
+ *
+ * Returns the input `props` reference alongside the partition so callers
+ * (leaf defs) can stash the full triple as `tierSplit` without an extra
+ * wrapper object per def.
  */
 export function partitionByTier(props: readonly string[]): {
+  readonly props: readonly string[]
   readonly compositor: readonly string[]
   readonly main: readonly string[]
 } {
@@ -154,5 +159,5 @@ export function partitionByTier(props: readonly string[]): {
       compositor.push(p)
     }
   }
-  return { compositor: compositor ?? EMPTY, main: main ?? EMPTY }
+  return { props, compositor: compositor ?? EMPTY, main: main ?? EMPTY }
 }
