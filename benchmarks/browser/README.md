@@ -19,6 +19,8 @@ automation. Each call returns the elapsed wall time in ms.
 Scenarios:
 - `cancel-before-first` — create N animations and cancel before the first rAF
 - `startup-commit` — create N, wait one rAF (forces real keyframe setup), cancel
+- `startup-shared-def` — same as startup-commit, but all N plays share one
+  `AnimationDef`. Exercises the `planWaapi` memo cache.
 - `steady-state` — create N, yield 10 rAFs, cancel
 
 ## Interpreting results
@@ -34,6 +36,7 @@ significant at n=1000.
 |--------------------------|---------|---------|---------|
 | cancel-before-first      |   0.77x |   0.93x |   0.77x |
 | startup-commit           |   0.51x |   0.57x |   0.57x |
+| startup-shared-def       |   0.58x |   0.60x |   0.59x |
 | steady-state (10 frames) |   1.04x |   0.89x |   0.89x |
 
 Ratios are motif/motion (< 1.0 means motif is faster). Startup is a

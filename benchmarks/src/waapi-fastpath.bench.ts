@@ -28,7 +28,7 @@ function makeElements(n: number): HTMLElement[] {
 const cubic = cubicBezier(0.4, 0, 0.2, 1)
 
 for (const n of [100, 500]) {
-  describe(`waapi fastpath: ${n} animations`, () => {
+  describe(`waapi fastpath: ${n} animations (fresh def per play)`, () => {
     const elsFast = makeElements(n)
     const elsDense = makeElements(n)
     bench("linearizable (2 keyframes, CSS cubic-bezier)", () => {
@@ -45,6 +45,33 @@ for (const n of [100, 500]) {
       const cs = new Array(n)
       for (let i = 0; i < n; i++) {
         cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: easeOut }), elsDense[i]!)
+      }
+      for (let i = 0; i < n; i++) {
+        cs[i].finished.catch(() => {})
+        cs[i].cancel()
+      }
+    })
+  })
+
+  describe(`waapi fastpath: ${n} animations (shared def across targets)`, () => {
+    const elsFast = makeElements(n)
+    const elsDense = makeElements(n)
+    const fastDef = tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: cubic })
+    const denseDef = tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: easeOut })
+    bench("linearizable, shared def (planWaapi cache hit)", () => {
+      const cs = new Array(n)
+      for (let i = 0; i < n; i++) {
+        cs[i] = play(fastDef, elsFast[i]!)
+      }
+      for (let i = 0; i < n; i++) {
+        cs[i].finished.catch(() => {})
+        cs[i].cancel()
+      }
+    })
+    bench("dense sampling, shared def (planWaapi cache hit)", () => {
+      const cs = new Array(n)
+      for (let i = 0; i < n; i++) {
+        cs[i] = play(denseDef, elsDense[i]!)
       }
       for (let i = 0; i < n; i++) {
         cs[i].finished.catch(() => {})
