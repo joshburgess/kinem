@@ -17,6 +17,16 @@
  * `postMessage` is not free. The break-even point vs main-thread compute
  * depends on the browser and animation count; callers should measure
  * before opting in. See `benchmarks/src/mass-interpolation.bench.ts`.
+ *
+ * Status: this is scaffolding, not currently wired into `playStrategy`.
+ * The raw-compute ceiling is ~2x (see mass-interpolation bench), but at
+ * n=1000 DOM that's ~1% of frame time because DOM writes dominate.
+ * Revisit wiring when we have a motivating canvas/WebGL case with many
+ * numeric tweens sharing a clock, where DOM writes aren't the bottleneck
+ * and the worker's 1-frame-lag cost is acceptable. Candidate surface
+ * shape: a `createBatchSampler(defs, { computer })` primitive users plug
+ * into their own canvas/GL render loop, rather than an automatic route
+ * inside `playStrategy`.
  */
 
 import {
