@@ -22,6 +22,7 @@
  * `window.__bench` for pickup by automation (e.g. chrome-devtools MCP).
  */
 
+import gsap from "gsap"
 import { play, tween } from "motif-animate"
 import { animate } from "motion"
 
@@ -31,8 +32,10 @@ type Scenario =
   | "cancel-before-first"
   | "steady-state"
 
+type Lib = "motif" | "motion" | "gsap"
+
 type BenchResult = {
-  lib: "motif" | "motion"
+  lib: Lib
   scenario: Scenario
   count: number
   runs: number[]
@@ -47,6 +50,7 @@ declare global {
     __bench?: BenchResult[]
     __runMotif?: (scenario: Scenario, count: number) => Promise<number>
     __runMotion?: (scenario: Scenario, count: number) => Promise<number>
+    __runGsap?: (scenario: Scenario, count: number) => Promise<number>
     __clearStage?: () => void
   }
 }
@@ -57,6 +61,7 @@ const countInput = document.getElementById("count") as HTMLInputElement
 const scenarioSelect = document.getElementById("scenario") as HTMLSelectElement
 const runMotifBtn = document.getElementById("run-motif") as HTMLButtonElement
 const runMotionBtn = document.getElementById("run-motion") as HTMLButtonElement
+const runGsapBtn = document.getElementById("run-gsap") as HTMLButtonElement
 const clearBtn = document.getElementById("clear") as HTMLButtonElement
 
 window.__bench = []
@@ -156,8 +161,37 @@ async function runMotion(scenario: Scenario, count: number): Promise<number> {
   return elapsed
 }
 
+async function runGsap(scenario: Scenario, count: number): Promise<number> {
+  const targets = spawnTargets(count)
+  const start = performance.now()
+  // biome-ignore lint/suspicious/noExplicitAny: gsap's tween type
+  const handles = new Array<any>(count)
+  if (scenario === "startup-shared-def") {
+    // gsap has no reusable-def concept at the tween level; pass the
+    // same vars object each time, which is the closest equivalent.
+    const vars = { opacity: 1, x: 100, duration: 0.8 }
+    for (let i = 0; i < count; i++) handles[i] = gsap.to(targets[i]!, vars)
+  } else {
+    for (let i = 0; i < count; i++) {
+      handles[i] = gsap.to(targets[i]!, { opacity: 1, x: 100 + i, duration: 0.8 })
+    }
+  }
+  if (scenario === "cancel-before-first") {
+    for (let i = 0; i < count; i++) handles[i]!.kill()
+  } else if (scenario === "startup-commit" || scenario === "startup-shared-def") {
+    await nextFrame()
+    for (let i = 0; i < count; i++) handles[i]!.kill()
+  } else {
+    for (let k = 0; k < 10; k++) await nextFrame()
+    for (let i = 0; i < count; i++) handles[i]!.kill()
+  }
+  const elapsed = performance.now() - start
+  clearStage()
+  return elapsed
+}
+
 function summarize(
-  lib: "motif" | "motion",
+  lib: Lib,
   scenario: Scenario,
   count: number,
   runs: number[],
@@ -182,15 +216,16 @@ function report(result: BenchResult): void {
 }
 
 async function runPool(
-  lib: "motif" | "motion",
+  lib: Lib,
   scenario: Scenario,
   count: number,
   samples = 5,
 ): Promise<void> {
+  const runner = lib === "motif" ? runMotif : lib === "motion" ? runMotion : runGsap
   const runs: number[] = []
   for (let i = 0; i < samples; i++) {
     clearStage()
-    const ms = lib === "motif" ? await runMotif(scenario, count) : await runMotion(scenario, count)
+    const ms = await runner(scenario, count)
     runs.push(ms)
     // Settle between runs so GC / paint doesn't bleed into the next one.
     await nextFrame()
@@ -199,21 +234,24 @@ async function runPool(
   report(summarize(lib, scenario, count, runs))
 }
 
-async function runHandler(lib: "motif" | "motion"): Promise<void> {
+async function runHandler(lib: Lib): Promise<void> {
   const count = Math.max(1, Math.min(5000, Number(countInput.value) || 0))
   const scenario = scenarioSelect.value as Scenario
   runMotifBtn.disabled = true
   runMotionBtn.disabled = true
+  runGsapBtn.disabled = true
   try {
     await runPool(lib, scenario, count)
   } finally {
     runMotifBtn.disabled = false
     runMotionBtn.disabled = false
+    runGsapBtn.disabled = false
   }
 }
 
 window.__runMotif = runMotif
 window.__runMotion = runMotion
+window.__runGsap = runGsap
 window.__clearStage = clearStage
 
 runMotifBtn.addEventListener("click", () => {
@@ -221,6 +259,9 @@ runMotifBtn.addEventListener("click", () => {
 })
 runMotionBtn.addEventListener("click", () => {
   void runHandler("motion")
+})
+runGsapBtn.addEventListener("click", () => {
+  void runHandler("gsap")
 })
 clearBtn.addEventListener("click", () => {
   out.textContent = "ready."

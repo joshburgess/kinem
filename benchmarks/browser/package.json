@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "gsap": "^3.15.0",
     "motif-animate": "workspace:*",
     "motion": "^12.38.0"
   },
