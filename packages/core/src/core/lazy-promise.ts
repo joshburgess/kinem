@@ -24,6 +24,16 @@
 
 const noop = (): void => {}
 const CANCELLED_MSG = "animation cancelled"
+// Shared, frozen Error instance used for all `rejectCancelled()` paths.
+// The alternative (one `new Error` per cancel) allocates a fresh object
+// and captures a stack on every call. The stack is captured at
+// construction time, not at the cancel call site, so it points into
+// this module regardless: callers reading `.stack` get no useful
+// debugging signal either way. Frozen so a consumer that accidentally
+// mutates a caught cancel error can't leak state across rejections.
+// Significant on the hot path: at n=1000 plays that's 1000 fewer Error
+// allocs + stack captures per startup-commit cycle.
+const CANCELLED_ERROR: Error = Object.freeze(new Error(CANCELLED_MSG)) as Error
 
 type LazyState = "pending" | "resolved" | "rejected"
 
@@ -31,10 +41,11 @@ export interface LazyPromise {
   resolve(): void
   reject(err: unknown): void
   /**
-   * Mark as rejected with a standard "animation cancelled" Error. The
-   * Error object is only allocated (and its stack captured) if/when
-   * `.promise` is read. For fire-and-forget cancel patterns where the
-   * handle's `finished` is never awaited, this pays zero.
+   * Mark as rejected with a standard "animation cancelled" Error. A
+   * single module-level frozen Error is reused across every call; no
+   * allocation or stack capture happens per cancel. For fire-and-forget
+   * cancel patterns where the handle's `finished` is never awaited,
+   * this still pays zero (no Promise either).
    */
   rejectCancelled(): void
   readonly promise: Promise<void>
@@ -66,7 +77,7 @@ class LazyPromiseImpl implements LazyPromise {
     if (this.#state !== "pending") return
     this.#state = "rejected"
     this.#wasCancelled = true
-    if (this.#rejectFn) this.#rejectFn(new Error(CANCELLED_MSG))
+    if (this.#rejectFn) this.#rejectFn(CANCELLED_ERROR)
   }
 
   get promise(): Promise<void> {
@@ -74,7 +85,7 @@ class LazyPromiseImpl implements LazyPromise {
     if (this.#state === "resolved") {
       this.#promise = Promise.resolve()
     } else if (this.#state === "rejected") {
-      const err = this.#wasCancelled ? new Error(CANCELLED_MSG) : this.#reason
+      const err = this.#wasCancelled ? CANCELLED_ERROR : this.#reason
       this.#promise = Promise.reject(err)
       this.#promise.catch(noop)
     } else {
