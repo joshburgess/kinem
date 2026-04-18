@@ -97,6 +97,29 @@ describe("clock", () => {
     expect(c.now()).toBe(10)
   })
 
+  it("nowAt(realTime) mirrors now() but uses the supplied timestamp", () => {
+    const r = mockNow(1000)
+    const c = createClock({ now: r.now })
+    // realTime = anchor + 250ms.
+    expect(c.nowAt(1250)).toBe(250)
+    r.advance(100)
+    // now() should match nowAt(r.now()) within the same tick.
+    expect(c.nowAt(r.now())).toBe(c.now())
+  })
+
+  it("nowAt honors pause/speed", () => {
+    const r = mockNow(1000)
+    const c = createClock({ now: r.now })
+    c.pause()
+    expect(c.nowAt(5000)).toBe(0)
+    c.resume()
+    r.advance(100)
+    c.setSpeed(2)
+    r.advance(50)
+    // Virtual time: 100 (at speed=1) + 100 (50ms at speed=2) = 200.
+    expect(c.nowAt(r.now())).toBe(200)
+  })
+
   it("is monotonically non-decreasing under normal use", () => {
     const r = mockNow()
     const c = createClock({ now: r.now })

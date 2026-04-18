@@ -71,7 +71,12 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
   // cancel-before-first never needs a clock, so we skip both there.
   #clock: Clock | null
   readonly #def: AnimationDef<V>
-  readonly #commit: (values: V) => void
+  readonly #commit: ((values: V) => void) | null
+  // Direct-render path: called with the current progress instead of
+  // with an interpolated values bag. When non-null, `#commit` is
+  // bypassed and the def's `commit(p, el)` path owns rendering end-to-
+  // end for every target. Set by `createTimingDirect`.
+  readonly #directRender: ((progress: number) => void) | null
   readonly #opts: TimingOpts
   readonly #duration: number
   readonly #lp: LazyPromise
@@ -90,7 +95,12 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
   _kaPhase: Phase | null = null
   _kaDead = false
 
-  constructor(def: AnimationDef<V>, commit: (values: V) => void, opts: TimingOpts = {}) {
+  constructor(
+    def: AnimationDef<V>,
+    commit: ((values: V) => void) | null,
+    directRender: ((progress: number) => void) | null,
+    opts: TimingOpts = {},
+  ) {
     const duration = def.duration
     if (!(duration > 0) || !Number.isFinite(duration)) {
       throw new Error(`createTiming(): animation duration must be finite and > 0 (got ${duration})`)
@@ -102,6 +112,7 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
     this.#clock = opts.clock ?? null
     this.#def = def
     this.#commit = commit
+    this.#directRender = directRender
     this.#opts = opts
     this.#duration = duration
     this.#lp = createLazyPromise()
@@ -120,9 +131,9 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
   // Prototype method (shared across all Timing instances) — no per-
   // instance closure allocation. The scheduler walks the keepalive
   // list and calls `_kaTick(state)` on each node.
-  _kaTick(_state: FrameState): void {
+  _kaTick(state: FrameState): void {
     if (this.#state === "playing") {
-      this.#progress = this.#computeProgress()
+      this.#progress = this.#computeProgress(state.time)
       this.#needsRender = true
       if (this.#isFinished(this.#progress)) {
         this.#progress = this.#direction === 1 ? 1 : 0
@@ -142,8 +153,14 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
     }
   }
 
-  #computeProgress(): number {
-    const elapsed = (this.#ensureClock().now() - this.#anchorTime) / this.#duration
+  // `realTime`, when provided, is the scheduler's frame timestamp
+  // (same source as the clock's internal `nowFn`). Reusing it lets the
+  // steady-state tick skip one `performance.now()` call per animation
+  // per frame.
+  #computeProgress(realTime?: number): number {
+    const clock = this.#ensureClock()
+    const now = realTime !== undefined ? clock.nowAt(realTime) : clock.now()
+    const elapsed = (now - this.#anchorTime) / this.#duration
     const raw = this.#anchorProgress + this.#direction * elapsed
     if (this.#opts.repeat) {
       return ((raw % 1) + 1) % 1
@@ -152,7 +169,13 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
   }
 
   #render(): void {
-    this.#commit(this.#def.interpolate(this.#progress))
+    if (this.#directRender !== null) {
+      this.#directRender(this.#progress)
+    } else {
+      // `#commit` is always set when `#directRender` is null — the
+      // factory functions enforce that invariant.
+      ;(this.#commit as (v: V) => void)(this.#def.interpolate(this.#progress))
+    }
   }
 
   #armKeepalive(): void {
@@ -266,5 +289,21 @@ export function createTiming<V>(
   commit: (values: V) => void,
   opts: TimingOpts = {},
 ): TimingHandle {
-  return new Timing(def, commit, opts)
+  return new Timing(def, commit, null, opts)
+}
+
+/**
+ * Build a `TimingHandle` that invokes `render(progress)` directly on
+ * every frame, skipping `def.interpolate()`. Used by backends that can
+ * commit values straight to their target surface via `def.commit(p, el)`
+ * (e.g. the rAF DOM path) without materializing a values bag.
+ *
+ * @internal
+ */
+export function createTimingDirect<V>(
+  def: AnimationDef<V>,
+  render: (progress: number) => void,
+  opts: TimingOpts = {},
+): TimingHandle {
+  return new Timing(def, null, render, opts)
 }
