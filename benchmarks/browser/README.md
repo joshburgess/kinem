@@ -13,9 +13,12 @@ pnpm -C benchmarks/browser dev
 ```
 
 The page exposes `window.__runMotif(scenario, n)`,
-`window.__runMotion(scenario, n)`, and `window.__runGsap(scenario, n)`
-for driving from devtools or MCP automation. Each call returns the
-elapsed wall time in ms.
+`window.__runMotifMain(scenario, n)`, `window.__runMotion(scenario, n)`,
+and `window.__runGsap(scenario, n)` for driving from devtools or MCP
+automation. `__runMotif` uses the default `mode: "auto"`, which routes
+compositor-safe props through WAAPI. `__runMotifMain` passes
+`mode: "main"`, which forces rAF + per-frame JS writes (the same model
+as GSAP). Each call returns the elapsed wall time in ms.
 
 Scenarios:
 - `cancel-before-first` — create N animations and cancel before the first rAF
@@ -43,6 +46,8 @@ are defensible for different workloads.
 
 Absolute wall time in milliseconds, median of 5 runs:
 
+### Default mode (`mode: "auto"`, compositor-safe props via WAAPI)
+
 | scenario                 | n    | motif | motion |  gsap |
 |--------------------------|------|-------|--------|-------|
 | startup-commit           |  100 |   9.3 |   10.9 |   9.2 |
@@ -58,21 +63,55 @@ Absolute wall time in milliseconds, median of 5 runs:
 | steady-state (10 frames) |  500 |  86.0 |   85.3 |  83.2 |
 | steady-state (10 frames) | 1000 |  97.7 |  110.8 |  83.1 |
 
+### Main-thread mode (`mode: "main"`) vs GSAP
+
+Passing `mode: "main"` makes motif tick from JS on the main thread
+(same architecture as GSAP), at the cost of losing compositor-side
+resilience to main-thread jank. Paint and composite are still GPU-
+accelerated because `will-change` promotes the element to its own
+layer.
+
+| scenario            | n    | motif (auto) | motif (main) |  gsap |
+|---------------------|------|--------------|--------------|-------|
+| startup-commit      |  100 |          9.6 |          8.8 |   9.1 |
+| startup-commit      |  500 |         14.6 |          9.2 |  10.9 |
+| startup-commit      | 1000 |         21.6 |         10.7 |  13.2 |
+| startup-shared-def  |  100 |          9.3 |          7.9 |   8.8 |
+| startup-shared-def  |  500 |         14.1 |          9.3 |  10.5 |
+| startup-shared-def  | 1000 |         20.4 |         10.5 |  12.7 |
+| cancel-before-first |  100 |          0.3 |          0.4 |   0.1 |
+| cancel-before-first |  500 |          1.3 |          1.8 |   0.2 |
+| cancel-before-first | 1000 |          2.7 |          3.6 |   0.2 |
+| steady-state        |  100 |         83.9 |         82.7 |  83.3 |
+| steady-state        |  500 |         86.3 |         84.4 |  83.2 |
+| steady-state        | 1000 |         97.6 |         86.2 |  83.0 |
+
+With `mode: "main"`, motif is faster than GSAP on startup at n=1000
+(10.7 vs 13.2 ms for startup-commit; 10.5 vs 12.7 for shared-def)
+and closes most of the steady-state gap (86.2 vs 83.0). The one
+scenario GSAP still dominates is cancel-before-first, where its kill
+is a linked-list unlink and ours still pays the rAF-handle teardown.
+
+Pick `mode: "main"` when you want GSAP-class startup and can tolerate
+timing pauses if the main thread is blocked. Pick the default
+(`mode: "auto"`) when resilience to main-thread jank matters more
+than peak startup throughput.
+
 Takeaways:
 
-- motif beats motion across the board. At n=1000: startup-commit is
-  ~1.8x faster (21.4 vs 38.9 ms), shared-def ~1.9x (19.9 vs 38.1),
-  cancel-before-first ~5.4x (2.5 vs 13.5).
-- motif is competitive with gsap on small workloads (startup-commit
-  n=100: motif 9.3 vs gsap 9.2). At n=1000 gsap still leads by ~1.7x
-  on startup because it skips WAAPI entirely, and by ~12x on cancel-
-  before-first because its kill is a linked-list unlink. The
-  compositor hand-off we pay on startup is what buys free ticking
-  later on; gsap trades that for cheap setup + per-tick JS cost.
-- At steady-state n=1000, gsap is ~15% faster. The remaining gap is
-  the per-handle scheduler overhead for non-compositor bookkeeping
-  (the `keepalive` linked list walk) plus the scheduler re-arm cost.
-  At n=100, all three are within noise (paint-bound).
+- motif beats motion across the board in the default mode. At n=1000:
+  startup-commit is ~1.8x faster (21.4 vs 38.9 ms), shared-def ~1.9x
+  (19.9 vs 38.1), cancel-before-first ~5.4x (2.5 vs 13.5).
+- In default mode, motif is competitive with GSAP on small workloads
+  and loses by 1.5-1.7x at n=1000 on startup because GSAP skips WAAPI
+  entirely. The compositor hand-off we pay on startup is what buys
+  the animation's resilience to main-thread jank later on; GSAP trades
+  that for cheap setup + per-tick JS cost.
+- GSAP's edge on cancel-before-first (2.5 vs 0.2 ms at n=1000) is its
+  linked-list kill, which nothing else in this space matches.
+- With `mode: "main"`, motif beats GSAP on startup at n=1000 (10.7 vs
+  13.2 ms) and closes the steady-state gap to ~4%. The tradeoff is
+  losing compositor-side resilience.
 
 Recent work:
 
