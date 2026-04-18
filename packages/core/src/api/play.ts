@@ -117,14 +117,20 @@ export function play(
   opts: PlayOpts = {},
 ): Controls {
   const targets = resolveTargets(target, opts)
-  const strategyOpts = resolveStrategyOpts(opts)
-  const handle = playStrategy(def, targets, strategyOpts)
+  // Resolve the backend inline rather than going through
+  // `resolveStrategyOpts`, which would spread `opts` into a new object
+  // when `mode` is set. `playStrategy` accepts a backend override, so
+  // we can leave `opts` unchanged and pay zero allocs here.
+  const backend: StrategyBackend =
+    opts.backend ??
+    (opts.mode !== undefined ? MODE_TO_BACKEND[opts.mode] : "auto")
+  const handle = playStrategy(def, targets, opts, backend)
   // No eager `handle.finished.catch(noop)`: with lazy-allocated
   // promises, fire-and-forget cancel never creates a Promise, so there
   // is nothing to surface as unhandled. Callers that do access
   // `.finished` on a rejected handle get a pre-settled promise that
   // silences its own unhandled-rejection warning (see `lazy-promise`).
-  const controls = createControls(handle, { duration: def.duration })
-  trackAnimation(controls, targets, strategyOpts.backend ?? "auto")
+  const controls = createControls(handle, def.duration)
+  trackAnimation(controls, targets, backend)
   return controls
 }

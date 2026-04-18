@@ -162,10 +162,7 @@ export function timeline(): Timeline {
     },
     play(opts = {}) {
       if (entries.length === 0 || totalMs === 0) {
-        return createControls(emptyHandle(), {
-          duration: totalMs,
-          labels: msLabelsToProgress(labels, totalMs),
-        })
+        return createControls(emptyHandle(), totalMs, msLabelsToProgress(labels, totalMs))
       }
 
       const strategyOpts = resolveStrategyOpts(opts)
@@ -176,10 +173,11 @@ export function timeline(): Timeline {
         handles.push(playStrategy(slotted(e.def, e.startMs, totalMs), targets, strategyOpts))
       }
 
-      return createControls(combineHandles(handles), {
-        duration: totalMs,
-        labels: msLabelsToProgress(labels, totalMs),
-      })
+      return createControls(
+        combineHandles(handles),
+        totalMs,
+        msLabelsToProgress(labels, totalMs),
+      )
     },
     get duration() {
       return totalMs
