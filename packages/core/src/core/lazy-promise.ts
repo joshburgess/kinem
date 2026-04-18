@@ -15,9 +15,15 @@
  * as an unhandled rejection if the caller discards it. Callers that
  * chain (.then / .catch / await) still observe the rejection normally
  * because they create their own subscription to the same promise.
+ *
+ * Implemented as a class so the five public operations live on the
+ * prototype once rather than being reallocated as fresh closures per
+ * `createLazyPromise()` call. Each animation constructs one of these,
+ * so at n=1000 plays that's 5000 fewer closure allocs per cycle.
  */
 
 const noop = (): void => {}
+const CANCELLED_MSG = "animation cancelled"
 
 type LazyState = "pending" | "resolved" | "rejected"
 
@@ -35,50 +41,56 @@ export interface LazyPromise {
   readonly settled: boolean
 }
 
-export function createLazyPromise(): LazyPromise {
-  let state: LazyState = "pending"
-  let reason: unknown = undefined
-  let wasCancelled = false
-  let promise: Promise<void> | null = null
-  let resolveFn: (() => void) | null = null
-  let rejectFn: ((err: unknown) => void) | null = null
+class LazyPromiseImpl implements LazyPromise {
+  #state: LazyState = "pending"
+  #reason: unknown = undefined
+  #wasCancelled = false
+  #promise: Promise<void> | null = null
+  #resolveFn: (() => void) | null = null
+  #rejectFn: ((err: unknown) => void) | null = null
 
-  return {
-    resolve() {
-      if (state !== "pending") return
-      state = "resolved"
-      resolveFn?.()
-    },
-    reject(err) {
-      if (state !== "pending") return
-      state = "rejected"
-      reason = err
-      rejectFn?.(err)
-    },
-    rejectCancelled() {
-      if (state !== "pending") return
-      state = "rejected"
-      wasCancelled = true
-      if (rejectFn) rejectFn(new Error("animation cancelled"))
-    },
-    get promise() {
-      if (promise !== null) return promise
-      if (state === "resolved") {
-        promise = Promise.resolve()
-      } else if (state === "rejected") {
-        const err = wasCancelled ? new Error("animation cancelled") : reason
-        promise = Promise.reject(err)
-        promise.catch(noop)
-      } else {
-        promise = new Promise<void>((res, rej) => {
-          resolveFn = res
-          rejectFn = rej
-        })
-      }
-      return promise
-    },
-    get settled() {
-      return state !== "pending"
-    },
+  resolve(): void {
+    if (this.#state !== "pending") return
+    this.#state = "resolved"
+    this.#resolveFn?.()
   }
+
+  reject(err: unknown): void {
+    if (this.#state !== "pending") return
+    this.#state = "rejected"
+    this.#reason = err
+    this.#rejectFn?.(err)
+  }
+
+  rejectCancelled(): void {
+    if (this.#state !== "pending") return
+    this.#state = "rejected"
+    this.#wasCancelled = true
+    if (this.#rejectFn) this.#rejectFn(new Error(CANCELLED_MSG))
+  }
+
+  get promise(): Promise<void> {
+    if (this.#promise !== null) return this.#promise
+    if (this.#state === "resolved") {
+      this.#promise = Promise.resolve()
+    } else if (this.#state === "rejected") {
+      const err = this.#wasCancelled ? new Error(CANCELLED_MSG) : this.#reason
+      this.#promise = Promise.reject(err)
+      this.#promise.catch(noop)
+    } else {
+      this.#promise = new Promise<void>((res, rej) => {
+        this.#resolveFn = res
+        this.#rejectFn = rej
+      })
+    }
+    return this.#promise
+  }
+
+  get settled(): boolean {
+    return this.#state !== "pending"
+  }
+}
+
+export function createLazyPromise(): LazyPromise {
+  return new LazyPromiseImpl()
 }
