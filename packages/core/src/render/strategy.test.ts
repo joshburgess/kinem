@@ -312,3 +312,94 @@ describe("combineHandles: single-handle fast path", () => {
     expect(combined).toBe(h)
   })
 })
+
+describe("combineHandles: derived state", () => {
+  function stateMock(): StrategyHandle & { _setState: (s: StrategyHandle["state"]) => void } {
+    let state: StrategyHandle["state"] = "playing"
+    return {
+      pause: vi.fn(() => {
+        state = "paused"
+      }),
+      resume: vi.fn(() => {
+        state = "playing"
+      }),
+      seek: vi.fn(),
+      reverse: vi.fn(),
+      setSpeed: vi.fn(),
+      cancel: vi.fn(() => {
+        state = "cancelled"
+      }),
+      get state() {
+        return state
+      },
+      finished: new Promise(() => {}),
+      _setState(s) {
+        state = s
+      },
+    }
+  }
+
+  it("reports 'playing' while any child is playing", () => {
+    const a = stateMock()
+    const b = stateMock()
+    const combined = combineHandles([a, b])
+    expect(combined.state).toBe("playing")
+    a._setState("finished")
+    expect(combined.state).toBe("playing")
+  })
+
+  it("reports 'finished' when all children are finished", () => {
+    const a = stateMock()
+    const b = stateMock()
+    const combined = combineHandles([a, b])
+    a._setState("finished")
+    b._setState("finished")
+    expect(combined.state).toBe("finished")
+  })
+
+  it("re-derives 'playing' when children un-finish via seek/reverse", () => {
+    const a = stateMock()
+    const b = stateMock()
+    // Seek/reverse on the child flips its state back to playing (mirrors
+    // Timing.seek and WaapiImpl.seek re-arming from finished). Without
+    // derived state, combined would report stale 'finished' while the
+    // animation runs visibly. This is the scroll-triggered zombie bug.
+    a.seek = vi.fn(() => a._setState("playing"))
+    b.seek = vi.fn(() => b._setState("playing"))
+    const combined = combineHandles([a, b])
+    a._setState("finished")
+    b._setState("finished")
+    expect(combined.state).toBe("finished")
+    combined.seek(0)
+    expect(combined.state).toBe("playing")
+  })
+
+  it("cancel is sticky: state stays 'cancelled' even if a child reports otherwise", () => {
+    const a = stateMock()
+    const b = stateMock()
+    const combined = combineHandles([a, b])
+    combined.cancel()
+    expect(combined.state).toBe("cancelled")
+    // Even if a stale child reports playing, cancelled sticks.
+    a._setState("playing")
+    expect(combined.state).toBe("cancelled")
+  })
+
+  it("propagates seek/reverse/setSpeed regardless of derived 'finished' state", () => {
+    // Critical for scroll-triggered: after all children finish, user-driven
+    // reverse must still propagate so children can re-arm.
+    const a = stateMock()
+    const b = stateMock()
+    const combined = combineHandles([a, b])
+    a._setState("finished")
+    b._setState("finished")
+    combined.seek(0.5)
+    combined.reverse()
+    combined.setSpeed(2)
+    expect(a.seek).toHaveBeenCalledWith(0.5)
+    expect(b.seek).toHaveBeenCalledWith(0.5)
+    expect(a.reverse).toHaveBeenCalled()
+    expect(b.reverse).toHaveBeenCalled()
+    expect(a.setSpeed).toHaveBeenCalledWith(2)
+  })
+})
