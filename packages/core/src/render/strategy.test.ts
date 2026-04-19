@@ -29,6 +29,8 @@ function mockHandle(): StrategyHandle & {
     setSpeed: vi.fn(),
     cancel: vi.fn(),
     state: "playing" as const,
+    progress: 0,
+    direction: 1 as const,
     finished,
     resolveFinished,
     rejectFinished,

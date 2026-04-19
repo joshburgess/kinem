@@ -103,6 +103,8 @@ function emptyHandle(): StrategyHandle {
     setSpeed() {},
     cancel() {},
     state: "finished",
+    progress: 1,
+    direction: 1,
     finished: Promise.resolve(),
   }
 }

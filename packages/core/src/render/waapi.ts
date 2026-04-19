@@ -65,6 +65,7 @@ export interface WaapiHandle {
   setSpeed(multiplier: number): void
   cancel(): void
   readonly state: WaapiState
+  readonly progress: number
   readonly direction: 1 | -1
   readonly finished: Promise<void>
 }
@@ -440,6 +441,20 @@ class WaapiImpl implements WaapiHandle {
 
   get state(): WaapiState {
     return this.#state
+  }
+
+  get progress(): number {
+    // Pre-setup: no animations yet, so nothing is on-screen. Report 0.
+    // WAAPI's currentTime is compositor-driven, so we read the first
+    // animation's currentTime rather than tracking a mirrored value.
+    // All sibling animations share the same clock by construction
+    // (same start, same playbackRate), so reading the first is fine.
+    const animations = this.#animations
+    if (animations === null || animations.length === 0) return 0
+    const t = (animations[0] as WaapiAnimation).currentTime
+    if (typeof t !== "number") return 0
+    const p = t / this.#duration
+    return p <= 0 ? 0 : p >= 1 ? 1 : p
   }
 
   get direction(): 1 | -1 {
