@@ -1,5 +1,5 @@
 /**
- * Browser-side comparison harness for motif vs motion vs gsap.
+ * Browser-side comparison harness for kinem vs motion vs gsap.
  *
  * Three scenarios:
  *
@@ -23,7 +23,7 @@
  */
 
 import gsap from "gsap"
-import { type PlayMode, play, tween } from "motif-animate"
+import { type PlayMode, play, tween } from "kinem"
 import { animate } from "motion"
 
 type Scenario =
@@ -32,7 +32,7 @@ type Scenario =
   | "cancel-before-first"
   | "steady-state"
 
-type Lib = "motif" | "motion" | "gsap"
+type Lib = "kinem" | "motion" | "gsap"
 
 type BenchResult = {
   lib: Lib
@@ -98,7 +98,7 @@ const stage = document.getElementById("stage") as HTMLDivElement
 const out = document.getElementById("out") as HTMLPreElement
 const countInput = document.getElementById("count") as HTMLInputElement
 const scenarioSelect = document.getElementById("scenario") as HTMLSelectElement
-const runMotifBtn = document.getElementById("run-motif") as HTMLButtonElement
+const runMotifBtn = document.getElementById("run-kinem") as HTMLButtonElement
 const runMotionBtn = document.getElementById("run-motion") as HTMLButtonElement
 const runGsapBtn = document.getElementById("run-gsap") as HTMLButtonElement
 const clearBtn = document.getElementById("clear") as HTMLButtonElement
@@ -152,7 +152,7 @@ async function runMotif(
       )
     }
   }
-  // No defensive `.finished.catch()` here: motif's lazy-promise silences
+  // No defensive `.finished.catch()` here: kinem's lazy-promise silences
   // unhandled-rejection surface internally for fire-and-forget cancel,
   // matching the motion and gsap bench paths which also don't catch.
   if (scenario === "cancel-before-first") {
@@ -259,7 +259,7 @@ async function runPool(
   count: number,
   samples = 5,
 ): Promise<void> {
-  const runner = lib === "motif" ? runMotif : lib === "motion" ? runMotion : runGsap
+  const runner = lib === "kinem" ? runMotif : lib === "motion" ? runMotion : runGsap
   const runs: number[] = []
   for (let i = 0; i < samples; i++) {
     clearStage()
@@ -465,7 +465,7 @@ window.__profileMain = profileMain
 window.__profileStartupPhases = profileStartupPhases
 
 runMotifBtn.addEventListener("click", () => {
-  void runHandler("motif")
+  void runHandler("kinem")
 })
 runMotionBtn.addEventListener("click", () => {
   void runHandler("motion")

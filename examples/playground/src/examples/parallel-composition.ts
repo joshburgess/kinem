@@ -1,4 +1,4 @@
-import { easeInOut, parallel, play, tween } from "motif-animate"
+import { easeInOut, parallel, play, tween } from "kinem"
 import type { Example } from "../example"
 
 export const parallelComposition: Example = {

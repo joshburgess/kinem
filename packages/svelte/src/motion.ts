@@ -14,8 +14,8 @@
  * per-frame state: mutation happens directly on the DOM node.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "motif-animate"
-import { play, tween } from "motif-animate"
+import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "kinem"
+import { play, tween } from "kinem"
 
 export type MotionValues = Readonly<Record<string, string | number>>
 

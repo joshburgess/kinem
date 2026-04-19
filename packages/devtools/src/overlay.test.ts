@@ -1,4 +1,4 @@
-import { __resetTracker, trackAnimation } from "motif-animate"
+import { __resetTracker, trackAnimation } from "kinem"
 import { afterEach, describe, expect, it } from "vitest"
 import { mountInspector } from "./overlay"
 
@@ -8,7 +8,7 @@ function pending(): Promise<void> {
 
 afterEach(() => {
   __resetTracker()
-  for (const el of Array.from(document.querySelectorAll("[data-motif-inspector]"))) {
+  for (const el of Array.from(document.querySelectorAll("[data-kinem-inspector]"))) {
     el.remove()
   }
 })
@@ -16,14 +16,14 @@ afterEach(() => {
 describe("mountInspector", () => {
   it("mounts a host element into document.body by default", () => {
     const panel = mountInspector()
-    expect(document.querySelector("[data-motif-inspector]")).toBeTruthy()
+    expect(document.querySelector("[data-kinem-inspector]")).toBeTruthy()
     panel.unmount()
   })
 
   it("unmount removes the host element", () => {
     const panel = mountInspector()
     panel.unmount()
-    expect(document.querySelector("[data-motif-inspector]")).toBeNull()
+    expect(document.querySelector("[data-kinem-inspector]")).toBeNull()
   })
 
   it("renders an empty state when no animations are active", () => {
@@ -73,7 +73,7 @@ describe("mountInspector", () => {
     const host = document.createElement("div")
     document.body.appendChild(host)
     const panel = mountInspector({ parent: host })
-    expect(host.querySelector("[data-motif-inspector]")).toBeTruthy()
+    expect(host.querySelector("[data-kinem-inspector]")).toBeTruthy()
     panel.unmount()
     host.remove()
   })

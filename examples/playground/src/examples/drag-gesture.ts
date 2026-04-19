@@ -1,4 +1,4 @@
-import { gesture } from "motif-animate"
+import { gesture } from "kinem"
 import type { Example } from "../example"
 
 export const dragGesture: Example = {

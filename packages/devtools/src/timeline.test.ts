@@ -1,4 +1,4 @@
-import { __resetTracker, trackAnimation } from "motif-animate"
+import { __resetTracker, trackAnimation } from "kinem"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { mountTimeline } from "./timeline"
 
@@ -39,7 +39,7 @@ function fakeControls(overrides: Partial<{ duration: number; state: string }> = 
 
 afterEach(() => {
   __resetTracker()
-  for (const el of Array.from(document.querySelectorAll("[data-motif-timeline]"))) {
+  for (const el of Array.from(document.querySelectorAll("[data-kinem-timeline]"))) {
     el.remove()
   }
 })
@@ -47,7 +47,7 @@ afterEach(() => {
 describe("mountTimeline", () => {
   it("mounts a host element and renders empty state", () => {
     const scrubber = mountTimeline()
-    expect(document.querySelector("[data-motif-timeline]")).toBeTruthy()
+    expect(document.querySelector("[data-kinem-timeline]")).toBeTruthy()
     expect(scrubber.element.shadowRoot?.querySelector(".empty")?.textContent).toContain("No active")
     scrubber.unmount()
   })
@@ -107,7 +107,7 @@ describe("mountTimeline", () => {
   it("unmount removes the host element", () => {
     const scrubber = mountTimeline()
     scrubber.unmount()
-    expect(document.querySelector("[data-motif-timeline]")).toBeNull()
+    expect(document.querySelector("[data-kinem-timeline]")).toBeNull()
   })
 
   it("collapsed:true sets the collapsed class", () => {

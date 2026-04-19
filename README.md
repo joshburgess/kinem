@@ -1,11 +1,13 @@
-# Motif
+# Kinem
+
+> Short for *kinematics*, or *kinema*, the Greek word for movement.
 
 Functional, compositional animation for TypeScript. An animation is a pure
 function from progress to value. You compose animations with ordinary
 combinators, then hand the result to a renderer.
 
 ```ts
-import { easeOut, parallel, play, sequence, spring, tween } from "motif-animate"
+import { easeOut, parallel, play, sequence, spring, tween } from "kinem"
 
 const entrance = sequence(
   tween({ opacity: [0, 1] }, { duration: 200 }),
@@ -27,17 +29,17 @@ by hand.
 ## Install
 
 ```sh
-pnpm add motif-animate
-# or: npm install motif-animate
-# or: yarn add motif-animate
+pnpm add kinem
+# or: npm install kinem
+# or: yarn add kinem
 ```
 
 Framework adapters:
 
 ```sh
-pnpm add @motif-animate/react
-pnpm add @motif-animate/vue
-pnpm add @motif-animate/svelte
+pnpm add @kinem/react
+pnpm add @kinem/vue
+pnpm add @kinem/svelte
 ```
 
 ## What's in the box
@@ -68,7 +70,7 @@ import {
   play,
   stagger,
   tween,
-} from "motif-animate"
+} from "kinem"
 
 const tiles = Array.from(document.querySelectorAll<HTMLElement>(".tile"))
 
@@ -98,7 +100,7 @@ Measured at the main entry with all built-in interpolators:
 | `tween + gesture` | 9.4 kB |
 | full library surface | 14.0 kB |
 
-The slim entry (`motif-animate/slim`) skips the color, transform, path, and
+The slim entry (`kinem/slim`) skips the color, transform, path, and
 CSS-unit interpolator registrations. Use it when you only animate numbers,
 or when you want to register a custom subset via `registerInterpolator`.
 
@@ -107,7 +109,7 @@ or when you want to register a custom subset via `registerInterpolator`.
 ### React
 
 ```tsx
-import { useTween } from "@motif-animate/react"
+import { useTween } from "@kinem/react"
 
 function Card() {
   const ref = useTween<HTMLDivElement>(
@@ -122,7 +124,7 @@ function Card() {
 
 ```vue
 <script setup lang="ts">
-import { useTween } from "@motif-animate/vue"
+import { useTween } from "@kinem/vue"
 const card = useTween({ opacity: [0, 1] }, { duration: 400 })
 </script>
 
@@ -133,7 +135,7 @@ const card = useTween({ opacity: [0, 1] }, { duration: 400 })
 
 ```svelte
 <script lang="ts">
-  import { tween } from "@motif-animate/svelte"
+  import { tween } from "@kinem/svelte"
 </script>
 
 <div use:tween={{ opacity: [0, 1], duration: 400 }} class="card">hello</div>
@@ -143,7 +145,7 @@ const card = useTween({ opacity: [0, 1] }, { duration: 400 })
 
 This is a work-in-progress library. Public versions are `0.x` and minor
 versions may make breaking changes. See
-[CHANGELOG](https://github.com/joshburgess/motif/releases) for per-release
+[CHANGELOG](https://github.com/joshburgess/kinem/releases) for per-release
 notes.
 
 ## License

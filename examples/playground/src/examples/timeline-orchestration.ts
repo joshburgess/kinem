@@ -1,4 +1,4 @@
-import { easeInOut, easeOut, timeline, tween } from "motif-animate"
+import { easeInOut, easeOut, timeline, tween } from "kinem"
 import type { Example } from "../example"
 
 export const timelineOrchestration: Example = {

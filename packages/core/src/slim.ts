@@ -1,6 +1,6 @@
 /**
  * Slim entry point. Exports the same public API as the main
- * `motif-animate` entry but omits the built-in interpolator
+ * `kinem` entry but omits the built-in interpolator
  * registrations. Consumers that only animate numbers (or ones that
  * want to register a custom subset via `registerInterpolator`) can
  * import from here to drop ~3 kB gzipped of color/transform/path/unit

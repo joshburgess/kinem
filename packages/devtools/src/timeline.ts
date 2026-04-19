@@ -19,7 +19,7 @@
  * separate mount so pages can opt into either or both independently.
  */
 
-import { type AnimationRecord, listActiveAnimations, subscribeTracker } from "motif-animate"
+import { type AnimationRecord, listActiveAnimations, subscribeTracker } from "kinem"
 
 export type TimelinePosition = "top" | "bottom"
 
@@ -160,7 +160,7 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
   const position: TimelinePosition = opts.position ?? "bottom"
 
   const host = document.createElement("div")
-  host.setAttribute("data-motif-timeline", "")
+  host.setAttribute("data-kinem-timeline", "")
   const shadow = host.attachShadow({ mode: "open" })
 
   const style = document.createElement("style")

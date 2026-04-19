@@ -6,7 +6,7 @@ import {
   easeOut,
   playRaf,
   tween,
-} from "motif-animate"
+} from "kinem"
 import { bench, describe } from "vitest"
 
 /**

@@ -1,4 +1,4 @@
-import { easeInOut, play, strokeDraw } from "motif-animate"
+import { easeInOut, play, strokeDraw } from "kinem"
 import type { Example } from "../example"
 
 const SVG_NS = "http://www.w3.org/2000/svg"

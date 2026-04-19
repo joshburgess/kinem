@@ -1,5 +1,5 @@
 {
-  "name": "@motif-animate/examples-playground",
+  "name": "@kinem/examples-playground",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "motif-animate": "workspace:*"
+    "kinem": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

@@ -1,16 +1,16 @@
 {
-  "name": "@motif-animate/devtools",
+  "name": "@kinem/devtools",
   "version": "0.0.0",
-  "description": "Inspection, recording, and replay tools for motif-animate",
+  "description": "Inspection, recording, and replay tools for kinem",
   "license": "MIT",
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joshburgess/motif.git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
     "directory": "packages/devtools"
   },
-  "homepage": "https://github.com/joshburgess/motif#readme",
-  "bugs": "https://github.com/joshburgess/motif/issues",
+  "homepage": "https://github.com/joshburgess/kinem#readme",
+  "bugs": "https://github.com/joshburgess/kinem/issues",
   "keywords": ["animation", "devtools", "inspector", "timeline", "recorder"],
   "type": "module",
   "sideEffects": false,
@@ -30,6 +30,7 @@
     }
   },
   "files": ["dist"],
+  "publishConfig": { "access": "public" },
   "scripts": {
     "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
     "typecheck": "tsc --noEmit",
@@ -37,11 +38,11 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "motif-animate": "workspace:*"
+    "kinem": "workspace:*"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "typescript": "^5.7.2"
   }
 }

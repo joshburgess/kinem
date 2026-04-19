@@ -1,5 +1,5 @@
 /**
- * Devtools for motif-animate. Headless APIs that build on the core
+ * Devtools for kinem. Headless APIs that build on the core
  * animation tracker. The inspector returns snapshots of currently
  * running animations; the recorder serializes tracker events to a
  * replayable log. Both are framework-agnostic and do not require a
@@ -15,7 +15,7 @@
  * automatically from this point forward.
  */
 
-import { enableTracker } from "motif-animate"
+import { enableTracker } from "kinem"
 
 enableTracker()
 
