@@ -7,6 +7,14 @@
  *   - supports named labels via `seekLabel()`
  *   - returns `this` from every mutating method for fluent chaining
  *
+ * The `finished` promise is single-shot: it settles exactly once, on the
+ * first natural completion or on `cancel()`. `seek()` and `reverse()`
+ * from a finished state DO re-arm the animation (it plays again — scroll-
+ * triggered toggle actions rely on this), but the original `finished`
+ * promise remains resolved and will not re-fire. Callers who need to
+ * observe subsequent cycles should watch `state` or call `play()` again
+ * instead of awaiting `finished`.
+ *
  * Implemented as a class so the ~15 methods live on the prototype
  * once rather than being reallocated as fresh closures per `play()`.
  * At n=1000 plays that's 15000 fewer closures pinned in memory.

@@ -123,9 +123,21 @@ function project(
 
 /**
  * Combine two handles into one. State transitions collapse as follows:
- *   - cancelled if either is cancelled
- *   - finished when both are finished
- *   - otherwise tracks the last user action
+ *   - `cancelled` if any child is cancelled (sticky once set)
+ *   - otherwise derived on-demand from children: `playing` if any child is
+ *     playing, `paused` if any child is paused, `finished` if all finished
+ *
+ * Deriving state from children (rather than tracking it independently) is
+ * what makes re-arm cycles honest. After every child finishes naturally,
+ * the combined state reports `finished`; if the user then calls `seek(0)`
+ * or `reverse()` and children transition back to `playing`, the combined
+ * state reports `playing` again. Without this, the combined wrapper would
+ * return a stale `finished` while children visibly animate again.
+ *
+ * The combined `finished` promise is still single-shot: it resolves on
+ * the first natural completion and cannot be re-armed. Users who replay
+ * via `seek`/`reverse` should observe subsequent cycles via `state`, not
+ * by awaiting `finished` a second time.
  *
  * Exported for internal use by the timeline module; public consumers
  * should not combine handles directly.
@@ -182,12 +194,15 @@ export function combineHandles(handles: readonly StrategyHandle[]): StrategyHand
       for (const h of handles) h.resume()
     },
     seek(p: number) {
+      if (userState === "cancelled") return
       for (const h of handles) h.seek(p)
     },
     reverse() {
+      if (userState === "cancelled") return
       for (const h of handles) h.reverse()
     },
     setSpeed(multiplier: number) {
+      if (userState === "cancelled") return
       for (const h of handles) h.setSpeed(multiplier)
     },
     cancel() {
@@ -203,6 +218,29 @@ export function combineHandles(handles: readonly StrategyHandle[]): StrategyHand
       }
     },
     get state() {
+      // `cancelled` is sticky: once any child rejects, the combined handle
+      // is cancelled regardless of what the others report.
+      if (userState === "cancelled") return "cancelled"
+      // Derive from children so re-arm cycles (scroll-triggered `reverse` /
+      // `seek(0)` from a finished state) report accurately. Without this
+      // the getter stays "finished" while children are playing again,
+      // producing a visible zombie: animation runs, state says finished.
+      //
+      // The combined `finished` promise remains single-shot (see the JSDoc
+      // on `Controls`): it resolves on first completion and cannot be
+      // re-armed because we only subscribe to each child's finished once.
+      let anyPlaying = false
+      let anyPaused = false
+      let allFinished = true
+      for (const h of handles) {
+        const s = h.state
+        if (s !== "finished") allFinished = false
+        if (s === "playing") anyPlaying = true
+        else if (s === "paused") anyPaused = true
+      }
+      if (anyPlaying) return "playing"
+      if (anyPaused) return "paused"
+      if (allFinished) return "finished"
       return userState
     },
     get finished() {
