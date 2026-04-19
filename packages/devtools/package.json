@@ -6,11 +6,11 @@
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joshburgess/motif.git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
     "directory": "packages/devtools"
   },
-  "homepage": "https://github.com/joshburgess/motif#readme",
-  "bugs": "https://github.com/joshburgess/motif/issues",
+  "homepage": "https://github.com/joshburgess/kinem#readme",
+  "bugs": "https://github.com/joshburgess/kinem/issues",
   "keywords": ["animation", "devtools", "inspector", "timeline", "recorder"],
   "type": "module",
   "sideEffects": false,

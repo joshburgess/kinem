@@ -69,7 +69,7 @@ The repo ships a live playground with 19 working examples covering
 tweens, springs, staggers, scroll, gestures, SVG, Canvas, and WebGL:
 
 ```sh
-git clone https://github.com/joshburgess/motif
+git clone https://github.com/joshburgess/kinem
 cd kinem
 pnpm install
 pnpm --filter @kinem/examples-playground dev

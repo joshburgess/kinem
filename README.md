@@ -145,7 +145,7 @@ const card = useTween({ opacity: [0, 1] }, { duration: 400 })
 
 This is a work-in-progress library. Public versions are `0.x` and minor
 versions may make breaking changes. See
-[CHANGELOG](https://github.com/joshburgess/motif/releases) for per-release
+[CHANGELOG](https://github.com/joshburgess/kinem/releases) for per-release
 notes.
 
 ## License

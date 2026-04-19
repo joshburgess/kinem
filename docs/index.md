@@ -13,7 +13,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/joshburgess/motif
+      link: https://github.com/joshburgess/kinem
 
 features:
   - icon: 🧩

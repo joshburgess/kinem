@@ -6,11 +6,11 @@
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joshburgess/motif.git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
     "directory": "packages/react"
   },
-  "homepage": "https://github.com/joshburgess/motif#readme",
-  "bugs": "https://github.com/joshburgess/motif/issues",
+  "homepage": "https://github.com/joshburgess/kinem#readme",
+  "bugs": "https://github.com/joshburgess/kinem/issues",
   "keywords": ["animation", "react", "motion", "framer", "spring"],
   "type": "module",
   "sideEffects": false,
