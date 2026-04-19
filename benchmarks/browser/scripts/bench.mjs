@@ -52,8 +52,8 @@ const headless = flag("headless", false) === true
 
 const SCENARIOS = ["startup-commit", "startup-shared-def", "cancel-before-first", "steady-state"]
 const LIBS = [
-  { key: "motif-auto", fn: "__runMotif" },
-  { key: "motif-main", fn: "__runMotifMain" },
+  { key: "kinem-auto", fn: "__runMotif" },
+  { key: "kinem-main", fn: "__runMotifMain" },
   { key: "motion", fn: "__runMotion" },
   { key: "gsap", fn: "__runGsap" },
 ]

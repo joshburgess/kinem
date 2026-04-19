@@ -1,4 +1,4 @@
-import { easeOut, fromGrid, play, tween } from "motif-animate"
+import { easeOut, fromGrid, play, tween } from "kinem"
 import type { Example } from "../example"
 
 const ROWS = 5

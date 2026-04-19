@@ -1,4 +1,4 @@
-import { play, spring } from "motif-animate"
+import { play, spring } from "kinem"
 import type { Example } from "../example"
 
 export const springDrop: Example = {

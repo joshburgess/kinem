@@ -14,7 +14,7 @@
  * trajectory and settling behaviour match `spring()` used elsewhere.
  */
 
-import { type SpringOpts, frame, springEasing } from "motif-animate"
+import { type SpringOpts, frame, springEasing } from "kinem"
 import { onBeforeUnmount } from "vue"
 
 export interface SpringValue {

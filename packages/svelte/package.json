@@ -1,16 +1,16 @@
 {
-  "name": "@motif-animate/svelte",
+  "name": "@kinem/svelte",
   "version": "0.0.0",
-  "description": "Svelte bindings for motif-animate",
+  "description": "Svelte bindings for kinem",
   "license": "MIT",
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joshburgess/motif.git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
     "directory": "packages/svelte"
   },
-  "homepage": "https://github.com/joshburgess/motif#readme",
-  "bugs": "https://github.com/joshburgess/motif/issues",
+  "homepage": "https://github.com/joshburgess/kinem#readme",
+  "bugs": "https://github.com/joshburgess/kinem/issues",
   "keywords": ["animation", "svelte", "motion", "spring"],
   "type": "module",
   "sideEffects": false,
@@ -30,6 +30,7 @@
     }
   },
   "files": ["dist"],
+  "publishConfig": { "access": "public" },
   "scripts": {
     "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
     "typecheck": "tsc --noEmit",
@@ -37,12 +38,12 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "svelte": ">=5"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "svelte": "^5.16.0",
     "typescript": "^5.7.2"
   }

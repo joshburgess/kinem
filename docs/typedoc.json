@@ -50,5 +50,5 @@
     "collapsed": true
   },
   "gitRevision": "main",
-  "sourceLinkTemplate": "https://github.com/joshburgess/motif/blob/{gitRevision}/{path}#L{line}"
+  "sourceLinkTemplate": "https://github.com/joshburgess/kinem/blob/{gitRevision}/{path}#L{line}"
 }

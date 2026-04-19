@@ -1,6 +1,6 @@
 # Getting started
 
-Motif is a functional animation library for TypeScript. Animations are pure
+Kinem is a functional animation library for TypeScript. Animations are pure
 functions from progress `[0, 1]` to a property bag, which you compose with
 combinators and then hand to a renderer.
 
@@ -9,15 +9,15 @@ combinators and then hand to a renderer.
 ::: code-group
 
 ```sh [pnpm]
-pnpm add motif-animate
+pnpm add kinem
 ```
 
 ```sh [npm]
-npm install motif-animate
+npm install kinem
 ```
 
 ```sh [yarn]
-yarn add motif-animate
+yarn add kinem
 ```
 
 :::
@@ -25,7 +25,7 @@ yarn add motif-animate
 ## Your first animation
 
 ```ts
-import { easeOut, play, tween } from "motif-animate"
+import { easeOut, play, tween } from "kinem"
 
 const box = document.querySelector(".box") as HTMLElement
 
@@ -46,7 +46,7 @@ runs it, returning a `Controls` handle with `pause`, `resume`, `seek`,
 ## Composing animations
 
 ```ts
-import { easeInOut, parallel, play, sequence, spring, tween } from "motif-animate"
+import { easeInOut, parallel, play, sequence, spring, tween } from "kinem"
 
 const entrance = sequence(
   tween({ opacity: [0, 1] }, { duration: 200 }),
@@ -69,10 +69,10 @@ The repo ships a live playground with 19 working examples covering
 tweens, springs, staggers, scroll, gestures, SVG, Canvas, and WebGL:
 
 ```sh
-git clone https://github.com/joshburgess/motif
-cd motif
+git clone https://github.com/joshburgess/kinem
+cd kinem
 pnpm install
-pnpm --filter @motif-animate/examples-playground dev
+pnpm --filter @kinem/examples-playground dev
 ```
 
 ## Where to next

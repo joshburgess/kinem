@@ -15,7 +15,7 @@
  * of buffering.
  */
 
-import { type TrackerEvent, subscribeTracker } from "motif-animate"
+import { type TrackerEvent, subscribeTracker } from "kinem"
 
 export interface RecordedEvent {
   readonly at: number

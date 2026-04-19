@@ -1,4 +1,4 @@
-import { cubicBezier, easeInOut, easeOut, linear, play, tween, type EasingFn } from "motif-animate"
+import { cubicBezier, easeInOut, easeOut, linear, play, tween, type EasingFn } from "kinem"
 import type { Example } from "../example"
 
 const rows: { label: string; easing: EasingFn }[] = [

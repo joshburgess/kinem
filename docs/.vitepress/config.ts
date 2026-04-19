@@ -11,7 +11,7 @@ try {
 }
 
 export default defineConfig({
-  title: "Motif",
+  title: "Kinem",
   description: "Functional, compositional animation library for TypeScript.",
   lastUpdated: true,
   cleanUrls: true,
@@ -27,7 +27,7 @@ export default defineConfig({
       {
         text: "v0.0",
         items: [
-          { text: "Changelog", link: "https://github.com/joshburgess/motif/releases" },
+          { text: "Changelog", link: "https://github.com/joshburgess/kinem/releases" },
         ],
       },
     ],
@@ -52,14 +52,14 @@ export default defineConfig({
         },
       ],
     },
-    socialLinks: [{ icon: "github", link: "https://github.com/joshburgess/motif" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/joshburgess/kinem" }],
     footer: {
       message: "Released under the MIT License.",
       copyright: "Copyright © Josh Burgess",
     },
     search: { provider: "local" },
     editLink: {
-      pattern: "https://github.com/joshburgess/motif/edit/main/docs/:path",
+      pattern: "https://github.com/joshburgess/kinem/edit/main/docs/:path",
       text: "Edit this page on GitHub",
     },
   },

@@ -44,7 +44,7 @@ importers:
 
   benchmarks:
     dependencies:
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../packages/core
     devDependencies:
@@ -60,7 +60,7 @@ importers:
       gsap:
         specifier: ^3.15.0
         version: 3.15.0
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../../packages/core
       motion:
@@ -94,7 +94,7 @@ importers:
 
   examples/playground:
     dependencies:
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -116,7 +116,7 @@ importers:
       happy-dom:
         specifier: ^15.11.7
         version: 15.11.7
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../core
       typescript:
@@ -137,7 +137,7 @@ importers:
       happy-dom:
         specifier: ^15.11.7
         version: 15.11.7
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../core
       react:
@@ -155,7 +155,7 @@ importers:
       happy-dom:
         specifier: ^15.11.7
         version: 15.11.7
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../core
       svelte:
@@ -173,7 +173,7 @@ importers:
       happy-dom:
         specifier: ^15.11.7
         version: 15.11.7
-      motif-animate:
+      kinem:
         specifier: workspace:*
         version: link:../core
       typescript:

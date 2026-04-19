@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 
-import { buildKeyframes, cubicBezier, easeOut, play, tween } from "motif-animate"
+import { buildKeyframes, cubicBezier, easeOut, play, tween } from "kinem"
 import { bench, describe } from "vitest"
 
 /**
  * Isolate the WAAPI fast path. Two tweens of identical shape but
  * different easings: one `cubicBezier(...)` (linearizable → 2 keyframes
- * + CSS timing) and one `easeOut` (motif quadratic → dense sampling).
+ * + CSS timing) and one `easeOut` (kinem quadratic → dense sampling).
  */
 
 describe("buildKeyframes: sample density", () => {

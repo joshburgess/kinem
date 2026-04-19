@@ -1,7 +1,7 @@
 # browser benchmarks
 
-Real-browser comparison harness for motif vs motion vs gsap. Runs under
-Vite with workspace-aliased `motif-animate`. Unlike the Vitest benches
+Real-browser comparison harness for kinem vs motion vs gsap. Runs under
+Vite with workspace-aliased `kinem`. Unlike the Vitest benches
 (which use happy-dom and stub out WAAPI), this harness exercises the
 actual Chrome compositor, `Element.animate()`, and layout pipeline.
 
@@ -48,7 +48,7 @@ and reports the median. If you're automating via `evaluate_script`,
 sample at least 5 times and take the median. GC and paint variance are
 significant at n=1000.
 
-**Model differences matter.** motif and motion both route compositor-
+**Model differences matter.** kinem and motion both route compositor-
 safe properties through `Element.animate()` (WAAPI), paying real setup
 cost to offload ticking to the compositor. GSAP runs everything as
 per-frame JS via a single global ticker, so its setup is basically
@@ -65,7 +65,7 @@ median across 3 back-to-back runs. Driven by `bench:compare`
 GSAP's cancel-before-first median is unstable at 11 (any one slow
 sample shifts it from 0.2 to 0.5); 21 converges cleanly.
 
-| scenario            | motif (auto) | motif (main) | motion |  gsap |
+| scenario            | kinem (auto) | kinem (main) | motion |  gsap |
 |---------------------|--------------|--------------|--------|-------|
 | startup-commit      |          8.6 |          2.0 |    9.1 |  10.8 |
 | startup-shared-def  |          8.6 |          1.7 |   11.8 |  11.3 |
@@ -74,7 +74,7 @@ sample shifts it from 0.2 to 0.5); 21 converges cleanly.
 
 Headline:
 
-- With `mode: "main"`, motif is fastest on all four scenarios.
+- With `mode: "main"`, kinem is fastest on all four scenarios.
   Startup is ~5.4x faster than GSAP (2.0 vs 10.8), shared-def is
   ~6.6x faster (1.7 vs 11.3), cancel-before-first beats GSAP
   (0.3 vs 0.4), and steady-state beats GSAP (70.0 vs 79.0) and
@@ -176,5 +176,5 @@ layer.
   are O(1) via a Map sidecar.
 - Lazy-allocated `finished` promises. Handles no longer allocate
   the promise up front; it materializes on first access. For fire-
-  and-forget cancel patterns, motif now allocates zero promises
+  and-forget cancel patterns, kinem now allocates zero promises
   at all.

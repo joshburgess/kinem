@@ -1,7 +1,7 @@
 # Migrating from GSAP
 
 This guide is a rough-edges translation. GSAP's surface is much larger
-than Motif's, so some constructs have no direct equivalent. Most of
+than Kinem's, so some constructs have no direct equivalent. Most of
 your tweening code maps to `tween()` with cosmetic changes.
 
 ## `gsap.to`
@@ -12,10 +12,10 @@ GSAP:
 gsap.to(".box", { x: 200, opacity: 1, duration: 0.6, ease: "power2.out" })
 ```
 
-Motif:
+Kinem:
 
 ```ts
-import { easeOut, play, tween } from "motif-animate"
+import { easeOut, play, tween } from "kinem"
 
 play(
   tween({ x: [0, 200], opacity: [0, 1] }, { duration: 600, easing: easeOut }),
@@ -26,7 +26,7 @@ play(
 Differences at a glance:
 
 - Durations are milliseconds, not seconds.
-- Tweens take explicit `[from, to]` pairs. Motif does not read current
+- Tweens take explicit `[from, to]` pairs. Kinem does not read current
   element state to synthesize a `from`. This makes animations pure and
   testable, at the cost of requiring the author to provide starting
   values.
@@ -35,7 +35,7 @@ Differences at a glance:
 
 ## `gsap.from` / `gsap.fromTo`
 
-`gsap.from` has no direct equivalent because Motif does not read the
+`gsap.from` has no direct equivalent because Kinem does not read the
 current value. `gsap.fromTo` maps directly to `tween()`:
 
 ```ts
@@ -52,10 +52,10 @@ tl.to(".a", { x: 100, duration: 0.4 })
 tl.to(".b", { y: 50, duration: 0.4 }, "-=0.2")
 ```
 
-Motif:
+Kinem:
 
 ```ts
-import { play, timeline, tween } from "motif-animate"
+import { play, timeline, tween } from "kinem"
 
 const tl = timeline()
   .add(tween({ x: [0, 100] }, { duration: 400 }), 0)
@@ -76,11 +76,11 @@ GSAP:
 gsap.to(".item", { opacity: 1, stagger: 0.05 })
 ```
 
-Motif uses an explicit `stagger` combinator that works on an array of
+Kinem uses an explicit `stagger` combinator that works on an array of
 definitions, one per target:
 
 ```ts
-import { play, stagger, tween } from "motif-animate"
+import { play, stagger, tween } from "kinem"
 
 const defs = Array.from({ length: 10 }, () =>
   tween({ opacity: [0, 1] }, { duration: 300 }),
@@ -91,14 +91,14 @@ play(staggered, ".item")
 ```
 
 Grid, shuffle, and wave patterns are exported as `fromGrid`, `shuffle`,
-and `wave` from `motif-animate`.
+and `wave` from `kinem`.
 
 ## ScrollTrigger
 
-Most basic scroll use cases map to Motif's `scroll()` helper:
+Most basic scroll use cases map to Kinem's `scroll()` helper:
 
 ```ts
-import { scroll, tween } from "motif-animate"
+import { scroll, tween } from "kinem"
 
 scroll(
   tween({ opacity: [0, 1] }, { duration: 1000 }),
@@ -114,7 +114,7 @@ scroll(
 Advanced ScrollTrigger features (pinning, snap, toggle classes) have
 partial or no coverage today.
 
-## What Motif does not do
+## What Kinem does not do
 
 - Morph plugins, DrawSVG, MotionPath, Flip, and similar plugins are
   not included.

@@ -1,11 +1,11 @@
 import { mount } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 import { Transition, defineComponent, h, ref } from "vue"
-import { useMotifTransition } from "./useMotifTransition"
+import { useKinemTransition } from "./useKinemTransition"
 
-describe("useMotifTransition (vue)", () => {
+describe("useKinemTransition (vue)", () => {
   it("returns the expected hook surface", () => {
-    const t = useMotifTransition({
+    const t = useKinemTransition({
       enter: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 20, backend: "raf" },
     })
     expect(typeof t.onBeforeEnter).toBe("function")
@@ -16,7 +16,7 @@ describe("useMotifTransition (vue)", () => {
   })
 
   it("onBeforeEnter applies `from` as inline styles", () => {
-    const t = useMotifTransition({
+    const t = useKinemTransition({
       enter: { from: { opacity: 0 }, to: { opacity: 1 } },
     })
     const el = document.createElement("div")
@@ -25,7 +25,7 @@ describe("useMotifTransition (vue)", () => {
   })
 
   it("onEnter without an enter phase still calls done()", () => {
-    const t = useMotifTransition({})
+    const t = useKinemTransition({})
     let called = false
     t.onEnter(document.createElement("div"), () => {
       called = true
@@ -34,7 +34,7 @@ describe("useMotifTransition (vue)", () => {
   })
 
   it("onLeave without a leave phase still calls done()", () => {
-    const t = useMotifTransition({})
+    const t = useKinemTransition({})
     let called = false
     t.onLeave(document.createElement("div"), () => {
       called = true
@@ -43,7 +43,7 @@ describe("useMotifTransition (vue)", () => {
   })
 
   it("onEnter starts a tween and eventually resolves done()", async () => {
-    const t = useMotifTransition({
+    const t = useKinemTransition({
       enter: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 20, backend: "raf" },
     })
     const el = document.createElement("div")
@@ -60,7 +60,7 @@ describe("useMotifTransition (vue)", () => {
     const Host = defineComponent({
       setup() {
         const show = ref(true)
-        const t = useMotifTransition({
+        const t = useKinemTransition({
           enter: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 20, backend: "raf" },
           leave: { from: { opacity: 1 }, to: { opacity: 0 }, duration: 20, backend: "raf" },
         })
