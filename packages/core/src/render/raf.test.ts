@@ -213,6 +213,26 @@ describe("rAF backend", () => {
     expect(h.state).toBe("finished")
   })
 
+  it("setSpeed rejects non-positive multipliers without corrupting state", () => {
+    const el = makeEl()
+    const env = setup()
+    const h = playRaf(tween({ opacity: [0, 1] }, { duration: 100 }), [el], {
+      scheduler: env.scheduler,
+      clock: env.clock,
+    })
+    env.tick()
+    env.advance(40)
+    env.tick()
+    expect(Number(el.styles.get("opacity"))).toBeCloseTo(0.4, 5)
+    // Invalid multipliers throw; progress continues at the original rate.
+    expect(() => h.setSpeed(0)).toThrow()
+    expect(() => h.setSpeed(-1)).toThrow()
+    env.advance(60)
+    env.tick()
+    expect(Number(el.styles.get("opacity"))).toBeCloseTo(1, 5)
+    expect(h.state).toBe("finished")
+  })
+
   it("reverse from a finished state replays backwards to the start", async () => {
     const el = makeEl()
     const env = setup()
