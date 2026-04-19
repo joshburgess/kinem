@@ -54,12 +54,16 @@ export function findInterpolator(value: unknown): InterpolatorEntry | null {
  * Dispatch-aware interpolation between two values. The source value
  * determines which interpolator is used; the target value is expected to
  * be the same kind.
+ *
+ * Returns the registered interpolator's output directly, cast to the
+ * caller's T. Wrapping it in `(p) => fn(p) as T` would be a pure trampoline
+ * (the cast is compile-time only), adding one function call per property
+ * interpolation per frame.
  */
 export function interpolate<T>(from: T, to: T): (progress: number) => T {
   const entry = findInterpolator(from)
   if (!entry) {
     throw new Error(`No interpolator registered for value of type ${typeof from}: ${String(from)}`)
   }
-  const fn = entry.interpolate(from as unknown, to as unknown)
-  return (p) => fn(p) as T
+  return entry.interpolate(from as unknown, to as unknown) as (p: number) => T
 }
