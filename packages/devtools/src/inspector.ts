@@ -13,7 +13,7 @@
  * postMessage boundary (useful for a DevTools extension).
  */
 
-import { type AnimationRecord, listActiveAnimations } from "kinem"
+import { type AnimationRecord, listActiveAnimations } from "@kinem/core"
 
 export interface TargetDescriptor {
   readonly kind: "element" | "unknown"

@@ -1,6 +1,6 @@
 # Kinem: A Functional/Compositional Animation Library for TypeScript
 
-> npm package: `kinem` | License: MIT
+> npm package: `@kinem/core` | License: MIT
 
 ## Project Vision
 
@@ -520,7 +520,7 @@ function Cursor() {
 4. Monorepo structure:
 ```
 packages/
-  core/          → kinem (main package)
+  core/          → @kinem/core (main package)
   react/         → @kinem/react
   vue/           → @kinem/vue
   svelte/        → @kinem/svelte
@@ -555,11 +555,11 @@ packages/
 - No side effects in module scope (tree-shaking safe)
 - Mark all packages with `"sideEffects": false` in package.json
 - Use `export type` for type-only exports
-- Benchmark: `import { tween, play } from 'kinem'` should tree-shake to < 3kb gzipped
+- Benchmark: `import { tween, play } from '@kinem/core'` should tree-shake to < 3kb gzipped
 
 ### Naming
 
-- The project name is **Kinem** (npm package: `kinem`, verified available as of April 2026)
+- The project name is **Kinem** (npm package: `@kinem/core`)
 - "Kinem" = a recurring pattern/theme — maps to the composable animation philosophy. Also has musical connotation (short melodic phrase) fitting the timeline/sequencing metaphor.
 - Scoped packages: `@kinem/react`, `@kinem/vue`, `@kinem/svelte`, `@kinem/devtools`
 - All public API names should be verbs or nouns, never abbreviations

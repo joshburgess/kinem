@@ -2,7 +2,7 @@
   "name": "@kinem/vue",
   "version": "0.1.0",
   "description": "Vue bindings for kinem",
-  "license": "MIT",
+  "license": "(Apache-2.0 OR MIT)",
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE-APACHE", "LICENSE-MIT"],
   "publishConfig": { "access": "public" },
   "scripts": {
     "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
@@ -38,13 +38,13 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "kinem": "workspace:*",
+    "@kinem/core": "workspace:*",
     "vue": ">=3.4"
   },
   "devDependencies": {
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^15.11.7",
-    "kinem": "workspace:*",
+    "@kinem/core": "workspace:*",
     "typescript": "^5.7.2",
     "vue": "^3.5.13"
   }

@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react"
-import { tween } from "kinem"
-import type { PointerHandlers, PointerSource } from "kinem"
+import { tween } from "@kinem/core"
+import type { PointerHandlers, PointerSource } from "@kinem/core"
 import { useEffect } from "react"
 import { describe, expect, it } from "vitest"
 import { useGesture } from "./useGesture"

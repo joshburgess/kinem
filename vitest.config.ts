@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   resolve: {
     alias: {
-      "kinem": path.resolve(__dirname, "packages/core/src/index.ts"),
+      "@kinem/core": path.resolve(__dirname, "packages/core/src/index.ts"),
     },
   },
   test: {

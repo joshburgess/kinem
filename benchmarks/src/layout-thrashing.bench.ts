@@ -1,4 +1,4 @@
-import { createBatch, createFrameScheduler } from "kinem"
+import { createBatch, createFrameScheduler } from "@kinem/core"
 import { bench, describe } from "vitest"
 
 /**

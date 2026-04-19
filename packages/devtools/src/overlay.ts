@@ -14,7 +14,7 @@
  * available; server-side consumers should guard their callsite.
  */
 
-import { subscribeTracker } from "kinem"
+import { subscribeTracker } from "@kinem/core"
 import { type AnimationSnapshot, snapshot } from "./inspector"
 
 export type OverlayPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right"

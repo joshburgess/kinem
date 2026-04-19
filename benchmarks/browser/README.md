@@ -1,7 +1,7 @@
 # browser benchmarks
 
 Real-browser comparison harness for kinem vs motion vs gsap. Runs under
-Vite with workspace-aliased `kinem`. Unlike the Vitest benches
+Vite with workspace-aliased `@kinem/core`. Unlike the Vitest benches
 (which use happy-dom and stub out WAAPI), this harness exercises the
 actual Chrome compositor, `Element.animate()`, and layout pipeline.
 

@@ -1,4 +1,4 @@
-import { scroll, tween } from "kinem"
+import { scroll, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const scrollSynced: Example = {

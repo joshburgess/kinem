@@ -1,4 +1,4 @@
-import { type AnimationDef, type WorkerAnimSpec, computeValues, linear, tween } from "kinem"
+import { type AnimationDef, type WorkerAnimSpec, computeValues, linear, tween } from "@kinem/core"
 import { bench, describe } from "vitest"
 
 /**

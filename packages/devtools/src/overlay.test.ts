@@ -1,4 +1,4 @@
-import { __resetTracker, trackAnimation } from "kinem"
+import { __resetTracker, trackAnimation } from "@kinem/core"
 import { afterEach, describe, expect, it } from "vitest"
 import { mountInspector } from "./overlay"
 

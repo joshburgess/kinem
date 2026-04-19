@@ -1,4 +1,4 @@
-import { easeInOut, play, tween, wave } from "kinem"
+import { easeInOut, play, tween, wave } from "@kinem/core"
 import type { Example } from "../example"
 
 const COUNT = 20

@@ -1,4 +1,4 @@
-import { easeOut, play, splitText, tween } from "kinem"
+import { easeOut, play, splitText, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const textReveal: Example = {

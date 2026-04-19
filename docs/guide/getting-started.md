@@ -9,15 +9,15 @@ combinators and then hand to a renderer.
 ::: code-group
 
 ```sh [pnpm]
-pnpm add kinem
+pnpm add @kinem/core
 ```
 
 ```sh [npm]
-npm install kinem
+npm install @kinem/core
 ```
 
 ```sh [yarn]
-yarn add kinem
+yarn add @kinem/core
 ```
 
 :::
@@ -25,7 +25,7 @@ yarn add kinem
 ## Your first animation
 
 ```ts
-import { easeOut, play, tween } from "kinem"
+import { easeOut, play, tween } from "@kinem/core"
 
 const box = document.querySelector(".box") as HTMLElement
 
@@ -46,7 +46,7 @@ runs it, returning a `Controls` handle with `pause`, `resume`, `seek`,
 ## Composing animations
 
 ```ts
-import { easeInOut, parallel, play, sequence, spring, tween } from "kinem"
+import { easeInOut, parallel, play, sequence, spring, tween } from "@kinem/core"
 
 const entrance = sequence(
   tween({ opacity: [0, 1] }, { duration: 200 }),

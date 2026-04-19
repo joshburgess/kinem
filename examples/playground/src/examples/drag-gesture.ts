@@ -1,4 +1,4 @@
-import { gesture } from "kinem"
+import { gesture } from "@kinem/core"
 import type { Example } from "../example"
 
 export const dragGesture: Example = {

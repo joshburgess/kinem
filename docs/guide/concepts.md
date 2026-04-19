@@ -64,7 +64,7 @@ When you need positional control (overlapping offsets, labels, gaps),
 `timeline()` is the imperative sibling of `sequence`/`parallel`:
 
 ```ts
-import { easeOut, timeline, tween } from "kinem"
+import { easeOut, timeline, tween } from "@kinem/core"
 
 const tl = timeline()
   .add(tween({ opacity: [0, 1] }, { duration: 300 }), 0)

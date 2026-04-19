@@ -17,8 +17,8 @@
  * the DOM node via refs.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "kinem"
-import { play, tween } from "kinem"
+import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
+import { play, tween } from "@kinem/core"
 import {
   type CSSProperties,
   type ComponentPropsWithoutRef,

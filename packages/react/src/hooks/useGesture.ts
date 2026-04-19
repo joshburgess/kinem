@@ -21,7 +21,7 @@ import {
   type HoverPublicOpts,
   type StrategyTarget,
   gesture,
-} from "kinem"
+} from "@kinem/core"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface UseGestureOpts {

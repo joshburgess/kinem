@@ -7,7 +7,7 @@ import {
   createFrameScheduler,
   playRaf,
   tween,
-} from "kinem"
+} from "@kinem/core"
 import { JSAnimation } from "motion-dom"
 import { bench, describe } from "vitest"
 

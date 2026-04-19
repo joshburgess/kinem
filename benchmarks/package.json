@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "kinem": "workspace:*"
+    "@kinem/core": "workspace:*"
   },
   "devDependencies": {
     "motion": "^12.38.0",

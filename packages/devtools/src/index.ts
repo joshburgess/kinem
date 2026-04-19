@@ -15,7 +15,7 @@
  * automatically from this point forward.
  */
 
-import { enableTracker } from "kinem"
+import { enableTracker } from "@kinem/core"
 
 enableTracker()
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Bundle size audit. Builds a handful of virtual entry points that each
- * import a named subset of `kinem`, then reports the minified +
+ * import a named subset of `@kinem/core`, then reports the minified +
  * gzipped byte count per subset.
  *
  * Runs esbuild on each scenario with:
@@ -93,7 +93,7 @@ const scenarios = [
 function buildScenario(scenario) {
   const namedImports = scenario.imports.join(", ")
   const entryContent = `
-import { ${namedImports} } from "kinem"
+import { ${namedImports} } from "@kinem/core"
 // Keep each import alive so esbuild won't prune it.
 const sink = [${namedImports}]
 if (typeof window !== "undefined") {
@@ -115,7 +115,7 @@ export default sink
       resolveDir: corePkg,
       loader: "ts",
     },
-    alias: { "kinem": scenario.entry ?? coreEntry },
+    alias: { "@kinem/core": scenario.entry ?? coreEntry },
     logLevel: "silent",
   })
 }
