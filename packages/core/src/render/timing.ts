@@ -251,6 +251,12 @@ class Timing<V> implements TimingHandle, KeepaliveNode {
 
   setSpeed(multiplier: number): void {
     if (this.#state === "cancelled") return
+    // Validate before rebasing. `clock.setSpeed` rejects <= 0 multipliers
+    // by throwing; if we rebase first, the anchor mutates and the next
+    // progress read would be inconsistent with the unchanged clock speed.
+    if (!(multiplier > 0)) {
+      throw new Error(`setSpeed(): multiplier must be > 0 (got ${multiplier})`)
+    }
     if (this.#state === "playing") this.#progress = this.#computeProgress()
     this.#rebase()
     this.#ensureClock().setSpeed(multiplier)
