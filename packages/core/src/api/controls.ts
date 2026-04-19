@@ -34,6 +34,12 @@ export interface Controls extends PromiseLike<void> {
   /** Seek to a named label previously registered (e.g. on a timeline). */
   seekLabel(label: string): Controls
   reverse(): Controls
+  /**
+   * Play from the beginning, forward. No-op if the animation was
+   * cancelled. Unpauses if paused, flips back to forward if reversed,
+   * and re-arms if already finished.
+   */
+  restart(): Controls
   cancel(): Controls
   readonly state: StrategyState
   /** Total duration in ms (known ahead of time for every built-in animation). */
@@ -90,6 +96,24 @@ class ControlsImpl implements Controls {
   }
   reverse(): Controls {
     this.#handle.reverse()
+    return this
+  }
+  restart(): Controls {
+    const h = this.#handle
+    // Cancel is terminal and sticky; a cancelled animation can't be
+    // restarted. Callers that want to replay from zero after cancel
+    // should call `play()` again to build a fresh handle.
+    if (h.state === "cancelled") return this
+    // Flip to forward first, before seek(0). If we seeked first with
+    // direction still at -1, `seek(0)` from a finished state wouldn't
+    // re-arm (isFinished(0) returns true with direction=-1); flipping
+    // direction after would leave us stuck. Reversing first unblocks
+    // the re-arm path.
+    if (h.direction === -1) h.reverse()
+    h.seek(0)
+    // seek() doesn't change play/pause state. Unpause so playback
+    // actually continues.
+    if (h.state === "paused") h.resume()
     return this
   }
   cancel(): Controls {

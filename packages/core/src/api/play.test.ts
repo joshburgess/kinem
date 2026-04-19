@@ -188,6 +188,87 @@ describe("play", () => {
     expect(controls.direction).toBe(-1)
   })
 
+  describe("restart", () => {
+    it("replays from progress 0 after the animation finished", async () => {
+      const el = makeTarget()
+      const env = setup()
+      const controls = play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+        waapiSupported: false,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      env.advance(120)
+      env.tick()
+      expect(controls.state).toBe("finished")
+      expect(el.styles.get("width")).toBe("100px")
+      controls.restart()
+      env.tick()
+      expect(controls.state).toBe("playing")
+      expect(controls.progress).toBe(0)
+      expect(controls.direction).toBe(1)
+      env.advance(110)
+      env.tick()
+      expect(el.styles.get("width")).toBe("100px")
+    })
+
+    it("flips direction back to forward when restarted while reversed", () => {
+      const el = makeTarget()
+      const env = setup()
+      const controls = play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+        waapiSupported: false,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      env.advance(60)
+      env.tick()
+      controls.reverse()
+      expect(controls.direction).toBe(-1)
+      controls.restart()
+      expect(controls.direction).toBe(1)
+      expect(controls.progress).toBe(0)
+      expect(controls.state).toBe("playing")
+    })
+
+    it("resumes playback when restarted from a paused state", () => {
+      const el = makeTarget()
+      const env = setup()
+      const controls = play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+        waapiSupported: false,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      env.advance(40)
+      env.tick()
+      controls.pause()
+      expect(controls.state).toBe("paused")
+      controls.restart()
+      expect(controls.state).toBe("playing")
+      expect(controls.progress).toBe(0)
+      env.advance(110)
+      env.tick()
+      expect(el.styles.get("width")).toBe("100px")
+    })
+
+    it("no-ops on a cancelled animation", async () => {
+      const el = makeTarget()
+      const env = setup()
+      const controls = play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+        waapiSupported: false,
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      env.tick()
+      controls.cancel()
+      await expect(controls.finished).rejects.toThrow(/cancelled/)
+      expect(controls.state).toBe("cancelled")
+      controls.restart()
+      expect(controls.state).toBe("cancelled")
+    })
+  })
+
   describe("mode", () => {
     it("mode: 'main' routes compositor-safe props through rAF", () => {
       // The fake target throws on `animate()`, so if mode=main didn't
