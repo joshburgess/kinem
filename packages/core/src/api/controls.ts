@@ -30,6 +30,10 @@ export interface Controls extends PromiseLike<void> {
   readonly state: StrategyState
   /** Total duration in ms (known ahead of time for every built-in animation). */
   readonly duration: number
+  /** Current animation progress in [0, 1]. */
+  readonly progress: number
+  /** Current playback direction. `1` is forward, `-1` is reversed. */
+  readonly direction: 1 | -1
   /** Shortest-path promise of completion. Rejects on cancel. */
   readonly finished: Promise<void>
   /** Labels registered on the underlying animation. Offsets are in [0, 1]. */
@@ -89,6 +93,12 @@ class ControlsImpl implements Controls {
   }
   get duration(): number {
     return this.#duration
+  }
+  get progress(): number {
+    return this.#handle.progress
+  }
+  get direction(): 1 | -1 {
+    return this.#handle.direction
   }
   get finished(): Promise<void> {
     return this.#handle.finished
