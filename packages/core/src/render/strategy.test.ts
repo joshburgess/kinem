@@ -334,6 +334,8 @@ describe("combineHandles: derived state", () => {
       get state() {
         return state
       },
+      progress: 0,
+      direction: 1 as const,
       finished: new Promise(() => {}),
       _setState(s) {
         state = s
