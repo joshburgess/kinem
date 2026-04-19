@@ -2,7 +2,7 @@
 
 ## AnimationDef
 
-Every animation in Motif is an `AnimationDef`: a plain object with three fields.
+Every animation in Kinem is an `AnimationDef`: a plain object with three fields.
 
 ```ts
 interface AnimationDef<V> {
@@ -64,7 +64,7 @@ When you need positional control (overlapping offsets, labels, gaps),
 `timeline()` is the imperative sibling of `sequence`/`parallel`:
 
 ```ts
-import { easeOut, timeline, tween } from "motif-animate"
+import { easeOut, timeline, tween } from "kinem"
 
 const tl = timeline()
   .add(tween({ opacity: [0, 1] }, { duration: 300 }), 0)

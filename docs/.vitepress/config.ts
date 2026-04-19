@@ -11,7 +11,7 @@ try {
 }
 
 export default defineConfig({
-  title: "Motif",
+  title: "Kinem",
   description: "Functional, compositional animation library for TypeScript.",
   lastUpdated: true,
   cleanUrls: true,

@@ -1,4 +1,4 @@
-import { easeOut, play, sequence, tween } from "motif-animate"
+import { easeOut, play, sequence, tween } from "kinem"
 import type { Example } from "../example"
 
 export const sequenceComposition: Example = {

@@ -1,4 +1,4 @@
-import { createBatch, createFrameScheduler } from "motif-animate"
+import { createBatch, createFrameScheduler } from "kinem"
 import { bench, describe } from "vitest"
 
 /**

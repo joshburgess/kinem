@@ -1,4 +1,4 @@
-import { scroll, tween } from "motif-animate"
+import { scroll, tween } from "kinem"
 import type { Example } from "../example"
 
 export const scrollSynced: Example = {

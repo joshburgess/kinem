@@ -1,4 +1,4 @@
-import { type AnimationDef, type WorkerAnimSpec, computeValues, linear, tween } from "motif-animate"
+import { type AnimationDef, type WorkerAnimSpec, computeValues, linear, tween } from "kinem"
 import { bench, describe } from "vitest"
 
 /**

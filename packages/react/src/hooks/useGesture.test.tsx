@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react"
-import { tween } from "motif-animate"
-import type { PointerHandlers, PointerSource } from "motif-animate"
+import { tween } from "kinem"
+import type { PointerHandlers, PointerSource } from "kinem"
 import { useEffect } from "react"
 import { describe, expect, it } from "vitest"
 import { useGesture } from "./useGesture"

@@ -1,4 +1,4 @@
-import { easeOut, play, splitText, tween } from "motif-animate"
+import { easeOut, play, splitText, tween } from "kinem"
 import type { Example } from "../example"
 
 export const textReveal: Example = {

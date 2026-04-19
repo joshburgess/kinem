@@ -19,8 +19,8 @@ import type {
   PlayOpts,
   StrategyState,
   StrategyTarget,
-} from "motif-animate"
-import { play as playCore } from "motif-animate"
+} from "kinem"
+import { play as playCore } from "kinem"
 import { type ShallowRef, onBeforeUnmount, shallowRef } from "vue"
 
 export interface UseAnimationResult<T extends Element = Element> {

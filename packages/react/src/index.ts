@@ -1,5 +1,5 @@
 /**
- * React bindings for motif-animate. The public surface is a thin set of
+ * React bindings for kinem. The public surface is a thin set of
  * hooks and components that wrap the vanilla `play()` / gesture / scroll
  * APIs. Animations run against DOM refs via WAAPI or rAF; React state is
  * never touched during playback, so animations do not drive re-renders.

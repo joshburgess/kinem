@@ -1,7 +1,7 @@
 {
-  "name": "@motif-animate/react",
+  "name": "@kinem/react",
   "version": "0.0.0",
-  "description": "React bindings for motif-animate",
+  "description": "React bindings for kinem",
   "license": "MIT",
   "author": "Josh Burgess",
   "repository": {
@@ -37,7 +37,7 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "react": ">=18"
   },
   "devDependencies": {
@@ -45,7 +45,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "happy-dom": "^15.11.7",
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2"

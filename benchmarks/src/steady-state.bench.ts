@@ -7,7 +7,7 @@ import {
   createFrameScheduler,
   playRaf,
   tween,
-} from "motif-animate"
+} from "kinem"
 import { JSAnimation } from "motion-dom"
 import { bench, describe } from "vitest"
 
@@ -16,7 +16,7 @@ import { bench, describe } from "vitest"
  * work does each frame take?
  *
  * We force both libraries onto their JS animators (main-thread) so the
- * comparison is fair. Motif always uses its rAF backend here; motion
+ * comparison is fair. Kinem always uses its rAF backend here; motion
  * uses the `JSAnimation` class from `motion-dom`, which is the same
  * primitive motion composes into its `animate()` API when WAAPI is not
  * used.
@@ -28,7 +28,7 @@ import { bench, describe } from "vitest"
  *
  * Warning: motion's `JSAnimation` uses its own internal keyframe
  * generator and driver. We pass a no-op driver so the bench controls
- * the clock directly (via `.tick(t)`). Motif is driven by a virtual
+ * the clock directly (via `.tick(t)`). Kinem is driven by a virtual
  * scheduler flushed with `scheduler.flushSync(t)`.
  */
 
@@ -104,13 +104,13 @@ function motionScene(n: number) {
 
 for (const n of [100, 500, 1000]) {
   describe(`steady-state tick (JS animator): ${n} animations per frame`, () => {
-    const motif = motifScene(n)
+    const kinem = motifScene(n)
     const motion = motionScene(n)
     // Warm-up tick so the first sample hits steady state.
-    motif.tick(16)
+    kinem.tick(16)
     motion.tick(16)
-    bench("motif: playRaf — scheduler.flushSync(t)", () => {
-      motif.tick(16)
+    bench("kinem: playRaf — scheduler.flushSync(t)", () => {
+      kinem.tick(16)
     })
     bench("motion: JSAnimation.tick(t) per animation", () => {
       motion.tick(16)

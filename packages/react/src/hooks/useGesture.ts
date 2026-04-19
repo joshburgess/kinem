@@ -21,7 +21,7 @@ import {
   type HoverPublicOpts,
   type StrategyTarget,
   gesture,
-} from "motif-animate"
+} from "kinem"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface UseGestureOpts {

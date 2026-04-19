@@ -4,7 +4,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "motif-animate": ["./packages/core/src/index.ts"]
+      "kinem": ["./packages/core/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"]

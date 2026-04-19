@@ -1,4 +1,4 @@
-import { easeInOut, float, playUniforms, tween, vec3 } from "motif-animate"
+import { easeInOut, float, playUniforms, tween, vec3 } from "kinem"
 import type { Example } from "../example"
 
 const VERT = `#version 300 es

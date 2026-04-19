@@ -17,8 +17,8 @@
  * the DOM node via refs.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "motif-animate"
-import { play, tween } from "motif-animate"
+import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "kinem"
+import { play, tween } from "kinem"
 import {
   type CSSProperties,
   type ComponentPropsWithoutRef,

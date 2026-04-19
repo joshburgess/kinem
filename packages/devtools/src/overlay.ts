@@ -14,7 +14,7 @@
  * available; server-side consumers should guard their callsite.
  */
 
-import { subscribeTracker } from "motif-animate"
+import { subscribeTracker } from "kinem"
 import { type AnimationSnapshot, snapshot } from "./inspector"
 
 export type OverlayPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right"
@@ -150,7 +150,7 @@ export function mountInspector(opts: MountInspectorOpts = {}): InspectorHandle {
   const position: OverlayPosition = opts.position ?? "bottom-right"
 
   const host = document.createElement("div")
-  host.setAttribute("data-motif-inspector", "")
+  host.setAttribute("data-kinem-inspector", "")
   const shadow = host.attachShadow({ mode: "open" })
 
   const style = document.createElement("style")
@@ -164,7 +164,7 @@ export function mountInspector(opts: MountInspectorOpts = {}): InspectorHandle {
   const header = document.createElement("div")
   header.className = "header"
   const title = document.createElement("span")
-  title.textContent = "Motif"
+  title.textContent = "Kinem"
   const toggle = document.createElement("button")
   toggle.type = "button"
   toggle.textContent = opts.collapsed ? "+" : "-"

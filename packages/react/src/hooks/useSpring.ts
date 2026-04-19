@@ -13,7 +13,7 @@
  * trajectory and settling behaviour match `spring()` used elsewhere.
  */
 
-import { type SpringOpts, frame, springEasing } from "motif-animate"
+import { type SpringOpts, frame, springEasing } from "kinem"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface SpringValue {

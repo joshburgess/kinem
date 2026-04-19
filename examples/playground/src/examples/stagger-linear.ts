@@ -1,4 +1,4 @@
-import { easeOut, play, tween } from "motif-animate"
+import { easeOut, play, tween } from "kinem"
 import type { Example } from "../example"
 
 const COUNT = 12
