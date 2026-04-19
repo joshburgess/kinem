@@ -1,10 +1,10 @@
 /**
- * `motifTransition` is a Svelte custom transition function compatible
+ * `kinemTransition` is a Svelte custom transition function compatible
  * with the `transition:`, `in:`, and `out:` directives. It interpolates
- * between `from` and `to` using motif's interpolation registry, so the
+ * between `from` and `to` using kinem's interpolation registry, so the
  * same color/unit/transform parsing used by `tween()` applies here.
  *
- *   <div transition:motifTransition={{ from: { opacity: 0 }, to: { opacity: 1 },
+ *   <div transition:kinemTransition={{ from: { opacity: 0 }, to: { opacity: 1 },
  *                                      duration: 300 }} />
  *
  * Svelte runs the returned `tick(t, u)` on every frame during the
@@ -13,19 +13,19 @@
  * inline style.
  */
 
-import { type EasingFn, easeOut, interpolate } from "motif-animate"
+import { type EasingFn, easeOut, interpolate } from "kinem"
 
-export type MotifTransitionValues = Readonly<Record<string, string | number>>
+export type KinemTransitionValues = Readonly<Record<string, string | number>>
 
-export interface MotifTransitionOpts {
-  readonly from: MotifTransitionValues
-  readonly to: MotifTransitionValues
+export interface KinemTransitionOpts {
+  readonly from: KinemTransitionValues
+  readonly to: KinemTransitionValues
   readonly duration?: number
   readonly delay?: number
   readonly easing?: EasingFn
 }
 
-export type MotifTransitionFn = (node: Element, opts: MotifTransitionOpts) => SvelteTransitionConfig
+export type KinemTransitionFn = (node: Element, opts: KinemTransitionOpts) => SvelteTransitionConfig
 
 interface SvelteTransitionConfig {
   delay?: number
@@ -34,7 +34,7 @@ interface SvelteTransitionConfig {
   tick?: (t: number, u: number) => void
 }
 
-export const motifTransition: MotifTransitionFn = (node, opts) => {
+export const kinemTransition: KinemTransitionFn = (node, opts) => {
   const style = (node as HTMLElement).style
   const samplers: Array<{ key: string; sample: (p: number) => string | number }> = []
   for (const key of Object.keys(opts.to)) {

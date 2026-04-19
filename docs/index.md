@@ -1,10 +1,10 @@
 ---
 layout: home
-title: Motif
+title: Kinem
 titleTemplate: Functional animation for TypeScript
 
 hero:
-  name: Motif
+  name: Kinem
   text: Functional animation for TypeScript
   tagline: Pure animation definitions. Compose them with tween, spring, stagger, timeline. Play on DOM, Canvas, or WebGL.
   actions:

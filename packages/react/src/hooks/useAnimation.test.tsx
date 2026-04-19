@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react"
-import { tween } from "motif-animate"
+import { tween } from "kinem"
 import { StrictMode, useEffect } from "react"
 import { afterEach, describe, expect, it } from "vitest"
 import { useAnimation } from "./useAnimation"

@@ -7,7 +7,7 @@
  * This is the hot path for fire-and-forget animations: create 1000
  * tweens, cancel them all before the first frame, never touch the
  * handle's `.finished`. GSAP pays zero promise cost here. With this
- * helper, motif also pays zero when the owner never inspects the
+ * helper, kinem also pays zero when the owner never inspects the
  * outcome.
  *
  * When `.promise` is accessed after a rejection, the returned promise

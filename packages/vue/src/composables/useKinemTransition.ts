@@ -1,10 +1,10 @@
 /**
- * `useMotifTransition` bridges motif's `play()` engine to Vue's built-in
+ * `useKinemTransition` bridges kinem's `play()` engine to Vue's built-in
  * `<Transition>` / `<TransitionGroup>` JavaScript hooks. It does not
  * reinvent presence tracking; Vue decides when an element enters or
- * leaves, and motif drives the actual animation.
+ * leaves, and kinem drives the actual animation.
  *
- *   const t = useMotifTransition({
+ *   const t = useKinemTransition({
  *     enter: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 300 },
  *     leave: { from: { opacity: 1 }, to: { opacity: 0 }, duration: 200 },
  *   })
@@ -15,16 +15,16 @@
  *
  * Returns an object of listener props (`onBeforeEnter`, `onEnter`,
  * `onLeave`, `onEnterCancelled`, `onLeaveCancelled`). Pair with
- * `:css="false"` to disable Vue's CSS-class transition path; motif
+ * `:css="false"` to disable Vue's CSS-class transition path; kinem
  * owns the frames.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "motif-animate"
-import { play, tween } from "motif-animate"
+import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "kinem"
+import { play, tween } from "kinem"
 
 export type TransitionValues = Readonly<Record<string, string | number>>
 
-export interface MotifTransitionPhase {
+export interface KinemTransitionPhase {
   readonly from: TransitionValues
   readonly to: TransitionValues
   readonly duration?: number
@@ -32,12 +32,12 @@ export interface MotifTransitionPhase {
   readonly backend?: PlayOpts["backend"]
 }
 
-export interface UseMotifTransitionOpts {
-  readonly enter?: MotifTransitionPhase
-  readonly leave?: MotifTransitionPhase
+export interface UseKinemTransitionOpts {
+  readonly enter?: KinemTransitionPhase
+  readonly leave?: KinemTransitionPhase
 }
 
-export interface MotifTransitionHooks {
+export interface KinemTransitionHooks {
   onBeforeEnter(el: Element): void
   onEnter(el: Element, done: () => void): void
   onLeave(el: Element, done: () => void): void
@@ -69,7 +69,7 @@ function buildTweenProps(
   return props
 }
 
-function runPhase(el: Element, phase: MotifTransitionPhase, done: () => void): Controls | null {
+function runPhase(el: Element, phase: KinemTransitionPhase, done: () => void): Controls | null {
   const tweenProps = buildTweenProps(phase.from, phase.to)
   if (Object.keys(tweenProps).length === 0) {
     done()
@@ -88,7 +88,7 @@ function runPhase(el: Element, phase: MotifTransitionPhase, done: () => void): C
   return controls
 }
 
-export function useMotifTransition(opts: UseMotifTransitionOpts): MotifTransitionHooks {
+export function useKinemTransition(opts: UseKinemTransitionOpts): KinemTransitionHooks {
   const active = new WeakMap<Element, Controls>()
 
   const cancelFor = (el: Element): void => {

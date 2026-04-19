@@ -1,10 +1,10 @@
 {
-  "name": "@motif-animate/benchmarks",
+  "name": "@kinem/benchmarks",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "motif-animate": "workspace:*"
+    "kinem": "workspace:*"
   },
   "devDependencies": {
     "motion": "^12.38.0",

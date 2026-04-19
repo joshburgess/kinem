@@ -1,4 +1,4 @@
-import { easeInOut, playCanvas, tween } from "motif-animate"
+import { easeInOut, playCanvas, tween } from "kinem"
 import type { Example } from "../example"
 
 export const canvasDraw: Example = {

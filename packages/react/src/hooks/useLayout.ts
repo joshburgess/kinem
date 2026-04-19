@@ -23,7 +23,7 @@ import {
   type StrategyTarget,
   play,
   tween,
-} from "motif-animate"
+} from "kinem"
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react"
 
 export interface UseLayoutOpts {

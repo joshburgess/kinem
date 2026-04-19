@@ -1,6 +1,6 @@
 # Migrating from Motion One
 
-Motion One (the `motion` package) has the closest API shape to Motif.
+Motion One (the `motion` package) has the closest API shape to Kinem.
 If you already use Motion, the jump is mostly surface changes.
 
 ## `animate`
@@ -13,10 +13,10 @@ import { animate } from "motion"
 animate(".box", { x: 200, opacity: 1 }, { duration: 0.6, easing: "ease-out" })
 ```
 
-Motif:
+Kinem:
 
 ```ts
-import { easeOut, play, tween } from "motif-animate"
+import { easeOut, play, tween } from "kinem"
 
 play(
   tween({ x: [0, 200], opacity: [0, 1] }, { duration: 600, easing: easeOut }),
@@ -28,7 +28,7 @@ Differences:
 
 - Durations are milliseconds.
 - Tweens take explicit `[from, to]` pairs. Motion reads the current
-  element style to infer `from`. Motif does not.
+  element style to infer `from`. Kinem does not.
 - `easing` is a function reference.
 
 ## Keyframe syntax
@@ -39,10 +39,10 @@ Motion accepts an array of values as a keyframe list:
 animate(".box", { x: [0, 100, 0] }, { duration: 1 })
 ```
 
-Motif uses `keyframes()` for multi-stop animations:
+Kinem uses `keyframes()` for multi-stop animations:
 
 ```ts
-import { keyframes, play } from "motif-animate"
+import { keyframes, play } from "kinem"
 
 play(
   keyframes({ x: [0, 100, 0] }, { duration: 1000 }),
@@ -61,11 +61,11 @@ Motion:
 animate(".item", { opacity: 1 }, { delay: stagger(0.05) })
 ```
 
-Motif uses an explicit `stagger()` combinator that takes an array of
+Kinem uses an explicit `stagger()` combinator that takes an array of
 definitions, one per target:
 
 ```ts
-import { play, stagger, tween } from "motif-animate"
+import { play, stagger, tween } from "kinem"
 
 const defs = Array.from({ length: 10 }, () =>
   tween({ opacity: [0, 1] }, { duration: 300 }),
@@ -80,10 +80,10 @@ presets.
 
 ## Scroll
 
-Motion's `scroll` factory maps to Motif's `scroll()` helper:
+Motion's `scroll` factory maps to Kinem's `scroll()` helper:
 
 ```ts
-import { scroll, tween } from "motif-animate"
+import { scroll, tween } from "kinem"
 
 scroll(
   tween({ y: [0, -100] }, { duration: 1000 }),
@@ -96,7 +96,7 @@ scroll(
 Motion's `spring()` easing is a direct map:
 
 ```ts
-import { play, spring, tween } from "motif-animate"
+import { play, spring, tween } from "kinem"
 
 play(
   tween({ x: [0, 200] }, { easing: spring({ stiffness: 180, damping: 12 }) }),
@@ -110,5 +110,5 @@ and let the spring decide when it settles.
 ## Gestures
 
 Motion's `hover` and `press` actions have a partial counterpart in
-Motif's `gesture()` helper, which wires drag and hover through the
+Kinem's `gesture()` helper, which wires drag and hover through the
 same handle API as regular animations.

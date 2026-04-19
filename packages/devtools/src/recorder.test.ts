@@ -1,4 +1,4 @@
-import { __resetTracker, trackAnimation } from "motif-animate"
+import { __resetTracker, trackAnimation } from "kinem"
 import { afterEach, describe, expect, it } from "vitest"
 import { createRecorder } from "./recorder"
 

@@ -11,11 +11,11 @@
  *
  * Subscribers are invoked on every rAF tick of an in-flight spring.
  * The store does not use Svelte's `writable`; it integrates with the
- * motif frame scheduler directly so the trajectory matches
+ * kinem frame scheduler directly so the trajectory matches
  * `springEasing` used elsewhere in the library.
  */
 
-import { type SpringOpts, frame, springEasing } from "motif-animate"
+import { type SpringOpts, frame, springEasing } from "kinem"
 
 export type SpringStoreOpts = SpringOpts
 

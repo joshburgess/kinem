@@ -15,8 +15,8 @@ import type {
   PlayOpts,
   StrategyState,
   StrategyTarget,
-} from "motif-animate"
-import { play } from "motif-animate"
+} from "kinem"
+import { play } from "kinem"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface UseAnimationResult<T extends Element = Element> {

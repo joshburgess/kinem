@@ -1,7 +1,7 @@
 {
-  "name": "@motif-animate/svelte",
+  "name": "@kinem/svelte",
   "version": "0.0.0",
-  "description": "Svelte bindings for motif-animate",
+  "description": "Svelte bindings for kinem",
   "license": "MIT",
   "author": "Josh Burgess",
   "repository": {
@@ -37,12 +37,12 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "svelte": ">=5"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",
-    "motif-animate": "workspace:*",
+    "kinem": "workspace:*",
     "svelte": "^5.16.0",
     "typescript": "^5.7.2"
   }

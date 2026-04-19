@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { motifTransition } from "./transition"
+import { kinemTransition } from "./transition"
 
-describe("motifTransition (svelte transition)", () => {
+describe("kinemTransition (svelte transition)", () => {
   it("returns duration, easing, and a tick function", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { opacity: 0 },
       to: { opacity: 1 },
       duration: 300,
@@ -15,7 +15,7 @@ describe("motifTransition (svelte transition)", () => {
 
   it("tick(0) applies the `from` values and tick(1) applies the `to` values", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { opacity: 0 },
       to: { opacity: 1 },
       duration: 300,
@@ -28,7 +28,7 @@ describe("motifTransition (svelte transition)", () => {
 
   it("tick(0.5) applies an interpolated value", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { opacity: 0 },
       to: { opacity: 1 },
     })
@@ -38,7 +38,7 @@ describe("motifTransition (svelte transition)", () => {
 
   it("interpolates CSS units (e.g. px)", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { width: "0px" },
       to: { width: "100px" },
     })
@@ -48,7 +48,7 @@ describe("motifTransition (svelte transition)", () => {
 
   it("defaults duration to 400ms when unspecified", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { opacity: 0 },
       to: { opacity: 1 },
     })
@@ -57,7 +57,7 @@ describe("motifTransition (svelte transition)", () => {
 
   it("skips keys that are missing from either side", () => {
     const el = document.createElement("div")
-    const cfg = motifTransition(el, {
+    const cfg = kinemTransition(el, {
       from: { opacity: 0 },
       to: { opacity: 1, color: "rgb(255, 0, 0)" },
     })

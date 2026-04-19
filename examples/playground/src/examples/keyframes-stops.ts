@@ -1,4 +1,4 @@
-import { easeInOut, keyframes, play } from "motif-animate"
+import { easeInOut, keyframes, play } from "kinem"
 import type { Example } from "../example"
 
 export const keyframesStops: Example = {

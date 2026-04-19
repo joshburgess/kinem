@@ -1,10 +1,10 @@
-# Motif: A Functional/Compositional Animation Library for TypeScript
+# Kinem: A Functional/Compositional Animation Library for TypeScript
 
-> npm package: `motif-animate` | License: MIT
+> npm package: `kinem` | License: MIT
 
 ## Project Vision
 
-Motif is a next-generation TypeScript animation library that combines:
+Kinem is a next-generation TypeScript animation library that combines:
 
 - **Motion's** declarative API and WAAPI hardware acceleration
 - **GSAP's** timeline precision, framework-agnosticism, and ability to animate anything
@@ -38,7 +38,7 @@ play(staggered, '.card')
 │  stagger() | scroll() | gesture() | loop()          │
 ├─────────────────────────────────────────────────────┤
 │               Framework Adapters (optional)          │
-│  @motif-animate/react  |  @motif-animate/vue  |  @motif-animate/svelte         │
+│  @kinem/react  |  @kinem/vue  |  @kinem/svelte         │
 ├─────────────────────────────────────────────────────┤
 │                  Scheduler / Batcher                 │
 │  Read/write batching | RAF loop | frame priorities   │
@@ -333,7 +333,7 @@ const card = parallel(
 
 **Deliverables:**
 - `src/render/worker.ts` — Web Worker for mass interpolation
-- Benchmark suite comparing Motif vs Motion vs GSAP
+- Benchmark suite comparing Kinem vs Motion vs GSAP
 - Bundle size analysis and tree-shaking verification
 - Performance regression test suite
 
@@ -358,7 +358,7 @@ const card = parallel(
 
 **Goal:** First-class React, Vue, and Svelte integrations. The vanilla JS API is primary; framework adapters are thin wrappers.
 
-### Iteration 4.1 — React Adapter: `@motif-animate/react` (Week 10)
+### Iteration 4.1 — React Adapter: `@kinem/react` (Week 10)
 
 **Deliverables:**
 - `packages/react/src/motion.tsx` — `<Motion>` component
@@ -370,7 +370,7 @@ const card = parallel(
 **Key API:**
 
 ```tsx
-import { Motion, useAnimation, AnimatePresence } from '@motif-animate/react'
+import { Motion, useAnimation, AnimatePresence } from '@kinem/react'
 
 // Declarative component API (like Motion/Framer Motion)
 <Motion
@@ -429,7 +429,7 @@ function Cursor() {
 5. CRITICAL: all animations must clean up on unmount. Use `useEffect` cleanup. Cancel any in-progress WAAPI animations and rAF callbacks. Leaked animations are a common source of bugs.
 6. Test with React 18+ concurrent features. Animations should not break with `<StrictMode>` double-rendering.
 
-### Iteration 4.2 — Vue Adapter: `@motif-animate/vue` (Week 11)
+### Iteration 4.2 — Vue Adapter: `@kinem/vue` (Week 11)
 
 **Deliverables:**
 - `packages/vue/src/Motion.vue` — `<Motion>` component
@@ -443,7 +443,7 @@ function Cursor() {
 3. Integrate with Vue's built-in `<Transition>` and `<TransitionGroup>` by providing custom CSS classes and JavaScript hooks. Don't reinvent Vue's transition system — extend it.
 4. Test with Vue 3.4+ and Nuxt 3 SSR (ensure no server-side errors from DOM access).
 
-### Iteration 4.3 — Svelte Adapter: `@motif-animate/svelte` (Week 12)
+### Iteration 4.3 — Svelte Adapter: `@kinem/svelte` (Week 12)
 
 **Deliverables:**
 - `packages/svelte/src/motion.ts` — Svelte action `use:motion`
@@ -453,7 +453,7 @@ function Cursor() {
 
 **Claude Code agent instructions:**
 1. Svelte's paradigm is different — use actions (`use:motion={params}`) and stores. A spring store is a writable store whose value animates to the target when set.
-2. Provide custom transition functions compatible with Svelte's `transition:`, `in:`, `out:` directives. These receive the element and return `{ duration, css, tick }`. Use the Motif interpolation engine for the `css` function to generate keyframe strings, or `tick` for JS-driven updates.
+2. Provide custom transition functions compatible with Svelte's `transition:`, `in:`, `out:` directives. These receive the element and return `{ duration, css, tick }`. Use the Kinem interpolation engine for the `css` function to generate keyframe strings, or `tick` for JS-driven updates.
 3. Ensure compatibility with Svelte 5 runes and the new reactivity model.
 4. Test with SvelteKit SSR.
 
@@ -470,11 +470,11 @@ function Cursor() {
 - Browser extension scaffolding (Chrome)
 
 **Claude Code agent instructions:**
-1. Build an in-page overlay (injected via `motif.devtools()`) that shows: all active animations, their targets, progress, and timing. Clicking an animation highlights its target element.
+1. Build an in-page overlay (injected via `kinem.devtools()`) that shows: all active animations, their targets, progress, and timing. Clicking an animation highlights its target element.
 2. A visual timeline scrubber: pause all animations globally, drag a scrubber to seek through time. Show each animation as a bar on a track (like a video editor). Color-code by rendering backend (green = WAAPI/hardware accelerated, orange = rAF/main thread).
 3. Performance panel: show frame times, flag any frame that exceeds 16ms, identify which animation caused it.
 4. A recording mode: capture all animation events (start, pause, seek, complete) with timestamps. Export as JSON. Replay to reproduce bugs.
-5. Package as a Chrome DevTools extension that adds a "Motif" panel. Use Chrome's DevTools protocol for element inspection integration.
+5. Package as a Chrome DevTools extension that adds a "Kinem" panel. Use Chrome's DevTools protocol for element inspection integration.
 
 ### Iteration 5.2 — SVG, Canvas, WebGL Targets (Week 14)
 
@@ -516,15 +516,15 @@ function Cursor() {
 **Claude Code agent instructions:**
 1. Documentation structure: Getting Started, Core Concepts (the animation-as-function philosophy), API Reference (auto-generated from TSDoc), Guides (scroll animations, gestures, timelines, framework usage), Examples, Migration.
 2. Every API page should have a live, editable example. Use a sandboxed iframe with the library pre-loaded.
-3. Migration guides should show side-by-side: "In GSAP you write X, in Motif you write Y." Cover the 20 most common GSAP patterns and their Motif equivalents. Same for Motion.
+3. Migration guides should show side-by-side: "In GSAP you write X, in Kinem you write Y." Cover the 20 most common GSAP patterns and their Kinem equivalents. Same for Motion.
 4. Monorepo structure:
 ```
 packages/
-  core/          → motif-animate (main package)
-  react/         → @motif-animate/react
-  vue/           → @motif-animate/vue
-  svelte/        → @motif-animate/svelte
-  devtools/      → @motif-animate/devtools
+  core/          → kinem (main package)
+  react/         → @kinem/react
+  vue/           → @kinem/vue
+  svelte/        → @kinem/svelte
+  devtools/      → @kinem/devtools
 ```
 5. Use changesets for versioning. GitHub Actions for CI: lint, test, benchmark, bundle size check, publish to npm on tagged releases.
 6. README should lead with the composability pitch and a compelling code example, not a feature list.
@@ -555,13 +555,13 @@ packages/
 - No side effects in module scope (tree-shaking safe)
 - Mark all packages with `"sideEffects": false` in package.json
 - Use `export type` for type-only exports
-- Benchmark: `import { tween, play } from 'motif-animate'` should tree-shake to < 3kb gzipped
+- Benchmark: `import { tween, play } from 'kinem'` should tree-shake to < 3kb gzipped
 
 ### Naming
 
-- The project name is **Motif** (npm package: `motif-animate`, verified available as of April 2026)
-- "Motif" = a recurring pattern/theme — maps to the composable animation philosophy. Also has musical connotation (short melodic phrase) fitting the timeline/sequencing metaphor.
-- Scoped packages: `@motif-animate/react`, `@motif-animate/vue`, `@motif-animate/svelte`, `@motif-animate/devtools`
+- The project name is **Kinem** (npm package: `kinem`, verified available as of April 2026)
+- "Kinem" = a recurring pattern/theme — maps to the composable animation philosophy. Also has musical connotation (short melodic phrase) fitting the timeline/sequencing metaphor.
+- Scoped packages: `@kinem/react`, `@kinem/vue`, `@kinem/svelte`, `@kinem/devtools`
 - All public API names should be verbs or nouns, never abbreviations
 - Internal modules use descriptive names, not clever ones
 
