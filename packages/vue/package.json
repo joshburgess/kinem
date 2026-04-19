@@ -1,6 +1,6 @@
 {
   "name": "@kinem/vue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vue bindings for kinem",
   "license": "MIT",
   "author": "Josh Burgess",
