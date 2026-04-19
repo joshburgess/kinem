@@ -15,7 +15,7 @@
  * of buffering.
  */
 
-import { type TrackerEvent, subscribeTracker } from "kinem"
+import { type TrackerEvent, subscribeTracker } from "@kinem/core"
 
 export interface RecordedEvent {
   readonly at: number

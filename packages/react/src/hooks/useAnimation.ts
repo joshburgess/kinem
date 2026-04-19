@@ -15,8 +15,8 @@ import type {
   PlayOpts,
   StrategyState,
   StrategyTarget,
-} from "kinem"
-import { play } from "kinem"
+} from "@kinem/core"
+import { play } from "@kinem/core"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface UseAnimationResult<T extends Element = Element> {

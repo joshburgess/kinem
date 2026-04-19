@@ -13,7 +13,7 @@
  * inline style.
  */
 
-import { type EasingFn, easeOut, interpolate } from "kinem"
+import { type EasingFn, easeOut, interpolate } from "@kinem/core"
 
 export type KinemTransitionValues = Readonly<Record<string, string | number>>
 

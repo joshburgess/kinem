@@ -16,7 +16,7 @@ animate(".box", { x: 200, opacity: 1 }, { duration: 0.6, easing: "ease-out" })
 Kinem:
 
 ```ts
-import { easeOut, play, tween } from "kinem"
+import { easeOut, play, tween } from "@kinem/core"
 
 play(
   tween({ x: [0, 200], opacity: [0, 1] }, { duration: 600, easing: easeOut }),
@@ -42,7 +42,7 @@ animate(".box", { x: [0, 100, 0] }, { duration: 1 })
 Kinem uses `keyframes()` for multi-stop animations:
 
 ```ts
-import { keyframes, play } from "kinem"
+import { keyframes, play } from "@kinem/core"
 
 play(
   keyframes({ x: [0, 100, 0] }, { duration: 1000 }),
@@ -65,7 +65,7 @@ Kinem uses an explicit `stagger()` combinator that takes an array of
 definitions, one per target:
 
 ```ts
-import { play, stagger, tween } from "kinem"
+import { play, stagger, tween } from "@kinem/core"
 
 const defs = Array.from({ length: 10 }, () =>
   tween({ opacity: [0, 1] }, { duration: 300 }),
@@ -83,7 +83,7 @@ presets.
 Motion's `scroll` factory maps to Kinem's `scroll()` helper:
 
 ```ts
-import { scroll, tween } from "kinem"
+import { scroll, tween } from "@kinem/core"
 
 scroll(
   tween({ y: [0, -100] }, { duration: 1000 }),
@@ -96,7 +96,7 @@ scroll(
 Motion's `spring()` easing is a direct map:
 
 ```ts
-import { play, spring, tween } from "kinem"
+import { play, spring, tween } from "@kinem/core"
 
 play(
   tween({ x: [0, 200] }, { easing: spring({ stiffness: 180, damping: 12 }) }),

@@ -1,4 +1,4 @@
-import { easeOut, gesture, tween } from "kinem"
+import { easeOut, gesture, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const hoverGesture: Example = {

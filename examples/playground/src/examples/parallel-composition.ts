@@ -1,4 +1,4 @@
-import { easeInOut, parallel, play, tween } from "kinem"
+import { easeInOut, parallel, play, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const parallelComposition: Example = {

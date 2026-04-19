@@ -1,4 +1,4 @@
-import { easeInOut, easeOut, timeline, tween } from "kinem"
+import { easeInOut, easeOut, timeline, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const timelineOrchestration: Example = {

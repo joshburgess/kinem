@@ -6,7 +6,7 @@ import {
   easeOut,
   playRaf,
   tween,
-} from "kinem"
+} from "@kinem/core"
 import { bench, describe } from "vitest"
 
 /**

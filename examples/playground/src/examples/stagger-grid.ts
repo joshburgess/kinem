@@ -1,4 +1,4 @@
-import { easeOut, fromGrid, play, tween } from "kinem"
+import { easeOut, fromGrid, play, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 const ROWS = 5

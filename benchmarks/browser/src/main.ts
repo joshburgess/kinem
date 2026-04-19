@@ -23,7 +23,7 @@
  */
 
 import gsap from "gsap"
-import { type PlayMode, play, tween } from "kinem"
+import { type PlayMode, play, tween } from "@kinem/core"
 import { animate } from "motion"
 
 type Scenario =
@@ -32,7 +32,7 @@ type Scenario =
   | "cancel-before-first"
   | "steady-state"
 
-type Lib = "kinem" | "motion" | "gsap"
+type Lib = "@kinem/core" | "motion" | "gsap"
 
 type BenchResult = {
   lib: Lib
@@ -259,7 +259,7 @@ async function runPool(
   count: number,
   samples = 5,
 ): Promise<void> {
-  const runner = lib === "kinem" ? runMotif : lib === "motion" ? runMotion : runGsap
+  const runner = lib === "@kinem/core" ? runMotif : lib === "motion" ? runMotion : runGsap
   const runs: number[] = []
   for (let i = 0; i < samples; i++) {
     clearStage()
@@ -465,7 +465,7 @@ window.__profileMain = profileMain
 window.__profileStartupPhases = profileStartupPhases
 
 runMotifBtn.addEventListener("click", () => {
-  void runHandler("kinem")
+  void runHandler("@kinem/core")
 })
 runMotionBtn.addEventListener("click", () => {
   void runHandler("motion")

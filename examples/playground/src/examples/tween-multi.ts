@@ -1,4 +1,4 @@
-import { easeInOut, play, tween } from "kinem"
+import { easeInOut, play, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const tweenMulti: Example = {

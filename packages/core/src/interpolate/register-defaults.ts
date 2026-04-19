@@ -6,7 +6,7 @@
  * any common CSS value type out of the box.
  *
  * Kept separate from `registry.ts` so bundles that do not import this
- * module (notably `kinem/slim`) can tree-shake the built-in
+ * module (notably `@kinem/core/slim`) can tree-shake the built-in
  * interpolator code.
  *
  * All built-ins are registered at low priority; user-registered entries

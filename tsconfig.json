@@ -4,7 +4,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "kinem": ["./packages/core/src/index.ts"]
+      "@kinem/core": ["./packages/core/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"]

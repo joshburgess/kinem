@@ -19,8 +19,8 @@
  * owns the frames.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "kinem"
-import { play, tween } from "kinem"
+import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
+import { play, tween } from "@kinem/core"
 
 export type TransitionValues = Readonly<Record<string, string | number>>
 

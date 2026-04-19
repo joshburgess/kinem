@@ -1,4 +1,4 @@
-import { easeOut, play, sequence, tween } from "kinem"
+import { easeOut, play, sequence, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const sequenceComposition: Example = {

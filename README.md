@@ -7,7 +7,7 @@ function from progress to value. You compose animations with ordinary
 combinators, then hand the result to a renderer.
 
 ```ts
-import { easeOut, parallel, play, sequence, spring, tween } from "kinem"
+import { easeOut, parallel, play, sequence, spring, tween } from "@kinem/core"
 
 const entrance = sequence(
   tween({ opacity: [0, 1] }, { duration: 200 }),
@@ -29,9 +29,9 @@ by hand.
 ## Install
 
 ```sh
-pnpm add kinem
-# or: npm install kinem
-# or: yarn add kinem
+pnpm add @kinem/core
+# or: npm install @kinem/core
+# or: yarn add @kinem/core
 ```
 
 Framework adapters:
@@ -70,7 +70,7 @@ import {
   play,
   stagger,
   tween,
-} from "kinem"
+} from "@kinem/core"
 
 const tiles = Array.from(document.querySelectorAll<HTMLElement>(".tile"))
 
@@ -100,7 +100,7 @@ Measured at the main entry with all built-in interpolators:
 | `tween + gesture` | 9.4 kB |
 | full library surface | 14.0 kB |
 
-The slim entry (`kinem/slim`) skips the color, transform, path, and
+The slim entry (`@kinem/core/slim`) skips the color, transform, path, and
 CSS-unit interpolator registrations. Use it when you only animate numbers,
 or when you want to register a custom subset via `registerInterpolator`.
 
@@ -150,4 +150,4 @@ notes.
 
 ## License
 
-MIT
+Dual licensed under [Apache 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT).

@@ -1,4 +1,4 @@
-import { easeInOut, keyframes, play } from "kinem"
+import { easeInOut, keyframes, play } from "@kinem/core"
 import type { Example } from "../example"
 
 export const keyframesStops: Example = {

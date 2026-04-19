@@ -14,7 +14,7 @@
  * trajectory and settling behaviour match `spring()` used elsewhere.
  */
 
-import { type SpringOpts, frame, springEasing } from "kinem"
+import { type SpringOpts, frame, springEasing } from "@kinem/core"
 import { onBeforeUnmount } from "vue"
 
 export interface SpringValue {

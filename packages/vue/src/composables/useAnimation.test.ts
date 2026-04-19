@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils"
-import { tween } from "kinem"
+import { tween } from "@kinem/core"
 import { describe, expect, it } from "vitest"
 import { defineComponent, h, onMounted } from "vue"
 import { type UseAnimationResult, useAnimation } from "./useAnimation"

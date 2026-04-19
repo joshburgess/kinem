@@ -19,7 +19,7 @@
  * separate mount so pages can opt into either or both independently.
  */
 
-import { type AnimationRecord, listActiveAnimations, subscribeTracker } from "kinem"
+import { type AnimationRecord, listActiveAnimations, subscribeTracker } from "@kinem/core"
 
 export type TimelinePosition = "top" | "bottom"
 

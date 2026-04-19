@@ -23,7 +23,7 @@ import {
   type StrategyTarget,
   play,
   tween,
-} from "kinem"
+} from "@kinem/core"
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react"
 
 export interface UseLayoutOpts {

@@ -19,8 +19,8 @@ import type {
   PlayOpts,
   StrategyState,
   StrategyTarget,
-} from "kinem"
-import { play as playCore } from "kinem"
+} from "@kinem/core"
+import { play as playCore } from "@kinem/core"
 import { type ShallowRef, onBeforeUnmount, shallowRef } from "vue"
 
 export interface UseAnimationResult<T extends Element = Element> {

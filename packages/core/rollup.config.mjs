@@ -20,7 +20,7 @@ const swcPlugin = swc({
 function entry(name) {
   return {
     input: `src/${name}.ts`,
-    external: [/^kinem/],
+    external: [/^@kinem\//],
     output: [
       { file: `dist/${name}.js`, format: "es", sourcemap: true },
       { file: `dist/${name}.cjs`, format: "cjs", sourcemap: true, exports: "named" },

@@ -12,7 +12,7 @@ pnpm changeset
 
 It will prompt you for:
 
-1. Which packages changed (kinem, @kinem/react, etc.)
+1. Which packages changed (@kinem/core, @kinem/react, etc.)
 2. The bump type for each (patch, minor, major)
 3. A summary for the changelog
 

@@ -15,7 +15,7 @@ gsap.to(".box", { x: 200, opacity: 1, duration: 0.6, ease: "power2.out" })
 Kinem:
 
 ```ts
-import { easeOut, play, tween } from "kinem"
+import { easeOut, play, tween } from "@kinem/core"
 
 play(
   tween({ x: [0, 200], opacity: [0, 1] }, { duration: 600, easing: easeOut }),
@@ -55,7 +55,7 @@ tl.to(".b", { y: 50, duration: 0.4 }, "-=0.2")
 Kinem:
 
 ```ts
-import { play, timeline, tween } from "kinem"
+import { play, timeline, tween } from "@kinem/core"
 
 const tl = timeline()
   .add(tween({ x: [0, 100] }, { duration: 400 }), 0)
@@ -80,7 +80,7 @@ Kinem uses an explicit `stagger` combinator that works on an array of
 definitions, one per target:
 
 ```ts
-import { play, stagger, tween } from "kinem"
+import { play, stagger, tween } from "@kinem/core"
 
 const defs = Array.from({ length: 10 }, () =>
   tween({ opacity: [0, 1] }, { duration: 300 }),
@@ -91,14 +91,14 @@ play(staggered, ".item")
 ```
 
 Grid, shuffle, and wave patterns are exported as `fromGrid`, `shuffle`,
-and `wave` from `kinem`.
+and `wave` from `@kinem/core`.
 
 ## ScrollTrigger
 
 Most basic scroll use cases map to Kinem's `scroll()` helper:
 
 ```ts
-import { scroll, tween } from "kinem"
+import { scroll, tween } from "@kinem/core"
 
 scroll(
   tween({ opacity: [0, 1] }, { duration: 1000 }),

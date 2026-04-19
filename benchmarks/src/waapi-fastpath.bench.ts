@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { buildKeyframes, cubicBezier, easeOut, play, tween } from "kinem"
+import { buildKeyframes, cubicBezier, easeOut, play, tween } from "@kinem/core"
 import { bench, describe } from "vitest"
 
 /**

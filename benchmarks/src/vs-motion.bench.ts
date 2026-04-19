@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { interpolateNumber, play, tween } from "kinem"
+import { interpolateNumber, play, tween } from "@kinem/core"
 import { animate } from "motion"
 // motion-dom is installed transitively via `motion`. Its `mix()` is the
 // primitive we compare against kinem's `interpolateNumber()`, and

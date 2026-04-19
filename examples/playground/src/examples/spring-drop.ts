@@ -1,4 +1,4 @@
-import { play, spring } from "kinem"
+import { play, spring } from "@kinem/core"
 import type { Example } from "../example"
 
 export const springDrop: Example = {

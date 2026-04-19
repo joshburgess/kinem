@@ -1,5 +1,5 @@
 {
-  "name": "kinem",
+  "name": "kinem-workspace",
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {

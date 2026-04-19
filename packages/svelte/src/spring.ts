@@ -15,7 +15,7 @@
  * `springEasing` used elsewhere in the library.
  */
 
-import { type SpringOpts, frame, springEasing } from "kinem"
+import { type SpringOpts, frame, springEasing } from "@kinem/core"
 
 export type SpringStoreOpts = SpringOpts
 

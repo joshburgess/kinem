@@ -1,8 +1,8 @@
 {
-  "name": "kinem",
+  "name": "@kinem/core",
   "version": "0.1.0",
   "description": "Functional/compositional animation library for TypeScript",
-  "license": "MIT",
+  "license": "(Apache-2.0 OR MIT)",
   "author": "Josh Burgess",
   "repository": {
     "type": "git",
@@ -52,7 +52,7 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE-APACHE", "LICENSE-MIT"],
   "scripts": {
     "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts && cp dist/slim.d.ts dist/slim.d.cts",
     "typecheck": "tsc --noEmit",
