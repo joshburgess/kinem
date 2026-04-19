@@ -140,6 +140,37 @@ describe("playWaapi", () => {
     expect(t.animations[0]!.currentTime).toBe(200)
   })
 
+  it("progress reads from the first animation's currentTime", () => {
+    const t = mockTarget()
+    const h = playWaapi(tween({ opacity: [0, 1] }, { duration: 400 }), [t])
+    expect(h.progress).toBe(0)
+    t.animations[0]!.currentTime = 100
+    expect(h.progress).toBeCloseTo(0.25, 5)
+    t.animations[0]!.currentTime = 400
+    expect(h.progress).toBe(1)
+  })
+
+  it("progress reports 0 before WAAPI setup runs", () => {
+    const t = mockTarget()
+    const raf = mockRaf()
+    const sched = createFrameScheduler({ raf: raf.raf, now: () => 0 })
+    const h = playWaapi(tween({ opacity: [0, 1] }, { duration: 100 }), [t], {}, sched)
+    // Lazy path: animate() hasn't been called yet.
+    expect(t.animations).toHaveLength(0)
+    expect(h.progress).toBe(0)
+    expect(h.direction).toBe(1)
+  })
+
+  it("reverse flips direction", () => {
+    const t = mockTarget()
+    const h = playWaapi(tween({ opacity: [0, 1] }, { duration: 100 }), [t])
+    expect(h.direction).toBe(1)
+    h.reverse()
+    expect(h.direction).toBe(-1)
+    h.reverse()
+    expect(h.direction).toBe(1)
+  })
+
   it("resolves `finished` after onfinish fires on every target", async () => {
     const a = mockTarget()
     const b = mockTarget()

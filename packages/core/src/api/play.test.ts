@@ -170,6 +170,24 @@ describe("play", () => {
     expect(() => controls.seekLabel("missing")).toThrow(/unknown label/)
   })
 
+  it("exposes progress and direction from the underlying handle", () => {
+    const el = makeTarget()
+    const env = setup()
+    const controls = play(tween({ width: ["0px", "100px"] }, { duration: 100 }), el, {
+      waapiSupported: false,
+      scheduler: env.scheduler,
+      clock: env.clock,
+    })
+    env.tick()
+    expect(controls.progress).toBe(0)
+    expect(controls.direction).toBe(1)
+    env.advance(40)
+    env.tick()
+    expect(controls.progress).toBeCloseTo(0.4, 5)
+    controls.reverse()
+    expect(controls.direction).toBe(-1)
+  })
+
   describe("mode", () => {
     it("mode: 'main' routes compositor-safe props through rAF", () => {
       // The fake target throws on `animate()`, so if mode=main didn't

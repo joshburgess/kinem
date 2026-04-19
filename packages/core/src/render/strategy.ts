@@ -36,6 +36,10 @@ export interface StrategyHandle {
   setSpeed(multiplier: number): void
   cancel(): void
   readonly state: StrategyState
+  /** Current animation progress in [0, 1]. */
+  readonly progress: number
+  /** Current playback direction. `1` is forward, `-1` is reversed. */
+  readonly direction: 1 | -1
   readonly finished: Promise<void>
 }
 
@@ -242,6 +246,17 @@ export function combineHandles(handles: readonly StrategyHandle[]): StrategyHand
       if (anyPaused) return "paused"
       if (allFinished) return "finished"
       return userState
+    },
+    // All children run the same underlying timeline (split-tier plays
+    // project the same def onto two backends; timeline entries are
+    // slotted to the same total duration). Progress and direction stay
+    // in lock-step, so reading from the first child is accurate and
+    // cheaper than iterating.
+    get progress() {
+      return handles[0]?.progress ?? 0
+    },
+    get direction() {
+      return handles[0]?.direction ?? 1
     },
     get finished() {
       return lp.promise
