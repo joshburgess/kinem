@@ -18,6 +18,7 @@
 import { getCssEasing } from "../core/easing"
 import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
+import type { FrameScheduler } from "../scheduler/frame"
 import { pseudoToTransformFn } from "./properties"
 
 export interface WaapiAnimation {
@@ -248,26 +249,72 @@ function toKeyframe(values: Readonly<Record<string, unknown>>, offset: number): 
 // the prototype once instead of being allocated as fresh closures per
 // play, and the two per-animation event handlers share a single bound
 // pair across all targets. At n=1000 plays that's ~12,000 fewer closure
-// allocations per bench cycle, which shows up in both wall time
-// (closure alloc cost) and GC pressure (the profile sampled 91 GC
-// hits while `playWaapi` + its closures accounted for ~89 self-hits).
+// allocations per bench cycle.
+//
+// Supports both eager and lazy setup. The lazy path defers the
+// `Element.animate()` calls to the next scheduler tick so a cancel()
+// before the tick fires skips WAAPI setup entirely. Control-plane
+// calls made before setup update state directly or enqueue a replay
+// op that fires once the animations exist. This used to live in a
+// separate `LazyHandleImpl` wrapper class in strategy.ts, but the
+// wrapper only ever wrapped `playWaapi`, so it collapsed into here:
+// one handle per play instead of two, one LazyPromise instead of two.
 class WaapiImpl implements WaapiHandle {
-  readonly #animations: readonly WaapiAnimation[]
   readonly #duration: number
   readonly #lp: LazyPromise
+  // Null until setup runs. Lazy path sets this in `#runSetup`; eager
+  // path sets it in the constructor.
+  #animations: readonly WaapiAnimation[] | null = null
   #state: WaapiState = "playing"
   #direction: 1 | -1 = 1
   #speed = 1
-  #remaining: number
+  #remaining = 0
+  // Lazy-path: ops that came in before setup fired. Lazy-alloc; most
+  // plays get no control-plane calls before the first tick.
+  #pending: Array<(impl: WaapiImpl) => void> | null = null
 
-  constructor(animations: readonly WaapiAnimation[], duration: number) {
-    this.#animations = animations
+  constructor(
+    duration: number,
+    animations: readonly WaapiAnimation[] | null,
+    setup: (() => readonly WaapiAnimation[]) | null,
+    scheduler: FrameScheduler | null,
+  ) {
     this.#duration = duration
     this.#lp = createLazyPromise()
+    if (animations !== null) {
+      this.#installAnimations(animations)
+      return
+    }
+    // Lazy path. One-shot schedule: cheaper than keepalive (plain array
+    // push vs linked-list + Map insert). `cancel()` before the tick
+    // fires can't extract the entry from the queue; instead it sets
+    // `#state = "cancelled"` and `#runSetup` short-circuits on drain.
+    // Tried routing this through a keepalive registration (so
+    // `cancel()` could call `scheduler.cancel()` for immediate removal)
+    // and measured a ~3x regression on cancel-before-first at n=1000
+    // in exchange for preventing queue bloat in backgrounded tabs
+    // (a non-goal for foreground perf). Stay on the one-shot path.
+    ;(scheduler as FrameScheduler).schedule("update", this.#runSetup.bind(this, setup as () => readonly WaapiAnimation[]))
+  }
+
+  #runSetup(setup: () => readonly WaapiAnimation[]): void {
+    if (this.#state === "cancelled") return
+    this.#installAnimations(setup())
+    const pending = this.#pending
+    if (pending !== null) {
+      for (const op of pending) op(this)
+      this.#pending = null
+    }
+  }
+
+  #installAnimations(animations: readonly WaapiAnimation[]): void {
+    this.#animations = animations
     this.#remaining = animations.length
     if (this.#remaining === 0) {
-      this.#state = "finished"
-      this.#lp.resolve()
+      if (this.#state === "playing") {
+        this.#state = "finished"
+        this.#lp.resolve()
+      }
       return
     }
     // Bind once, assign N times. `.bind()` allocates a function object
@@ -279,6 +326,21 @@ class WaapiImpl implements WaapiHandle {
       a.onfinish = onFinish
       a.oncancel = onCancel
     }
+    // Reflect any pre-setup state changes. `reverse` / `setSpeed` before
+    // the first tick mutate `#direction` / `#speed`; apply the combined
+    // rate here so animations start on the right direction/speed.
+    const rate = this.#direction * this.#speed
+    if (rate !== 1) {
+      for (const a of animations) a.playbackRate = rate
+    }
+    if (this.#state === "paused") {
+      for (const a of animations) a.pause()
+    }
+  }
+
+  #queue(op: (impl: WaapiImpl) => void): void {
+    if (this.#pending === null) this.#pending = [op]
+    else this.#pending.push(op)
   }
 
   #onAnimationFinish(): void {
@@ -297,44 +359,60 @@ class WaapiImpl implements WaapiHandle {
   }
 
   #syncPlaybackRate(): void {
+    const animations = this.#animations
+    if (animations === null) return
     const rate = this.#direction * this.#speed
-    for (const a of this.#animations) a.playbackRate = rate
+    for (const a of animations) a.playbackRate = rate
   }
 
   pause(): void {
     if (this.#state !== "playing") return
-    for (const a of this.#animations) a.pause()
     this.#state = "paused"
+    const animations = this.#animations
+    if (animations !== null) {
+      for (const a of animations) a.pause()
+    }
+    // If pre-setup, `#installAnimations` will apply the paused state.
   }
 
   resume(): void {
     if (this.#state !== "paused") return
-    for (const a of this.#animations) a.play()
     this.#state = "playing"
+    const animations = this.#animations
+    if (animations !== null) {
+      for (const a of animations) a.play()
+    }
   }
 
   seek(p: number): void {
     if (this.#state === "cancelled") return
+    const animations = this.#animations
+    if (animations === null) {
+      this.#queue(queuedSeek(p))
+      return
+    }
     const clamped = p < 0 ? 0 : p > 1 ? 1 : p
     const t = clamped * this.#duration
-    for (const a of this.#animations) a.currentTime = t
+    for (const a of animations) a.currentTime = t
     if (this.#state === "finished") {
       this.#state = "playing"
-      this.#remaining = this.#animations.length
-      for (const a of this.#animations) a.play()
+      this.#remaining = animations.length
+      for (const a of animations) a.play()
     }
   }
 
   reverse(): void {
     if (this.#state === "cancelled") return
     this.#direction = (this.#direction === 1 ? -1 : 1) as 1 | -1
+    const animations = this.#animations
+    if (animations === null) return
     this.#syncPlaybackRate()
     if (this.#state === "finished") {
       // WAAPI resumes automatically when we flip playbackRate from
       // a finished state at currentTime=duration, playing back to 0.
       this.#state = "playing"
-      this.#remaining = this.#animations.length
-      for (const a of this.#animations) a.play()
+      this.#remaining = animations.length
+      for (const a of animations) a.play()
     }
   }
 
@@ -350,7 +428,13 @@ class WaapiImpl implements WaapiHandle {
   cancel(): void {
     if (this.#state === "finished" || this.#state === "cancelled") return
     this.#state = "cancelled"
-    for (const a of this.#animations) a.cancel()
+    const animations = this.#animations
+    if (animations !== null) {
+      for (const a of animations) a.cancel()
+    }
+    // Pre-setup path: `#runSetup` sees `#state === "cancelled"` and
+    // skips the entire `Element.animate()` loop. No animations were
+    // created, so there's nothing to cancel on the DOM side.
     this.#lp.rejectCancelled()
   }
 
@@ -367,15 +451,46 @@ class WaapiImpl implements WaapiHandle {
   }
 }
 
+// Seek ops carry a number, so we can't share a module-level arrow the
+// way pure-dispatch ops (pause/resume/reverse) could. Wrapping keeps
+// the closure local and small: a fresh one per pre-setup `seek()` call
+// in the rare case the caller seeks before the first tick.
+const queuedSeek = (p: number) => (impl: WaapiImpl): void => impl.seek(p)
+
+/**
+ * Play a pre-computed WAAPI animation against the given targets.
+ *
+ * When `scheduler` is supplied, the `Element.animate()` calls are
+ * deferred to the next scheduler tick, and `cancel()` before that tick
+ * short-circuits the WAAPI setup entirely (no keyframes built, no DOM
+ * writes, no native compositor negotiation). Omit `scheduler` to do
+ * setup synchronously.
+ */
 export function playWaapi(
   def: AnimationDef<Readonly<Record<string, unknown>>>,
   targets: readonly Animatable[],
   opts: WaapiOpts = {},
+  scheduler: FrameScheduler | null = null,
 ): WaapiHandle {
   if (!(def.duration > 0) || !Number.isFinite(def.duration)) {
     throw new Error(`playWaapi(): animation duration must be finite and > 0 (got ${def.duration})`)
   }
+  if (scheduler === null) {
+    return new WaapiImpl(def.duration, buildAnimations(def, targets, opts), null, null)
+  }
+  // Lazy path: the WaapiImpl schedules `setup()` for the next update
+  // tick. Capturing def/targets/opts in the closure is unavoidable,
+  // but there's only one such closure per play instead of the previous
+  // two-layer wrapper.
+  const setup = (): readonly WaapiAnimation[] => buildAnimations(def, targets, opts)
+  return new WaapiImpl(def.duration, null, setup, scheduler)
+}
 
+function buildAnimations(
+  def: AnimationDef<Readonly<Record<string, unknown>>>,
+  targets: readonly Animatable[],
+  opts: WaapiOpts,
+): readonly WaapiAnimation[] {
   const { frames, easing: waapiEasing } = planWaapi(def, opts)
   const fill = opts.fill ?? "forwards"
   // Build the animations array inline (no `.map()` callback allocation)
@@ -385,5 +500,5 @@ export function playWaapi(
   for (let i = 0; i < targets.length; i++) {
     animations[i] = (targets[i] as Animatable).animate(frames, animateOpts)
   }
-  return new WaapiImpl(animations, def.duration)
+  return animations
 }
