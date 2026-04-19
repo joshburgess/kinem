@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "joshburgess/motif" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "joshburgess/kinem" }],
   "commit": false,
   "fixed": [],
   "linked": [],
