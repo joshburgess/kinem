@@ -244,9 +244,34 @@ export {
   playHover,
 } from "./gesture/hover"
 export {
+  type PanAxis,
+  type PanEvent,
+  type PanHandle,
+  type PanOpts,
+  type PinchEvent,
+  type PinchHandle,
+  type PinchOpts,
+  type PressEvent,
+  type PressHandle,
+  type PressOpts,
+  type RecognizerState,
+  type TapEvent,
+  type TapHandle,
+  type TapOpts,
+  type Timer,
+  playPan,
+  playPinch,
+  playPress,
+  playTap,
+} from "./gesture/recognizers"
+export {
   type DragPublicOpts,
   type GestureTarget,
   type HoverPublicOpts,
+  type PanPublicOpts,
+  type PinchPublicOpts,
+  type PressPublicOpts,
+  type TapPublicOpts,
   gesture,
 } from "./api/gesture"
 

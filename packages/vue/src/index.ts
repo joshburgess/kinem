@@ -21,4 +21,5 @@ export {
   type UseKinemTransitionOpts,
   useKinemTransition,
 } from "./composables/useKinemTransition"
+export { type UseScrollResult, useScroll } from "./composables/useScroll"
 export { type SpringValue, useSpring } from "./composables/useSpring"

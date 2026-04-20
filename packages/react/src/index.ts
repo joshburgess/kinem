@@ -16,6 +16,7 @@ export {
   type UseLayoutResult,
   useLayout,
 } from "./hooks/useLayout"
+export { type UseScrollResult, useScroll } from "./hooks/useScroll"
 export { type SpringValue, useSpring } from "./hooks/useSpring"
 export { AnimatePresence, type AnimatePresenceProps } from "./components/AnimatePresence"
 export {
