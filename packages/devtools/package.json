@@ -1,6 +1,6 @@
 {
   "name": "@kinem/devtools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Inspection, recording, and replay tools for kinem",
   "license": "(Apache-2.0 OR MIT)",
   "author": "Josh Burgess",
@@ -38,7 +38,7 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@kinem/core": "workspace:*"
+    "@kinem/core": "workspace:^"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",

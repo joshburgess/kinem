@@ -1,6 +1,6 @@
 {
   "name": "@kinem/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Functional/compositional animation library for TypeScript",
   "license": "(Apache-2.0 OR MIT)",
   "author": "Josh Burgess",
