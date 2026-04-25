@@ -3,10 +3,13 @@ import { cardStack } from "./demos/card-stack"
 import { cascadeGrid } from "./demos/cascade-grid"
 import { cometTrail } from "./demos/comet-trail"
 import { confettiBurst } from "./demos/confetti-burst"
+import { cubeWall } from "./demos/cube-wall"
+import { galaxySpiral } from "./demos/galaxy-spiral"
 import { gooDrag } from "./demos/goo-drag"
 import { heatShimmer } from "./demos/heat-shimmer"
 import { holoCard } from "./demos/holo-card"
 import { liquidCursor } from "./demos/liquid-cursor"
+import { liquidMenu } from "./demos/liquid-menu"
 import { magneticNav } from "./demos/magnetic-nav"
 import { meshGradient } from "./demos/mesh-gradient"
 import { orbitDance } from "./demos/orbit-dance"
@@ -39,9 +42,12 @@ const demos: readonly Demo[] = [
   cometTrail,
   ribbonTrail,
   orbitDance,
+  galaxySpiral,
   starfieldWarp,
   shapeMorph,
   cascadeGrid,
+  cubeWall,
+  liquidMenu,
   particleField,
   textShatter,
   heatShimmer,
