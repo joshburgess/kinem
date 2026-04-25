@@ -1,6 +1,9 @@
 import { gesture, playCanvas, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
+const DRAG_SCALE_SENSITIVITY = 0.005
+const DRAG_ROTATE_SENSITIVITY = 0.005
+
 const MIN_SCALE = 0.5
 const MAX_SCALE = 4
 
@@ -39,7 +42,7 @@ export const pinchZoom: Demo = {
     wrap.appendChild(photo)
 
     const hint = document.createElement("div")
-    hint.textContent = "PINCH · ROTATE · RELEASE"
+    hint.textContent = "PINCH · DRAG · WHEEL"
     Object.assign(hint.style, {
       position: "absolute",
       left: "50%",
@@ -91,7 +94,41 @@ export const pinchZoom: Demo = {
       },
     })
 
-    // Trackpad pinch: ctrlKey + wheel is how browsers report pinch on trackpad
+    // Mouse-friendly fallback: drag the photo. Vertical → scale,
+    // horizontal → rotation. Works alongside pinch (different pointer count).
+    let dragBaseScale = 1
+    let dragBaseRotation = 0
+    const dragHandle = gesture.pan(photo, {
+      onStart: () => {
+        activePlay?.cancel()
+        dragBaseScale = scale
+        dragBaseRotation = rotation
+      },
+      onMove: (ev) => {
+        scale = Math.max(
+          MIN_SCALE * 0.8,
+          Math.min(MAX_SCALE * 1.2, dragBaseScale * Math.exp(-ev.offset.y * DRAG_SCALE_SENSITIVITY)),
+        )
+        rotation = dragBaseRotation + ev.offset.x * DRAG_ROTATE_SENSITIVITY
+        apply()
+      },
+      onEnd: () => {
+        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
+        if (clamped !== scale) {
+          const from = scale
+          activePlay = playCanvas(
+            spring({ s: [from, clamped] }, { stiffness: 180, damping: 16 }),
+            (v) => {
+              scale = v.s
+              apply()
+            },
+          )
+        }
+      },
+    })
+
+    // Trackpad pinch and ctrl+wheel: browsers report pinch as ctrlKey + wheel.
+    // Plain wheel scrolls the page; we only hijack the gesture form.
     const onWheel = (e: WheelEvent): void => {
       if (!e.ctrlKey) return
       e.preventDefault()
@@ -104,6 +141,7 @@ export const pinchZoom: Demo = {
 
     return () => {
       pinchHandle.cancel()
+      dragHandle.cancel()
       activePlay?.cancel()
       wrap.removeEventListener("wheel", onWheel)
     }

@@ -25,10 +25,6 @@ export const textShatter: Demo = {
       font: "700 84px/1 ui-sans-serif, system-ui, sans-serif",
       letterSpacing: "-0.03em",
       textAlign: "center",
-      background: "linear-gradient(180deg, #e8ecf4 0%, #7c9cff 100%)",
-      WebkitBackgroundClip: "text",
-      backgroundClip: "text",
-      color: "transparent",
       cursor: "default",
       userSelect: "none",
       padding: "0 24px",
@@ -37,6 +33,17 @@ export const textShatter: Demo = {
 
     const split = splitText(h, { by: ["chars"] })
     const chars = split.chars
+
+    // The gradient must live on each char (not the parent), otherwise
+    // background-clip: text clips against the parent's now-empty text
+    // and the inner spans render with no fill.
+    const charGradient = "linear-gradient(180deg, #e8ecf4 0%, #7c9cff 100%)"
+    for (const c of chars) {
+      c.style.backgroundImage = charGradient
+      c.style.webkitBackgroundClip = "text"
+      c.style.backgroundClip = "text"
+      c.style.color = "transparent"
+    }
 
     interface CharState {
       dx: number
