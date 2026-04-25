@@ -1,4 +1,4 @@
-import { easeOut, playCanvas, spring, tween } from "@kinem/core"
+import { easeOut, keyframes, playCanvas, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const PARTICLES_PER_BURST = 140
@@ -156,21 +156,19 @@ export const confettiBurst: Demo = {
         particles.push(p)
 
         playCanvas(
-          tween(
+          keyframes(
             {
               x: [cx, peakX, targetX],
               y: [cy, peakY, targetY],
               rot: [startRot, startRot + (endRot - startRot) * 0.5, endRot],
               op: [1, 1, 0],
             },
-            { duration: lifeMs, easing: easeOut },
+            { duration: lifeMs, easing: easeOut, offsets: [0, 0.4, 1] },
           ),
           (v) => {
             p.x = v.x
             p.y = v.y
             p.rot = v.rot
-            // Use opacity by mutating the color's alpha; simpler to just multiply size
-            // Actually we draw with constant fill — encode opacity via color string
             p.color = withAlpha(color, v.op)
           },
           {
