@@ -26,7 +26,7 @@ export const galaxySpiral: Demo = {
   id: "galaxy-spiral",
   title: "Galaxy spiral · catmull-rom arms",
   blurb:
-    "Four logarithmic spiral arms, each a `catmullRom` spline through 18 waypoints. Hundreds of particles flow along the arms with phase offsets, then wrap. The cursor angle warps the whole disk to drift toward you.",
+    "Four spiral arms, each a `catmullRom` spline through 18 waypoints. Hundreds of particles flow along the arms with phase offsets, wrapping to the inside as they reach the rim. Move the cursor over the disk to drag particles toward it; click to fire a burst that briefly accelerates the whole flow.",
   group: "Showcase",
   mount(stage) {
     const wrap = document.createElement("div")
@@ -70,7 +70,6 @@ export const galaxySpiral: Demo = {
     wrap.appendChild(svg)
 
     const layer = document.createElementNS(SVG_NS, "g")
-    layer.setAttribute("transform-origin", "center")
     svg.appendChild(layer)
 
     const armColors = [195, 285, 340, 50]
@@ -135,18 +134,16 @@ export const galaxySpiral: Demo = {
         particles.push({
           el: c,
           phase: i / PARTICLES_PER_ARM + Math.random() * 0.01,
-          speed: 0.018 + Math.random() * 0.022,
+          speed: 0.085 + Math.random() * 0.07,
           arm,
         })
       }
     }
 
-    let cx = wrap.clientWidth / 2
-    let cy = wrap.clientHeight / 2
-    let mouseX = cx
-    let mouseY = cy
+    let mouseX = 0
+    let mouseY = 0
     let inside = false
-    let layerRot = 0
+    let burst = 0
 
     const onMove = (e: PointerEvent): void => {
       const r = wrap.getBoundingClientRect()
@@ -157,34 +154,61 @@ export const galaxySpiral: Demo = {
     const onLeave = (): void => {
       inside = false
     }
+    const onDown = (): void => {
+      burst = 1
+    }
     wrap.addEventListener("pointermove", onMove)
     wrap.addEventListener("pointerleave", onLeave)
+    wrap.addEventListener("pointerdown", onDown)
 
-    const onResize = (): void => {
-      cx = wrap.clientWidth / 2
-      cy = wrap.clientHeight / 2
-    }
-    window.addEventListener("resize", onResize)
-
+    let layerRot = 0
     let rafId = 0
     let last = performance.now()
+    const DEG = Math.PI / 180
 
     const tick = (): void => {
       const now = performance.now()
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
 
-      const targetRot = inside ? Math.atan2(mouseY - cy, mouseX - cx) * (180 / Math.PI) * 0.18 : 0
-      layerRot += (targetRot - layerRot) * 0.04
-      layerRot += dt * 4
+      const cx = wrap.clientWidth / 2
+      const cy = wrap.clientHeight / 2
+      layerRot += dt * 22
+      burst = Math.max(0, burst - dt * 1.5)
 
-      layer.setAttribute("transform", `translate(${cx} ${cy}) rotate(${layerRot.toFixed(3)})`)
+      layer.setAttribute(
+        "transform",
+        `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) rotate(${layerRot.toFixed(3)})`,
+      )
+
+      // Convert cursor from screen to layer-local (undo translate then rotate).
+      const sx = mouseX - cx
+      const sy = mouseY - cy
+      const ang = -layerRot * DEG
+      const cosA = Math.cos(ang)
+      const sinA = Math.sin(ang)
+      const lx = sx * cosA - sy * sinA
+      const ly = sx * sinA + sy * cosA
+
+      const pullStrength = inside ? 1 : 0
+      const speedMult = 1 + burst * 3
 
       for (const p of particles) {
-        p.phase = (((p.phase + dt * p.speed) % 1) + 1) % 1
+        p.phase = (((p.phase + dt * p.speed * speedMult) % 1) + 1) % 1
         const v = p.arm.def.interpolate(p.phase)
-        p.el.setAttribute("cx", v.x.toFixed(2))
-        p.el.setAttribute("cy", v.y.toFixed(2))
+        let px = v.x
+        let py = v.y
+        if (pullStrength > 0) {
+          const dx = lx - px
+          const dy = ly - py
+          const d2 = dx * dx + dy * dy
+          // Gaussian falloff (sigma ~ 90px); never overshoots since k <= 0.45.
+          const k = 0.45 * pullStrength * Math.exp(-d2 / 16200)
+          px += dx * k
+          py += dy * k
+        }
+        p.el.setAttribute("cx", px.toFixed(2))
+        p.el.setAttribute("cy", py.toFixed(2))
       }
 
       rafId = requestAnimationFrame(tick)
@@ -195,7 +219,7 @@ export const galaxySpiral: Demo = {
       cancelAnimationFrame(rafId)
       wrap.removeEventListener("pointermove", onMove)
       wrap.removeEventListener("pointerleave", onLeave)
-      window.removeEventListener("resize", onResize)
+      wrap.removeEventListener("pointerdown", onDown)
     }
   },
 }
