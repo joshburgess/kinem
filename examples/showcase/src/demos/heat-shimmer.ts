@@ -3,7 +3,7 @@ import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const TEXT = "MIRAGE"
-const CYCLE_MS = 4000
+const CYCLE_MS = 9000
 
 interface ShimmerVal {
   x: number
@@ -94,8 +94,8 @@ export const heatShimmer: Demo = {
       title.appendChild(span)
 
       const def = jitter<ShimmerVal>(baseDef, {
-        amplitude: 7,
-        frequency: 22,
+        amplitude: 2,
+        frequency: 6,
         seed: i * 17 + 3,
       })
       chars.push({ el: span, def })
@@ -108,7 +108,7 @@ export const heatShimmer: Demo = {
       const p = (((t / CYCLE_MS) % 1) + 1) % 1
       for (const c of chars) {
         const v = c.def.interpolate(p)
-        c.el.style.transform = `translate(${v.x.toFixed(2)}px, ${(v.y * 0.55).toFixed(2)}px) rotate(${(v.r * 0.28).toFixed(3)}deg)`
+        c.el.style.transform = `translate(${(v.x * 0.2).toFixed(2)}px, ${(v.y * 0.55).toFixed(2)}px) rotate(${(v.r * 0.05).toFixed(3)}deg)`
       }
       rafId = requestAnimationFrame(tick)
     }
