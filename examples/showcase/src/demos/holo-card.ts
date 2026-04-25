@@ -133,13 +133,49 @@ export const holoCard: Demo = {
         <div style="font-weight:800;font-size:13px;letter-spacing:0.32em;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,0.5)">Kinem</div>
         <div style="font-weight:700;font-size:11px;letter-spacing:0.18em;opacity:0.85">★ HOLO</div>
       </div>
-      <div style="text-align:center;font-size:120px;line-height:1;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.5))">🦄</div>
+      <div style="display:flex;justify-content:center;align-items:center;height:160px;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.5))">
+        <svg viewBox="0 0 120 120" width="160" height="160" style="overflow:visible">
+          <defs>
+            <radialGradient id="holo-core" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,255,255,1)" />
+              <stop offset="55%" stop-color="rgba(255,255,255,0.85)" />
+              <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+            </radialGradient>
+          </defs>
+          <circle cx="60" cy="60" r="20" fill="url(#holo-core)" />
+          <circle cx="60" cy="60" r="6" fill="#fff" />
+          <g style="transform-origin: 60px 60px; animation: holoSpinA 9s linear infinite">
+            <ellipse cx="60" cy="60" rx="50" ry="18" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="2.2" />
+          </g>
+          <g style="transform-origin: 60px 60px; animation: holoSpinB 13s linear infinite">
+            <ellipse cx="60" cy="60" rx="50" ry="18" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.2" transform="rotate(60 60 60)" />
+          </g>
+          <g style="transform-origin: 60px 60px; animation: holoSpinC 17s linear infinite">
+            <ellipse cx="60" cy="60" rx="50" ry="18" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2.2" transform="rotate(120 60 60)" />
+          </g>
+          <circle cx="110" cy="60" r="3" fill="#fff" style="transform-origin: 60px 60px; animation: holoSpinA 9s linear infinite" />
+          <circle cx="60" cy="10" r="2.5" fill="#fff" opacity="0.85" style="transform-origin: 60px 60px; animation: holoSpinB 13s linear infinite reverse" />
+        </svg>
+      </div>
       <div>
-        <div style="font-weight:800;font-size:24px;letter-spacing:-0.02em;text-shadow:0 2px 8px rgba(0,0,0,0.5)">Spring Unicorn</div>
+        <div style="font-weight:800;font-size:24px;letter-spacing:-0.02em;text-shadow:0 2px 8px rgba(0,0,0,0.5)">Resonance</div>
         <div style="font-size:12px;opacity:0.85;margin-top:4px;font-weight:500">Composed motion · physics · WebGL</div>
       </div>
     `
     card.appendChild(content)
+
+    // Keyframes for the orbital rings (scoped to the document; idempotent if remounted)
+    const styleId = "kinem-holo-keyframes"
+    if (!document.getElementById(styleId)) {
+      const styleEl = document.createElement("style")
+      styleEl.id = styleId
+      styleEl.textContent = `
+        @keyframes holoSpinA { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes holoSpinB { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes holoSpinC { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `
+      document.head.appendChild(styleEl)
+    }
 
     let tx = 0
     let ty = 0
