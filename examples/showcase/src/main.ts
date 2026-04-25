@@ -1,11 +1,14 @@
 import type { Demo } from "./demo"
 import { cardStack } from "./demos/card-stack"
+import { cascadeGrid } from "./demos/cascade-grid"
+import { cometTrail } from "./demos/comet-trail"
 import { confettiBurst } from "./demos/confetti-burst"
 import { gooDrag } from "./demos/goo-drag"
 import { holoCard } from "./demos/holo-card"
 import { liquidCursor } from "./demos/liquid-cursor"
 import { magneticNav } from "./demos/magnetic-nav"
 import { meshGradient } from "./demos/mesh-gradient"
+import { orbitDance } from "./demos/orbit-dance"
 import { panMomentum } from "./demos/pan-momentum"
 import { particleField } from "./demos/particle-field"
 import { pathFlight } from "./demos/path-flight"
@@ -13,20 +16,27 @@ import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
 import { scrollHero } from "./demos/scroll-hero"
 import { shaderReveal } from "./demos/shader-reveal"
+import { shapeMorph } from "./demos/shape-morph"
 import { tapRipple } from "./demos/tap-ripple"
 import { textShatter } from "./demos/text-shatter"
+import { tossCard } from "./demos/toss-card"
 
 const demos: readonly Demo[] = [
   tapRipple,
   pressCharge,
   panMomentum,
   pinchZoom,
+  tossCard,
   holoCard,
   liquidCursor,
   meshGradient,
   confettiBurst,
   gooDrag,
   pathFlight,
+  cometTrail,
+  orbitDance,
+  shapeMorph,
+  cascadeGrid,
   particleField,
   textShatter,
   cardStack,
