@@ -1,6 +1,11 @@
 import type { Demo } from "./demo"
 import { cardStack } from "./demos/card-stack"
+import { confettiBurst } from "./demos/confetti-burst"
+import { gooDrag } from "./demos/goo-drag"
+import { holoCard } from "./demos/holo-card"
+import { liquidCursor } from "./demos/liquid-cursor"
 import { magneticNav } from "./demos/magnetic-nav"
+import { meshGradient } from "./demos/mesh-gradient"
 import { panMomentum } from "./demos/pan-momentum"
 import { particleField } from "./demos/particle-field"
 import { pinchZoom } from "./demos/pinch-zoom"
@@ -15,6 +20,11 @@ const demos: readonly Demo[] = [
   pressCharge,
   panMomentum,
   pinchZoom,
+  holoCard,
+  liquidCursor,
+  meshGradient,
+  confettiBurst,
+  gooDrag,
   particleField,
   textShatter,
   cardStack,
