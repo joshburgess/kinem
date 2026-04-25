@@ -164,6 +164,7 @@ export type { Controls } from "./api/controls"
 export { type PlayMode, type PlayOpts, type Target, play } from "./api/play"
 export {
   type AnimationRecord,
+  type KinemDevtoolsHook,
   type TrackerEvent,
   type TrackerListener,
   __resetTracker,

@@ -1,0 +1,26 @@
+{
+  "name": "@kinem/devtools-extension",
+  "version": "0.2.0",
+  "description": "Chrome DevTools extension that adds a Kinem panel for inspecting, scrubbing, and recording kinem animations.",
+  "license": "(Apache-2.0 OR MIT)",
+  "author": "Josh Burgess",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
+    "directory": "packages/devtools-extension"
+  },
+  "scripts": {
+    "build": "node scripts/gen-icons.mjs && node scripts/build.mjs",
+    "dev": "node scripts/gen-icons.mjs && node scripts/build.mjs --watch",
+    "icons": "node scripts/gen-icons.mjs",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.9.3"
+  }
+}

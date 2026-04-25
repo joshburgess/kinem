@@ -118,6 +118,18 @@ describe("tracker", () => {
     expect(record.progress).toBe(1)
   })
 
+  it("installs __KINEM_DEVTOOLS_HOOK__ on the global when enabled", () => {
+    __resetTracker()
+    expect(
+      (globalThis as { __KINEM_DEVTOOLS_HOOK__?: unknown }).__KINEM_DEVTOOLS_HOOK__,
+    ).toBeUndefined()
+    enableTracker()
+    const hook = (globalThis as { __KINEM_DEVTOOLS_HOOK__?: { version: number } })
+      .__KINEM_DEVTOOLS_HOOK__
+    expect(hook).toBeDefined()
+    expect(hook?.version).toBe(1)
+  })
+
   it("emits nothing when no listeners are attached (doesn't throw)", () => {
     const spy = vi.fn()
     const controls = {

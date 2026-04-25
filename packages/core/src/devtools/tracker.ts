@@ -72,6 +72,32 @@ function emit(event: TrackerEvent): void {
 }
 
 /**
+ * Surface the tracker on a well-known global so external tools (the
+ * Chrome DevTools extension in particular) can connect without
+ * bundling `@kinem/core`. Mirrors the `__REACT_DEVTOOLS_GLOBAL_HOOK__`
+ * pattern: a single namespaced slot with a small, stable API. Installed
+ * idempotently the first time tracking is enabled in a browser.
+ */
+export interface KinemDevtoolsHook {
+  readonly version: 1
+  listActive(): readonly AnimationRecord[]
+  subscribe(fn: TrackerListener): () => void
+}
+
+function installHook(): void {
+  const g =
+    typeof globalThis !== "undefined"
+      ? (globalThis as { __KINEM_DEVTOOLS_HOOK__?: KinemDevtoolsHook })
+      : undefined
+  if (!g || g.__KINEM_DEVTOOLS_HOOK__) return
+  g.__KINEM_DEVTOOLS_HOOK__ = {
+    version: 1,
+    listActive,
+    subscribe,
+  }
+}
+
+/**
  * Enable tracking for every subsequent `play()` call. Idempotent. The
  * devtools package calls this at import time; other callers should only
  * do so if they need `listActive()` or `subscribe()` to report live
@@ -79,6 +105,7 @@ function emit(event: TrackerEvent): void {
  */
 export function enableTracker(): void {
   enabled = true
+  installHook()
 }
 
 /** True when tracking is active. Primarily for tests. */
@@ -141,6 +168,7 @@ export function listActive(): readonly AnimationRecord[] {
  */
 export function subscribe(fn: TrackerListener): () => void {
   enabled = true
+  installHook()
   listeners.add(fn)
   return () => {
     listeners.delete(fn)
@@ -153,4 +181,10 @@ export function __resetTracker(): void {
   listeners.clear()
   nextId = 1
   enabled = false
+  const g =
+    typeof globalThis !== "undefined"
+      ? (globalThis as { __KINEM_DEVTOOLS_HOOK__?: KinemDevtoolsHook })
+      : undefined
+  // biome-ignore lint/performance/noDelete: exactOptionalPropertyTypes requires removal, not undefined assignment
+  if (g) delete g.__KINEM_DEVTOOLS_HOOK__
 }
