@@ -61,6 +61,27 @@ export {
   type KeyframesValue,
   keyframes,
 } from "./api/keyframes"
+export {
+  type BezierPathOpts,
+  type BezierPathValue,
+  type Point2,
+  bezierPath,
+  bezierPathLength,
+  deCasteljau,
+  sampleBezierPath,
+} from "./api/bezier-path"
+export { motionPath, svgPathLength, svgPathToCubicPoints } from "./api/motion-path"
+export { type ArcOpts, arc } from "./api/arc"
+export { type CatmullRomOpts, catmullRom, catmullRomToCubicPoints } from "./api/catmull-rom"
+export { type JitterOpts, jitter } from "./api/jitter"
+export {
+  type FollowHandle,
+  type FollowOpts,
+  type FollowTarget,
+  follow,
+} from "./api/follow"
+export { type MorphPathOpts, morphPath } from "./api/morph-path"
+export { type ScrubHandle, type ScrubOpts, scrub } from "./api/scrub"
 
 export {
   type Clock,

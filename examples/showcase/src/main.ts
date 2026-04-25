@@ -8,6 +8,7 @@ import { magneticNav } from "./demos/magnetic-nav"
 import { meshGradient } from "./demos/mesh-gradient"
 import { panMomentum } from "./demos/pan-momentum"
 import { particleField } from "./demos/particle-field"
+import { pathFlight } from "./demos/path-flight"
 import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
 import { scrollHero } from "./demos/scroll-hero"
@@ -25,6 +26,7 @@ const demos: readonly Demo[] = [
   meshGradient,
   confettiBurst,
   gooDrag,
+  pathFlight,
   particleField,
   textShatter,
   cardStack,

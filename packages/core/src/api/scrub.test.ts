@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest"
+import { scrub } from "./scrub"
+import { tween } from "./tween"
+
+interface FakeTarget {
+  style: {
+    setProperty(name: string, value: string): void
+  }
+  setAttribute(name: string, value: string): void
+  written: Record<string, string>
+}
+
+const mkTarget = (): FakeTarget => {
+  const t: FakeTarget = {
+    written: {},
+    style: {
+      setProperty(name, value) {
+        t.written[name] = value
+      },
+    },
+    setAttribute(name, value) {
+      t.written[name] = value
+    },
+  }
+  return t
+}
+
+describe("scrub", () => {
+  it("push-mode applies progress on setProgress without rAF", () => {
+    const target = mkTarget()
+    const def = tween({ opacity: [0, 1] })
+    const h = scrub(def, [target as never])
+    h.setProgress(0.5)
+    expect(target.written["opacity"]).toBe("0.5")
+    expect(h.progress).toBe(0.5)
+    h.cancel()
+  })
+
+  it("clamps progress to [0,1]", () => {
+    const target = mkTarget()
+    const def = tween({ opacity: [0, 1] })
+    const h = scrub(def, [target as never])
+    h.setProgress(-0.5)
+    expect(h.progress).toBe(0)
+    h.setProgress(2)
+    expect(h.progress).toBe(1)
+    h.cancel()
+  })
+
+  it("ignores setProgress after cancel in push mode", () => {
+    const target = mkTarget()
+    const def = tween({ opacity: [0, 1] })
+    const h = scrub(def, [target as never])
+    h.setProgress(0.5)
+    h.cancel()
+    h.setProgress(0.9)
+    expect(target.written["opacity"]).toBe("0.5")
+  })
+
+  it("invokes onProgress callback on each apply", () => {
+    const target = mkTarget()
+    const def = tween({ opacity: [0, 1] })
+    const seen: number[] = []
+    const h = scrub(def, [target as never], {
+      onProgress: (p) => seen.push(p),
+    })
+    h.setProgress(0.25)
+    h.setProgress(0.75)
+    expect(seen).toEqual([0.25, 0.75])
+    h.cancel()
+  })
+
+  it("pull-mode polls source via raf and applies progress", () => {
+    const target = mkTarget()
+    const def = tween({ opacity: [0, 1] })
+    let pending: ((time: number) => void) | null = null
+    let cancelled = false
+    let progressSource = 0
+    const h = scrub(def, [target as never], {
+      source: () => progressSource,
+      raf: (cb: (time: number) => void) => {
+        pending = cb
+        return 1
+      },
+      cancelRaf: () => {
+        cancelled = true
+      },
+    })
+    progressSource = 0.4
+    ;(pending as ((time: number) => void) | null)?.(0)
+    expect(target.written["opacity"]).toBe("0.4")
+    progressSource = 0.7
+    ;(pending as ((time: number) => void) | null)?.(0)
+    expect(target.written["opacity"]).toBe("0.7")
+    h.cancel()
+    expect(cancelled).toBe(true)
+  })
+})
