@@ -163,6 +163,13 @@ export { type SplitBy, type SplitOpts, type SplitResult, splitText } from "./tex
 export type { Controls } from "./api/controls"
 export { type PlayMode, type PlayOpts, type Target, play } from "./api/play"
 export {
+  type InertiaOpts,
+  type InertiaProps,
+  type InertiaValue,
+  inertia,
+} from "./api/inertia"
+export { type PlayStaggerOpts, playStagger } from "./api/play-stagger"
+export {
   type AnimationRecord,
   type KinemDevtoolsHook,
   type TrackerEvent,

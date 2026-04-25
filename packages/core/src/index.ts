@@ -82,6 +82,13 @@ export {
 } from "./api/follow"
 export { type MorphPathOpts, morphPath } from "./api/morph-path"
 export { type ScrubHandle, type ScrubOpts, scrub } from "./api/scrub"
+export {
+  type InertiaOpts,
+  type InertiaProps,
+  type InertiaValue,
+  inertia,
+} from "./api/inertia"
+export { type PlayStaggerOpts, playStagger } from "./api/play-stagger"
 
 export {
   type Clock,
