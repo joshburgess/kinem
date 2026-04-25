@@ -111,10 +111,7 @@ interface CommitPlan {
   readonly explicitTransform: Interp | null
 }
 
-function buildCommitPlan(
-  keys: readonly string[],
-  perPropFns: readonly Interp[],
-): CommitPlan {
+function buildCommitPlan(keys: readonly string[], perPropFns: readonly Interp[]): CommitPlan {
   const styleOps: StyleOp[] = []
   const attrOps: AttrOp[] = []
   const transformOps: TransformOp[] = []
@@ -149,12 +146,7 @@ function renderValue(v: unknown): string {
   return typeof v === "number" ? String(v) : (v as string)
 }
 
-function commitWithPlan(
-  plan: CommitPlan,
-  easing: EasingFn,
-  p: number,
-  el: CommitTarget,
-): void {
+function commitWithPlan(plan: CommitPlan, easing: EasingFn, p: number, el: CommitTarget): void {
   const eased = easing(clamp01(p))
   const { styleOps, attrOps, transformOps, explicitTransform } = plan
 

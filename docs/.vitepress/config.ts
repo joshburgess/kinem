@@ -26,9 +26,7 @@ export default defineConfig({
       { text: "Migrations", link: "/migrations/gsap" },
       {
         text: "v0.0",
-        items: [
-          { text: "Changelog", link: "https://github.com/joshburgess/kinem/releases" },
-        ],
+        items: [{ text: "Changelog", link: "https://github.com/joshburgess/kinem/releases" }],
       },
     ],
     sidebar: {

@@ -30,7 +30,9 @@
     }
   },
   "files": ["dist", "LICENSE-APACHE", "LICENSE-MIT"],
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
     "typecheck": "tsc --noEmit",
@@ -42,9 +44,9 @@
     "svelte": ">=5"
   },
   "devDependencies": {
-    "happy-dom": "^15.11.7",
+    "happy-dom": "^20.9.0",
     "@kinem/core": "workspace:*",
     "svelte": "^5.16.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }

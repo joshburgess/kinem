@@ -41,8 +41,8 @@
     "@kinem/core": "workspace:^"
   },
   "devDependencies": {
-    "happy-dom": "^15.11.7",
+    "happy-dom": "^20.9.0",
     "@kinem/core": "workspace:*",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }

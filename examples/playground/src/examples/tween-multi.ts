@@ -28,8 +28,16 @@ export const tweenMulti: Example = {
       controls = play(
         tween(
           forward
-            ? { x: [0, width - 40], rotate: ["0deg", "360deg"], backgroundColor: ["#7c9cff", "#f59e0b"] }
-            : { x: [width - 40, 0], rotate: ["360deg", "0deg"], backgroundColor: ["#f59e0b", "#7c9cff"] },
+            ? {
+                x: [0, width - 40],
+                rotate: ["0deg", "360deg"],
+                backgroundColor: ["#7c9cff", "#f59e0b"],
+              }
+            : {
+                x: [width - 40, 0],
+                rotate: ["360deg", "0deg"],
+                backgroundColor: ["#f59e0b", "#7c9cff"],
+              },
           { duration: 1500, easing: easeInOut },
         ),
         box,

@@ -175,11 +175,7 @@ export function timeline(): Timeline {
         handles.push(playStrategy(slotted(e.def, e.startMs, totalMs), targets, strategyOpts))
       }
 
-      return createControls(
-        combineHandles(handles),
-        totalMs,
-        msLabelsToProgress(labels, totalMs),
-      )
+      return createControls(combineHandles(handles), totalMs, msLabelsToProgress(labels, totalMs))
     },
     get duration() {
       return totalMs

@@ -20,7 +20,10 @@ export const keyframesStops: Example = {
     const interval = setInterval(() => {
       ctrl.cancel()
       ctrl = play(
-        keyframes({ x: [0, stage.clientWidth - 140, -20, 0] }, { duration: 2000, easing: easeInOut }),
+        keyframes(
+          { x: [0, stage.clientWidth - 140, -20, 0] },
+          { duration: 2000, easing: easeInOut },
+        ),
         box,
       )
     }, 2400)

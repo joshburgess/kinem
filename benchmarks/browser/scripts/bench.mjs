@@ -21,10 +21,10 @@
  *                        composite/paint can behave differently.
  */
 
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { chromium } from "playwright"
 import { createServer } from "vite"
-import { fileURLToPath } from "node:url"
-import { dirname, resolve } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const BENCH_ROOT = resolve(__dirname, "..")
@@ -105,10 +105,10 @@ async function main() {
 
     if (command === "profile") {
       console.log(`[bench] profileMain n=${count} samples=${samples}`)
-      const result = await page.evaluate(
-        async ({ n, s }) => window.__profileMain(n, s),
-        { n: count, s: samples },
-      )
+      const result = await page.evaluate(async ({ n, s }) => window.__profileMain(n, s), {
+        n: count,
+        s: samples,
+      })
       console.log(JSON.stringify(result, null, 2))
     } else {
       console.log(`[bench] compare n=${count} samples=${samples}`)
@@ -137,17 +137,18 @@ async function main() {
           await reload()
           // One small warmup to shake out JIT tiers / module init,
           // without accumulating state at full n.
-          await page.evaluate(
-            async ({ fn, sc }) => window[fn](sc, 50),
-            { fn: lib.fn, sc: scenario },
-          )
+          await page.evaluate(async ({ fn, sc }) => window[fn](sc, 50), {
+            fn: lib.fn,
+            sc: scenario,
+          })
           await page.waitForTimeout(60)
           const xs = []
           for (let i = 0; i < samples; i++) {
-            const ms = await page.evaluate(
-              async ({ fn, sc, n }) => window[fn](sc, n),
-              { fn: lib.fn, sc: scenario, n: count },
-            )
+            const ms = await page.evaluate(async ({ fn, sc, n }) => window[fn](sc, n), {
+              fn: lib.fn,
+              sc: scenario,
+              n: count,
+            })
             xs.push(ms)
             await page.waitForTimeout(60)
           }
@@ -175,7 +176,10 @@ function printCompareTable(results) {
   const col = (s, w) => s.padEnd(w)
   const num = (n, w) => String(n.toFixed(1)).padStart(w)
   const headers = ["scenario", ...LIBS.map((l) => l.key)]
-  const widths = [Math.max(...SCENARIOS.map((s) => s.length), 8), ...LIBS.map((l) => Math.max(l.key.length, 7))]
+  const widths = [
+    Math.max(...SCENARIOS.map((s) => s.length), 8),
+    ...LIBS.map((l) => Math.max(l.key.length, 7)),
+  ]
   console.log()
   console.log(headers.map((h, i) => col(h, widths[i])).join("  "))
   console.log(widths.map((w) => "-".repeat(w)).join("  "))

@@ -34,7 +34,10 @@ for (const n of [100, 500]) {
     bench("linearizable (2 keyframes, CSS cubic-bezier)", () => {
       const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: cubic }), elsFast[i]!)
+        cs[i] = play(
+          tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: cubic }),
+          elsFast[i]!,
+        )
       }
       for (let i = 0; i < n; i++) {
         cs[i].finished.catch(() => {})
@@ -44,7 +47,10 @@ for (const n of [100, 500]) {
     bench("dense sampling (quadratic easeOut)", () => {
       const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: easeOut }), elsDense[i]!)
+        cs[i] = play(
+          tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000, easing: easeOut }),
+          elsDense[i]!,
+        )
       }
       for (let i = 0; i < n; i++) {
         cs[i].finished.catch(() => {})

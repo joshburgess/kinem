@@ -28,10 +28,7 @@ export const svgStrokeDraw: Example = {
     const interval = setInterval(() => {
       ctrl.cancel()
       reverse = !reverse
-      ctrl = play(
-        strokeDraw({ pathLength: len, duration: 1200, reverse }),
-        path,
-      )
+      ctrl = play(strokeDraw({ pathLength: len, duration: 1200, reverse }), path)
     }, 1500)
 
     // reference to quiet the linter on the optional import

@@ -1,19 +1,22 @@
-import { describe, expect, it, vi } from "vitest"
+import { type Mock, describe, expect, it, vi } from "vitest"
 import { createDomScrollSource } from "./source"
 
 interface FakeWindow {
   scrollY: number
   innerHeight: number
-  addEventListener: ReturnType<typeof vi.fn>
-  removeEventListener: ReturnType<typeof vi.fn>
+  addEventListener: (type: string, cb: () => void, opts?: boolean | AddEventListenerOptions) => void
+  removeEventListener: (type: string, cb: () => void) => void
 }
 
-function makeWin(): FakeWindow {
+function makeWin(): FakeWindow & {
+  addEventListener: FakeWindow["addEventListener"] & Mock
+  removeEventListener: FakeWindow["removeEventListener"] & Mock
+} {
   return {
     scrollY: 0,
     innerHeight: 800,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+    addEventListener: vi.fn() as FakeWindow["addEventListener"] & Mock,
+    removeEventListener: vi.fn() as FakeWindow["removeEventListener"] & Mock,
   }
 }
 

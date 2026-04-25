@@ -18,8 +18,8 @@
     "motion": "^12.38.0"
   },
   "devDependencies": {
-    "playwright": "^1.48.0",
-    "typescript": "^5.7.2",
-    "vite": "^5.4.11"
+    "playwright": "^1.59.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.2"
   }
 }

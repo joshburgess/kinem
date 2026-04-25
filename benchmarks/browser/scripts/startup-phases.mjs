@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { chromium } from "playwright"
 import { createServer } from "vite"
-import { fileURLToPath } from "node:url"
-import { dirname, resolve } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const BENCH_ROOT = resolve(__dirname, "..")
@@ -48,10 +48,9 @@ async function main() {
     const context = await browser.newContext()
     const page = await context.newPage()
     await page.goto(url, { waitUntil: "load" })
-    await page.waitForFunction(
-      () => typeof window.__profileStartupPhases === "function",
-      { timeout: 15_000 },
-    )
+    await page.waitForFunction(() => typeof window.__profileStartupPhases === "function", {
+      timeout: 15_000,
+    })
     await page.bringToFront()
 
     for (const scenario of ["startup-commit", "startup-shared-def"]) {

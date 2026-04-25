@@ -18,19 +18,13 @@ export const parallelComposition: Example = {
     const combined = parallel(move, spin)
 
     let ctrl = play(
-      tween(
-        { x: [-60, 60], rotate: ["0deg", "360deg"] },
-        { duration: 1200, easing: easeInOut },
-      ),
+      tween({ x: [-60, 60], rotate: ["0deg", "360deg"] }, { duration: 1200, easing: easeInOut }),
       box,
     )
     const interval = setInterval(() => {
       ctrl.cancel()
       ctrl = play(
-        tween(
-          { x: [-60, 60], rotate: ["0deg", "360deg"] },
-          { duration: 1200, easing: easeInOut },
-        ),
+        tween({ x: [-60, 60], rotate: ["0deg", "360deg"] }, { duration: 1200, easing: easeInOut }),
         box,
       )
     }, 1500)

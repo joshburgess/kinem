@@ -22,15 +22,11 @@
  * `window.__bench` for pickup by automation (e.g. chrome-devtools MCP).
  */
 
-import gsap from "gsap"
 import { type PlayMode, play, tween } from "@kinem/core"
+import gsap from "gsap"
 import { animate } from "motion"
 
-type Scenario =
-  | "startup-commit"
-  | "startup-shared-def"
-  | "cancel-before-first"
-  | "steady-state"
+type Scenario = "startup-commit" | "startup-shared-def" | "cancel-before-first" | "steady-state"
 
 type Lib = "@kinem/core" | "motion" | "gsap"
 
@@ -228,18 +224,11 @@ async function runGsap(scenario: Scenario, count: number): Promise<number> {
   return elapsed
 }
 
-function summarize(
-  lib: Lib,
-  scenario: Scenario,
-  count: number,
-  runs: number[],
-): BenchResult {
+function summarize(lib: Lib, scenario: Scenario, count: number, runs: number[]): BenchResult {
   const sorted = [...runs].sort((a, b) => a - b)
   const mid = Math.floor(sorted.length / 2)
   const median =
-    sorted.length % 2 === 1
-      ? (sorted[mid] ?? 0)
-      : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
+    sorted.length % 2 === 1 ? (sorted[mid] ?? 0) : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
   const mean = runs.reduce((a, b) => a + b, 0) / runs.length
   const min = sorted[0] ?? 0
   const max = sorted[sorted.length - 1] ?? 0
@@ -253,12 +242,7 @@ function report(result: BenchResult): void {
   window.__bench?.push(result)
 }
 
-async function runPool(
-  lib: Lib,
-  scenario: Scenario,
-  count: number,
-  samples = 5,
-): Promise<void> {
+async function runPool(lib: Lib, scenario: Scenario, count: number, samples = 5): Promise<void> {
   const runner = lib === "@kinem/core" ? runMotif : lib === "motion" ? runMotion : runGsap
   const runs: number[] = []
   for (let i = 0; i < samples; i++) {

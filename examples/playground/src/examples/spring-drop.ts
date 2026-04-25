@@ -25,10 +25,7 @@ export const springDrop: Example = {
 
     const drop = (): void => {
       const h = stage.clientHeight - 60
-      play(
-        spring({ y: [0, h] }, { stiffness: 280, damping: 12, mass: 1 }),
-        box,
-      )
+      play(spring({ y: [0, h] }, { stiffness: 280, damping: 12, mass: 1 }), box)
     }
     const reset = (): void => {
       play(spring({ y: [stage.clientHeight - 60, 0] }, { stiffness: 200, damping: 20 }), box)

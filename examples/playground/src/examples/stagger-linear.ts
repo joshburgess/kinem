@@ -32,10 +32,7 @@ export const staggerLinear: Example = {
       dots.forEach((dot, i) => {
         setTimeout(() => {
           controls.push(
-            play(
-              tween({ opacity: [0, 1], y: [-12, 0] }, { duration: 400, easing: easeOut }),
-              dot,
-            ),
+            play(tween({ opacity: [0, 1], y: [-12, 0] }, { duration: 400, easing: easeOut }), dot),
           )
         }, i * 40)
       })

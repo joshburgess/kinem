@@ -38,9 +38,7 @@ export const staggerCenter: Example = {
       })
       dots.forEach((dot, i) => {
         setTimeout(() => {
-          controls.push(
-            play(tween({ scale: [0, 1] }, { duration: 300, easing: easeOut }), dot),
-          )
+          controls.push(play(tween({ scale: [0, 1] }, { duration: 300, easing: easeOut }), dot))
         }, delayFor(i))
       })
     }

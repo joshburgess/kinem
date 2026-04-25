@@ -295,7 +295,10 @@ class WaapiImpl implements WaapiHandle {
     // and measured a ~3x regression on cancel-before-first at n=1000
     // in exchange for preventing queue bloat in backgrounded tabs
     // (a non-goal for foreground perf). Stay on the one-shot path.
-    ;(scheduler as FrameScheduler).schedule("update", this.#runSetup.bind(this, setup as () => readonly WaapiAnimation[]))
+    ;(scheduler as FrameScheduler).schedule(
+      "update",
+      this.#runSetup.bind(this, setup as () => readonly WaapiAnimation[]),
+    )
   }
 
   #runSetup(setup: () => readonly WaapiAnimation[]): void {
@@ -470,7 +473,10 @@ class WaapiImpl implements WaapiHandle {
 // way pure-dispatch ops (pause/resume/reverse) could. Wrapping keeps
 // the closure local and small: a fresh one per pre-setup `seek()` call
 // in the rare case the caller seeks before the first tick.
-const queuedSeek = (p: number) => (impl: WaapiImpl): void => impl.seek(p)
+const queuedSeek =
+  (p: number) =>
+  (impl: WaapiImpl): void =>
+    impl.seek(p)
 
 /**
  * Play a pre-computed WAAPI animation against the given targets.

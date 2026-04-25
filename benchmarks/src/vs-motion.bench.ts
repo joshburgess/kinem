@@ -63,10 +63,7 @@ for (const n of [10, 100, 500]) {
     bench("kinem: play(tween) — auto backend", () => {
       const cs = new Array(n)
       for (let i = 0; i < n; i++) {
-        cs[i] = play(
-          tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }),
-          motifDefault[i]!,
-        )
+        cs[i] = play(tween({ x: [0, 100], opacity: [0, 1] }, { duration: 1000 }), motifDefault[i]!)
       }
       for (let i = 0; i < n; i++) {
         cs[i].finished.catch(() => {})

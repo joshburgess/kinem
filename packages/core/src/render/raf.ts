@@ -15,12 +15,7 @@
 
 import type { AnimationDef } from "../core/types"
 import { type ElementShim, type PropertyValue, applyValues } from "./apply"
-import {
-  type TimingHandle,
-  type TimingOpts,
-  createTiming,
-  createTimingDirect,
-} from "./timing"
+import { type TimingHandle, type TimingOpts, createTiming, createTimingDirect } from "./timing"
 
 export type RafState = TimingHandle["state"]
 export type RafHandle = TimingHandle

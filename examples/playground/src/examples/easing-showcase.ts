@@ -1,4 +1,4 @@
-import { cubicBezier, easeInOut, easeOut, linear, play, tween, type EasingFn } from "@kinem/core"
+import { type EasingFn, cubicBezier, easeInOut, easeOut, linear, play, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 const rows: { label: string; easing: EasingFn }[] = [

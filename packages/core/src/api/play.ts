@@ -120,8 +120,7 @@ export function play(
   // when `mode` is set. `playStrategy` accepts a backend override, so
   // we can leave `opts` unchanged and pay zero allocs here.
   const backend: StrategyBackend =
-    opts.backend ??
-    (opts.mode !== undefined ? MODE_TO_BACKEND[opts.mode] : "auto")
+    opts.backend ?? (opts.mode !== undefined ? MODE_TO_BACKEND[opts.mode] : "auto")
   const handle = playStrategy(def, targets, opts, backend)
   // No eager `handle.finished.catch(noop)`: with lazy-allocated
   // promises, fire-and-forget cancel never creates a Promise, so there
