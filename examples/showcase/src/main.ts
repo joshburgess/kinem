@@ -4,6 +4,7 @@ import { cascadeGrid } from "./demos/cascade-grid"
 import { cometTrail } from "./demos/comet-trail"
 import { confettiBurst } from "./demos/confetti-burst"
 import { gooDrag } from "./demos/goo-drag"
+import { heatShimmer } from "./demos/heat-shimmer"
 import { holoCard } from "./demos/holo-card"
 import { liquidCursor } from "./demos/liquid-cursor"
 import { magneticNav } from "./demos/magnetic-nav"
@@ -14,9 +15,11 @@ import { particleField } from "./demos/particle-field"
 import { pathFlight } from "./demos/path-flight"
 import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
+import { ribbonTrail } from "./demos/ribbon-trail"
 import { scrollHero } from "./demos/scroll-hero"
 import { shaderReveal } from "./demos/shader-reveal"
 import { shapeMorph } from "./demos/shape-morph"
+import { starfieldWarp } from "./demos/starfield-warp"
 import { tapRipple } from "./demos/tap-ripple"
 import { textShatter } from "./demos/text-shatter"
 import { tossCard } from "./demos/toss-card"
@@ -34,11 +37,14 @@ const demos: readonly Demo[] = [
   gooDrag,
   pathFlight,
   cometTrail,
+  ribbonTrail,
   orbitDance,
+  starfieldWarp,
   shapeMorph,
   cascadeGrid,
   particleField,
   textShatter,
+  heatShimmer,
   cardStack,
   scrollHero,
   shaderReveal,
