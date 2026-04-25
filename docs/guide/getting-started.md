@@ -1,3 +1,20 @@
+<script setup>
+const tryItHereCode = `const box = document.createElement('div')
+box.className = 'box'
+box.style.left = '24px'
+box.style.top = '50%'
+box.style.transform = 'translateY(-50%)'
+stage.appendChild(box)
+
+play(
+  tween(
+    { x: [0, 320], opacity: [0, 1] },
+    { duration: 800, easing: easeOut },
+  ),
+  box,
+)`
+</script>
+
 # Getting started
 
 Kinem is a functional animation library for TypeScript. Animations are pure
@@ -63,10 +80,17 @@ play(entrance, ".card")
 Both produce a new `AnimationDef`, so you can keep composing without ever
 touching the timeline.
 
-## Try it locally
+## Try it here
 
-The repo ships a live playground with 19 working examples covering
-tweens, springs, staggers, scroll, gestures, SVG, Canvas, and WebGL:
+Edit the code on the left. The preview updates after a short pause.
+Every built-in export is already in scope — `play`, `tween`, `spring`,
+`parallel`, `sequence`, `stagger`, `easeOut`, and the rest.
+
+<Playground :code="tryItHereCode" />
+
+Want more to explore? The repo ships a local playground with 19
+working examples covering tweens, springs, staggers, scroll, gestures,
+SVG, Canvas, and WebGL:
 
 ```sh
 git clone https://github.com/joshburgess/kinem

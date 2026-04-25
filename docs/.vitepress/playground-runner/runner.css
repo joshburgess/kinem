@@ -1,0 +1,47 @@
+:root {
+  color-scheme: light dark;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  font: 14px / 1.4 system-ui, -apple-system, sans-serif;
+  background: #fafafa;
+  color: #222;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1b1b1f;
+    color: #ddd;
+  }
+}
+#stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 16px;
+}
+#error {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 16px;
+  background: #7a1d1d;
+  color: #ffd7d7;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 50%;
+  overflow: auto;
+  border-top: 1px solid #a43b3b;
+}
+.box {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #7c9cff;
+  position: absolute;
+}

@@ -1,3 +1,28 @@
+<script setup>
+const staggerCode = `const boxes = Array.from({ length: 6 }, (_, i) => {
+  const el = document.createElement('div')
+  el.className = 'box'
+  el.style.left = (40 + i * 56) + 'px'
+  el.style.top = '50%'
+  el.style.transform = 'translateY(-50%)'
+  stage.appendChild(el)
+  return el
+})
+
+play(
+  stagger(
+    boxes.map(() =>
+      sequence(
+        tween({ y: [0, -40] }, { duration: 300, easing: easeOut }),
+        tween({ y: [-40, 0] }, { duration: 300, easing: easeIn }),
+      ),
+    ),
+    { each: 80 },
+  ),
+  boxes,
+)`
+</script>
+
 # Core concepts
 
 ## AnimationDef
@@ -57,6 +82,8 @@ Composition is function-to-function. Combinators accept one or more
 - `loop(def, { count, reverse })` repeats an animation.
 - `reverse(def)` swaps the direction.
 - `delay(def, ms)` adds leading padding.
+
+<Playground :code="staggerCode" height="180px" />
 
 ## Timelines
 
