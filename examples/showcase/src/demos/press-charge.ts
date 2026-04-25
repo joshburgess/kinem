@@ -68,13 +68,17 @@ export const pressCharge: Demo = {
     progressRing.setAttribute("stroke-dashoffset", String(circumference))
     svg.appendChild(progressRing)
 
+    // Button is centered in `root` via fixed offsets (root is 240px,
+    // button is 140px → 50px on each side). Avoiding translate(-50%, -50%)
+    // here is intentional: kinem's `play({ scale: ... })` rewrites the
+    // element's transform string from animated props only, which would
+    // otherwise drop the centering translate after the first interaction.
     const btn = document.createElement("button")
     btn.textContent = "HOLD"
     Object.assign(btn.style, {
       position: "absolute",
-      left: "50%",
-      top: "50%",
-      transform: "translate(-50%, -50%)",
+      left: "50px",
+      top: "50px",
       width: "140px",
       height: "140px",
       borderRadius: "50%",
