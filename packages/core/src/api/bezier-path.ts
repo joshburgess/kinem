@@ -25,6 +25,14 @@ export interface BezierPathOpts {
   readonly samplesPerSegment?: number
 }
 
+/**
+ * Per-frame value emitted by `bezierPath`, `motionPath`, `arc`, and
+ * `catmullRom`. `x` and `y` are always present; `rotate` is populated
+ * only when the call was opted in via `{ rotateAlongPath: true }` and
+ * is `undefined` otherwise. Consumers that don't ask for rotation can
+ * ignore the field entirely — it won't be present at runtime, so
+ * destructuring `{ x, y }` works with no unused-property warning.
+ */
 export interface BezierPathValue {
   readonly x: number
   readonly y: number

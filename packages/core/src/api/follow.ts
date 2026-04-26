@@ -24,9 +24,31 @@ export interface FollowOpts {
    */
   readonly decay?: number
   /**
-   * Optional custom commit per follower. Receives (target, x, y, idx).
-   * If omitted, writes `transform: translate3d(x, y, 0)` so followers
-   * stay GPU-composited.
+   * Optional custom commit per follower, called once per frame per
+   * follower with `(target, x, y, idx)`. If omitted, the default writes
+   * `transform: translate3d(x, y, 0)` so followers stay GPU-composited.
+   *
+   * Override this when the chain is the input to something other than
+   * a CSS transform — for instance, sampling positions to drive an SVG
+   * stroke that becomes a tapered ribbon trail:
+   *
+   * ```ts
+   * const xs = new Array(N).fill(0)
+   * const ys = new Array(N).fill(0)
+   * follow(targets, {
+   *   commit: (_t, x, y, idx) => {
+   *     xs[idx] = x
+   *     ys[idx] = y
+   *     // The last follower commits last each frame, so use it as a
+   *     // signal to redraw whatever depends on the chain.
+   *     if (idx === N - 1) drawRibbon(xs, ys)
+   *   },
+   * })
+   * ```
+   *
+   * The `target` arg is forwarded as-is so you can still read element
+   * state inside the callback (e.g. `target.dataset.role`) even when
+   * you're routing the position elsewhere.
    */
   readonly commit?: (target: FollowTarget, x: number, y: number, idx: number) => void
   /** Override raf for testing. */
