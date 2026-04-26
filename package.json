@@ -18,6 +18,7 @@
     "bench:watch": "vitest bench",
     "size": "node scripts/bundle-size.mjs",
     "size:check": "node scripts/bundle-size.mjs --check",
+    "size:compare": "node scripts/bundle-size-compare.mjs",
     "release:dry-run": "pnpm -r publish --access public --no-git-checks --dry-run",
     "release": "pnpm -r publish --access public --no-git-checks"
   },

@@ -50,7 +50,7 @@ pnpm add @kinem/svelte
 - **Composition** — `parallel`, `sequence`, `stagger`, `map`, `loop`,
   `reverse`, `delay`, `timeline()`.
 - **Renderers** — `play()` auto-routes compositor-safe properties to WAAPI
-  and the rest to rAF. `playCanvas()`, `playUniforms()` (WebGL), and
+  and the rest to rAF. `playValues()`, `playUniforms()` (WebGL), and
   `strokeDraw` cover Canvas 2D, WebGL, and SVG paths.
 - **Interactions** — `scroll()` for scroll-linked and scroll-triggered
   animations, `gesture()` for drag and hover, with the same handle API as
@@ -90,19 +90,39 @@ controls.finished.then(() => console.log("done"))
 
 ## Bundle size
 
-Measured at the main entry with all built-in interpolators:
+Measured at the main entry with all built-in interpolators (esbuild,
+ESM, minified + gzipped):
 
 | scenario | min + gzip |
 | --- | --- |
-| `tween + play` | 8.0 kB |
-| `tween + play` (slim entry) | 4.3 kB |
-| `tween + scroll` | 9.4 kB |
-| `tween + gesture` | 9.4 kB |
-| full library surface | 14.0 kB |
+| `tween + play` | 10.0 kB |
+| `tween + play` (slim entry) | 6.3 kB |
+| `tween + scroll` | 11.3 kB |
+| `tween + gesture` | 12.5 kB |
+| full library surface | 17.2 kB |
 
 The slim entry (`@kinem/core/slim`) skips the color, transform, path, and
 CSS-unit interpolator registrations. Use it when you only animate numbers,
 or when you want to register a custom subset via `registerInterpolator`.
+
+### Versus other libraries
+
+Same recipe (animate one element's `opacity` from 0 to 1 and `x` from 0 to
+100 over 800 ms), bundled the same way:
+
+| library | min + gzip | vs kinem |
+| --- | --- | --- |
+| **kinem** (default) | 9.95 kB | 1.00x |
+| **kinem** (slim) | 6.22 kB | 0.63x |
+| popmotion | 5.52 kB | 0.55x |
+| anime.js | 11.36 kB | 1.14x |
+| motion | 22.05 kB | 2.22x |
+| gsap | 27.05 kB | 2.72x |
+
+popmotion ships smaller because it's a primitive: the consumer writes the
+DOM commit themselves. kinem's `play()` does the write for you, so the
+fairer comparison is against motion or gsap, both of which have a
+compositor-routing renderer baked in. Reproduce with `pnpm size:compare`.
 
 ## Framework usage
 
