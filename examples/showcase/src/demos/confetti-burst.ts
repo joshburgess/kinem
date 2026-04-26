@@ -1,4 +1,4 @@
-import { easeOut, keyframes, playCanvas, spring } from "@kinem/core"
+import { easeOut, keyframes, playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const PARTICLES_PER_BURST = 140
@@ -155,7 +155,7 @@ export const confettiBurst: Demo = {
         }
         particles.push(p)
 
-        playCanvas(
+        playValues(
           keyframes(
             {
               x: [cx, peakX, targetX],
@@ -182,7 +182,7 @@ export const confettiBurst: Demo = {
       // Shockwave ring
       const ring: Ring = { cx, cy, r: 0, opacity: 1, alive: true }
       rings.push(ring)
-      playCanvas(
+      playValues(
         spring({ r: [0, 240], op: [1, 0] }, { stiffness: 80, damping: 16 }),
         (v) => {
           ring.r = v.r

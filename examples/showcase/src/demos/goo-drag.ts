@@ -1,4 +1,4 @@
-import { playCanvas, spring } from "@kinem/core"
+import { playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -144,7 +144,7 @@ export const gooDrag: Demo = {
     }
     updateBridges()
 
-    let activeSpring: ReturnType<typeof playCanvas> | null = null
+    let activeSpring: ReturnType<typeof playValues> | null = null
     let dragging = false
     let pointerId = -1
     let startSvgX = 0
@@ -188,7 +188,7 @@ export const gooDrag: Demo = {
 
       const fromX = hx
       const fromY = hy
-      activeSpring = playCanvas(
+      activeSpring = playValues(
         spring({ x: [fromX, anchorX], y: [fromY, anchorY] }, { stiffness: 75, damping: 9 }),
         (v) => {
           hx = v.x

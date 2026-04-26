@@ -110,7 +110,7 @@ function project(
   // never change how the remaining ones interpolate.
   const projected: AnimationDef<AnimationProps> = {
     duration: def.duration,
-    easing: def.easing,
+    ...(def.easing !== undefined ? { easing: def.easing } : {}),
     interpolate: (p) => {
       const v = def.interpolate(p)
       const out: Record<string, PropertyValue> = {}

@@ -1,4 +1,4 @@
-import { playCanvas, splitText, spring } from "@kinem/core"
+import { playValues, splitText, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 export const textShatter: Demo = {
@@ -54,7 +54,7 @@ export const textShatter: Demo = {
       targetDy: number
       targetRot: number
       targetScale: number
-      playing: ReturnType<typeof playCanvas> | null
+      playing: ReturnType<typeof playValues> | null
     }
 
     const states: CharState[] = chars.map((c) => {
@@ -93,7 +93,7 @@ export const textShatter: Demo = {
         const fromDy = s.dy
         const fromRot = s.rot
         const fromScale = s.scale
-        s.playing = playCanvas(
+        s.playing = playValues(
           spring(
             {
               dx: [fromDx, s.targetDx],
@@ -123,7 +123,7 @@ export const textShatter: Demo = {
         const fromDy = s.dy
         const fromRot = s.rot
         const fromScale = s.scale
-        s.playing = playCanvas(
+        s.playing = playValues(
           spring(
             {
               dx: [fromDx, 0],

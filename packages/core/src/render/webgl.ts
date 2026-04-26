@@ -1,5 +1,5 @@
 /**
- * WebGL uniform animation driver. Thin wrapper over `playCanvas` that
+ * WebGL uniform animation driver. Thin wrapper over `playValues` that
  * commits interpolated values by calling `gl.uniformNfv()` on pre-bound
  * uniform locations. The shape of each binding (float / vec2 / vec3 /
  * vec4 / mat4) is declared once up front; the driver dispatches to the
@@ -27,7 +27,7 @@
  */
 
 import type { AnimationDef } from "../core/types"
-import { type CanvasHandle, type CanvasOpts, playCanvas } from "./canvas"
+import { type ValuesHandle, type ValuesOpts, playValues } from "./values"
 
 export type UniformLocation = WebGLUniformLocation | null
 
@@ -74,8 +74,8 @@ export function mat4(loc: UniformLocation, transpose = false): UniformBinding<re
   return { apply: (gl, v) => gl.uniformMatrix4fv(loc, transpose, v) }
 }
 
-export type WebGLHandle = CanvasHandle
-export type WebGLOpts = CanvasOpts
+export type WebGLHandle = ValuesHandle
+export type WebGLOpts = ValuesOpts
 
 export function playUniforms<V extends Record<string, unknown>>(
   def: AnimationDef<V>,
@@ -84,7 +84,7 @@ export function playUniforms<V extends Record<string, unknown>>(
   opts: WebGLOpts = {},
 ): WebGLHandle {
   const keys = Object.keys(bindings) as Array<keyof V & string>
-  return playCanvas(
+  return playValues(
     def,
     (values) => {
       for (let i = 0; i < keys.length; i++) {

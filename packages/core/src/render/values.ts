@@ -1,0 +1,37 @@
+/**
+ * Generic value-callback animation driver. The user supplies an
+ * `onValue(values)` callback; every frame, the engine computes the
+ * interpolated values and hands them over. The user does whatever they
+ * like with the numbers — draw to a canvas, write to inline transforms,
+ * push WebGL uniforms, post to a worker, anything.
+ *
+ *   const controls = playValues(
+ *     tween({ x: [0, 200], alpha: [0, 1] }, { duration: 600 }),
+ *     (v) => {
+ *       ctx.clearRect(0, 0, w, h)
+ *       ctx.globalAlpha = v.alpha
+ *       ctx.fillRect(v.x, 0, 40, 40)
+ *     },
+ *   )
+ *
+ * Timing semantics (pause, seek, reverse, speed) are identical to the
+ * DOM rAF backend because both build on the same `createTiming` helper.
+ * Works in any environment with `requestAnimationFrame` (or via a custom
+ * scheduler).
+ */
+
+import type { AnimationDef } from "../core/types"
+import { type TimingHandle, type TimingOpts, createTiming } from "./timing"
+
+export type ValuesHandle = TimingHandle
+export type ValuesOpts = TimingOpts
+
+export type ValuesCommit<V> = (values: V) => void
+
+export function playValues<V>(
+  def: AnimationDef<V>,
+  onValue: ValuesCommit<V>,
+  opts: ValuesOpts = {},
+): ValuesHandle {
+  return createTiming(def, onValue, opts)
+}

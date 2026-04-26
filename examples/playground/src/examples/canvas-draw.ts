@@ -1,9 +1,9 @@
-import { easeInOut, playCanvas, tween } from "@kinem/core"
+import { easeInOut, playValues, tween } from "@kinem/core"
 import type { Example } from "../example"
 
 export const canvasDraw: Example = {
   id: "canvas-draw",
-  title: "playCanvas()",
+  title: "playValues()",
   description: "Commit callback receives interpolated values; we draw to Canvas 2D.",
   mount(stage) {
     const canvas = document.createElement("canvas")
@@ -19,8 +19,8 @@ export const canvasDraw: Example = {
     const ctx = canvas.getContext("2d")!
     ctx.scale(dpr, dpr)
 
-    const run = (): ReturnType<typeof playCanvas> =>
-      playCanvas(
+    const run = (): ReturnType<typeof playValues> =>
+      playValues(
         tween({ x: [0, 1], hue: [180, 320] }, { duration: 1400, easing: easeInOut }),
         (v) => {
           ctx.clearRect(0, 0, canvas.width, canvas.height)

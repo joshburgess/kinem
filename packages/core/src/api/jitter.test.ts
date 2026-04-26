@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import type { AnimationDef } from "../core/types"
 import { jitter } from "./jitter"
 import { tween } from "./tween"
 
@@ -8,6 +9,21 @@ describe("jitter", () => {
     const j = jitter(inner)
     expect(j.duration).toBe(750)
     expect(j.easing).toBe(inner.easing)
+  })
+
+  it("accepts a hand-rolled def without an easing field", () => {
+    const inner: AnimationDef<{ x: number }> = {
+      duration: 1000,
+      interpolate: () => ({ x: 0 }),
+    }
+    const j = jitter(inner, { amplitude: 4, frequency: 3, seed: 1 })
+    expect(j.duration).toBe(1000)
+    expect(j.easing).toBeUndefined()
+    // sample a few points - all should be within +/- amplitude of 0
+    for (let i = 0; i <= 5; i++) {
+      const v = j.interpolate(i / 5).x as number
+      expect(Math.abs(v)).toBeLessThanOrEqual(4 + 1e-9)
+    }
   })
 
   it("produces values within `amplitude` of the underlying def", () => {

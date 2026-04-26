@@ -1,4 +1,4 @@
-import { jitter, linear } from "@kinem/core"
+import { jitter } from "@kinem/core"
 import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
@@ -51,7 +51,6 @@ export const starfieldWarp: Demo = {
 
     const baseTwinkle: AnimationDef<TwinkleVal> = {
       duration: 1000,
-      easing: linear,
       interpolate: () => ({ v: 0 }),
     }
 

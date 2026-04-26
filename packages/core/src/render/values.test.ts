@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { tween } from "../api/tween"
 import { createClock } from "../scheduler/clock"
 import { type RafLike, createFrameScheduler } from "../scheduler/frame"
-import { playCanvas } from "./canvas"
+import { playValues } from "./values"
 
 function makeRaf() {
   let nextId = 1
@@ -47,12 +47,12 @@ function setup(opts: { initialTime?: number } = {}) {
   }
 }
 
-describe("playCanvas", () => {
+describe("playValues", () => {
   it("invokes commit with interpolated values over time", async () => {
     const env = setup()
     const seen: number[] = []
     const def = tween({ x: [0, 100] }, { duration: 100 })
-    const h = playCanvas(def, (v: { x: number }) => seen.push(v.x), {
+    const h = playValues(def, (v: { x: number }) => seen.push(v.x), {
       scheduler: env.scheduler,
       clock: env.clock,
     })
@@ -69,7 +69,7 @@ describe("playCanvas", () => {
   it("returns a TimingHandle with pause/resume/seek/reverse/cancel", async () => {
     const env = setup()
     const def = tween({ x: [0, 100] }, { duration: 100 })
-    const h = playCanvas(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
+    const h = playValues(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
     expect(typeof h.pause).toBe("function")
     expect(typeof h.resume).toBe("function")
     expect(typeof h.seek).toBe("function")
@@ -83,7 +83,7 @@ describe("playCanvas", () => {
     const env = setup()
     const seen: number[] = []
     const def = tween({ x: [0, 100] }, { duration: 100 })
-    const h = playCanvas(def, (v: { x: number }) => seen.push(v.x), {
+    const h = playValues(def, (v: { x: number }) => seen.push(v.x), {
       scheduler: env.scheduler,
       clock: env.clock,
     })
@@ -100,24 +100,47 @@ describe("playCanvas", () => {
   it("cancel() rejects the finished promise", async () => {
     const env = setup()
     const def = tween({ x: [0, 100] }, { duration: 1000 })
-    const h = playCanvas(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
+    const h = playValues(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
     h.cancel()
     await expect(h.finished).rejects.toThrow("cancelled")
   })
 
   it("throws if duration is not finite and > 0", () => {
     const def = { duration: 0, interpolate: () => ({}) }
-    expect(() => playCanvas(def as never, () => {})).toThrow()
+    expect(() => playValues(def as never, () => {})).toThrow()
   })
 
   it("progresses to completion and resolves finished", async () => {
     const env = setup()
     const def = tween({ x: [0, 100] }, { duration: 100 })
-    const h = playCanvas(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
+    const h = playValues(def, () => {}, { scheduler: env.scheduler, clock: env.clock })
     env.advance(150)
     env.tick()
     env.tick()
     await h.finished
     expect(h.state).toBe("finished")
+  })
+
+  it("accepts a hand-rolled AnimationDef without an easing field", async () => {
+    const env = setup()
+    let lastT = -1
+    const def = {
+      duration: 100,
+      interpolate: (p: number) => {
+        lastT = p
+        return { x: p * 50 }
+      },
+    }
+    const seen: number[] = []
+    const h = playValues(def, (v) => seen.push(v.x), {
+      scheduler: env.scheduler,
+      clock: env.clock,
+    })
+    env.advance(100)
+    env.tick()
+    env.tick()
+    await h.finished
+    expect(lastT).toBe(1)
+    expect(seen.at(-1)).toBe(50)
   })
 })

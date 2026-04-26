@@ -1,4 +1,4 @@
-import { gesture, type play, playCanvas, spring, tween } from "@kinem/core"
+import { gesture, type play, playValues, spring, tween } from "@kinem/core"
 import type { Demo } from "../demo"
 
 export const panMomentum: Demo = {
@@ -64,7 +64,7 @@ export const panMomentum: Demo = {
     let rot = 0
     let opacity = 1
     let dragging = false
-    let currentPlay: ReturnType<typeof play> | ReturnType<typeof playCanvas> | null = null
+    let currentPlay: ReturnType<typeof play> | ReturnType<typeof playValues> | null = null
 
     const applyTransform = (): void => {
       card.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`
@@ -105,7 +105,7 @@ export const panMomentum: Demo = {
           const fromX = x
           const fromY = y
           const fromRot = rot
-          currentPlay = playCanvas(
+          currentPlay = playValues(
             tween(
               {
                 tx: [fromX, targetX],
@@ -129,7 +129,7 @@ export const panMomentum: Demo = {
                 rot = 0
                 opacity = 0
                 applyTransform()
-                currentPlay = playCanvas(
+                currentPlay = playValues(
                   spring({ op: [0, 1], sc: [0.6, 1] }, { stiffness: 180, damping: 18 }),
                   (v) => {
                     opacity = v.op
@@ -145,7 +145,7 @@ export const panMomentum: Demo = {
           const fromX = x
           const fromY = y
           const fromRot = rot
-          currentPlay = playCanvas(
+          currentPlay = playValues(
             spring(
               { tx: [fromX, 0], ty: [fromY, 0], tr: [fromRot, 0] },
               { stiffness: 180, damping: 14 },

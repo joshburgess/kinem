@@ -1,4 +1,4 @@
-import { jitter, linear } from "@kinem/core"
+import { jitter } from "@kinem/core"
 import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
@@ -77,7 +77,6 @@ export const heatShimmer: Demo = {
     const chars: Char[] = []
     const baseDef: AnimationDef<ShimmerVal> = {
       duration: 1000,
-      easing: linear,
       interpolate: () => ({ x: 0, y: 0, r: 0 }),
     }
 

@@ -1,4 +1,4 @@
-import { gesture, playCanvas, spring } from "@kinem/core"
+import { gesture, playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const DRAG_SCALE_SENSITIVITY = 0.005
@@ -61,7 +61,7 @@ export const pinchZoom: Demo = {
     let rotation = 0
     let baseScale = 1
     let baseRotation = 0
-    let activePlay: ReturnType<typeof playCanvas> | null = null
+    let activePlay: ReturnType<typeof playValues> | null = null
 
     const apply = (): void => {
       photo.style.transform = `scale(${scale}) rotate(${rotation}rad)`
@@ -83,7 +83,7 @@ export const pinchZoom: Demo = {
         const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
         if (clamped !== scale) {
           const from = scale
-          activePlay = playCanvas(
+          activePlay = playValues(
             spring({ s: [from, clamped] }, { stiffness: 180, damping: 16 }),
             (v) => {
               scale = v.s
@@ -116,7 +116,7 @@ export const pinchZoom: Demo = {
         const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
         if (clamped !== scale) {
           const from = scale
-          activePlay = playCanvas(
+          activePlay = playValues(
             spring({ s: [from, clamped] }, { stiffness: 180, damping: 16 }),
             (v) => {
               scale = v.s

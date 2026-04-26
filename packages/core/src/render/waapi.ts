@@ -15,7 +15,7 @@
  * single `transform` keyframe per sample in a canonical order.
  */
 
-import { getCssEasing } from "../core/easing"
+import { getCssEasing, linear } from "../core/easing"
 import { type LazyPromise, createLazyPromise } from "../core/lazy-promise"
 import type { AnimationDef } from "../core/types"
 import type { FrameScheduler } from "../scheduler/frame"
@@ -181,7 +181,7 @@ function planWaapiUncached(
   def: AnimationDef<Readonly<Record<string, unknown>>>,
   opts: WaapiOpts,
 ): WaapiPlan {
-  const cssEasing = def.linearizable ? getCssEasing(def.easing) : undefined
+  const cssEasing = def.linearizable ? getCssEasing(def.easing ?? linear) : undefined
   if (cssEasing !== undefined) {
     return {
       frames: [toKeyframe(def.interpolate(0), 0), toKeyframe(def.interpolate(1), 1)],

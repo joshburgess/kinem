@@ -63,8 +63,9 @@ return a handle. They share a common `Controls`-like surface:
   the rendering backend (WAAPI vs rAF), and tracks the animation with
   devtools.
 - `playWaapi()` / `playRaf()` are the backend-specific variants.
-- `playCanvas()` runs a commit callback on every frame, passing the
-  interpolated value.
+- `playValues()` runs a callback on every frame, passing the
+  interpolated value. Use it for canvas drawing, WebGL, workers, or
+  anything that isn't a DOM element style write.
 - `playUniforms()` commits animated values to WebGL uniforms.
 
 ## Composition

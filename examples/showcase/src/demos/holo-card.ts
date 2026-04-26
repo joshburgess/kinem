@@ -1,4 +1,4 @@
-import { playCanvas, spring } from "@kinem/core"
+import { playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const TILT_MAX = 18
@@ -179,7 +179,7 @@ export const holoCard: Demo = {
 
     let tx = 0
     let ty = 0
-    let activePlay: ReturnType<typeof playCanvas> | null = null
+    let activePlay: ReturnType<typeof playValues> | null = null
 
     const apply = (px: number, py: number): void => {
       // px, py in [0, 100] for the radial center; tx, ty in degrees
@@ -206,7 +206,7 @@ export const holoCard: Demo = {
       const fromX = tx
       const fromY = ty
       const fromIntensity = Math.min(1, Math.hypot(fromX, fromY) / TILT_MAX)
-      activePlay = playCanvas(
+      activePlay = playValues(
         spring(
           { x: [fromX, 0], y: [fromY, 0], k: [fromIntensity, 0] },
           { stiffness: 130, damping: 14 },

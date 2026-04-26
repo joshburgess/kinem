@@ -32,11 +32,16 @@ export type EasingFn = (progress: number) => number
  * `interpolate` receives progress in [0, 1]. Combinators compose new
  * AnimationDefs by building new interpolate functions that dispatch to their
  * children.
+ *
+ * `easing` is optional: when omitted, consumers treat it as the identity
+ * (`linear`). Most defs that want easing already bake it into `interpolate`,
+ * so this field is only meaningful at the boundaries that re-sample easing
+ * separately (the WAAPI keyframe path and the worker bridge).
  */
 export interface AnimationDef<T> {
   readonly interpolate: Interpolator<T>
   readonly duration: number
-  readonly easing: EasingFn
+  readonly easing?: EasingFn
   /**
    * Set by leaf constructors that produce an animation whose values at
    * every progress point match `valueAtZero + easing(p) * (valueAtOne - valueAtZero)`

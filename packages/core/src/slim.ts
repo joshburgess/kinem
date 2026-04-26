@@ -102,11 +102,11 @@ export {
   playRaf,
 } from "./render/raf"
 export {
-  type CanvasCommit,
-  type CanvasHandle,
-  type CanvasOpts,
-  playCanvas,
-} from "./render/canvas"
+  type ValuesCommit,
+  type ValuesHandle,
+  type ValuesOpts,
+  playValues,
+} from "./render/values"
 export {
   type GLLike,
   type UniformBinding,

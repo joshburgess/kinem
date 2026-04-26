@@ -231,7 +231,7 @@ export function reverse<T>(anim: AnimationDef<T>): AnimationDef<T> {
 export function map<A, B>(anim: AnimationDef<A>, fn: (a: A) => B): AnimationDef<B> {
   return {
     duration: anim.duration,
-    easing: anim.easing,
+    ...(anim.easing !== undefined ? { easing: anim.easing } : {}),
     interpolate: (p) => fn(anim.interpolate(p)),
   }
 }

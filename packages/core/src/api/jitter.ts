@@ -66,7 +66,7 @@ export function jitter<T>(def: AnimationDef<T>, opts: JitterOpts = {}): Animatio
 
   const out: AnimationDef<T> = {
     duration: def.duration,
-    easing: def.easing,
+    ...(def.easing !== undefined ? { easing: def.easing } : {}),
     interpolate: (p) => {
       const base = def.interpolate(p)
       if (base === null || base === undefined) return base

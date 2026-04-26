@@ -1,4 +1,4 @@
-import { playCanvas, spring } from "@kinem/core"
+import { playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const LINKS = ["Home", "Work", "Stories", "Lab", "Contact"]
@@ -106,7 +106,7 @@ export const magneticNav: Demo = {
 
       activePlays.forEach((p) => p.cancel())
       activePlays.length = 0
-      const p = playCanvas(
+      const p = playValues(
         spring(
           { x: [fromLeft, targetLeft], w: [fromWidth, targetWidth] },
           { stiffness: 260, damping: 22 },
@@ -151,7 +151,7 @@ export const magneticNav: Demo = {
         if (!s) return
         const fromDx = s.dx
         const fromDy = s.dy
-        const p = playCanvas(
+        const p = playValues(
           spring({ dx: [fromDx, 0], dy: [fromDy, 0] }, { stiffness: 220, damping: 18 }),
           (v) => {
             s.dx = v.dx
@@ -191,7 +191,7 @@ export const magneticNav: Demo = {
         if (!s) return
         const fromDx = s.dx
         const fromDy = s.dy
-        const p = playCanvas(
+        const p = playValues(
           spring({ dx: [fromDx, 0], dy: [fromDy, 0] }, { stiffness: 220, damping: 18 }),
           (v) => {
             s.dx = v.dx

@@ -1,4 +1,4 @@
-import { gesture, playCanvas, spring, tween } from "@kinem/core"
+import { gesture, playValues, spring, tween } from "@kinem/core"
 import type { Demo } from "../demo"
 
 interface CardDef {
@@ -130,7 +130,7 @@ export const cardStack: Demo = {
         const s = state.get(el) ?? { x: 0, y: 0, rot: 0, scale: 1, opacity: 1 }
         if (animate) {
           const from = { ...s }
-          const play = playCanvas(
+          const play = playValues(
             spring(
               {
                 x: [from.x, 0],
@@ -197,7 +197,7 @@ export const cardStack: Demo = {
             const fromX = s.x
             const fromY = s.y
             const fromRot = s.rot
-            const p = playCanvas(
+            const p = playValues(
               tween(
                 { x: [fromX, targetX], y: [fromY, targetY], r: [fromRot, targetRot], o: [1, 0] },
                 { duration: 600 },
@@ -235,7 +235,7 @@ export const cardStack: Demo = {
             const fromX = s.x
             const fromY = s.y
             const fromRot = s.rot
-            const p = playCanvas(
+            const p = playValues(
               spring(
                 { x: [fromX, 0], y: [fromY, target.y], r: [fromRot, 0] },
                 { stiffness: 220, damping: 18 },
