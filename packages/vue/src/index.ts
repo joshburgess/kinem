@@ -15,6 +15,11 @@ export {
   useAnimation,
 } from "./composables/useAnimation"
 export {
+  type UseGestureOpts,
+  type UseGestureResult,
+  useGesture,
+} from "./composables/useGesture"
+export {
   type KinemTransitionHooks,
   type KinemTransitionPhase,
   type TransitionValues,

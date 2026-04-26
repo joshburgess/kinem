@@ -15,9 +15,10 @@
  */
 
 import { createLazyPromise } from "../core/lazy-promise"
+import { type ReducedMotion, shouldReduceMotion } from "../core/reduced-motion"
 import type { AnimationDef } from "../core/types"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
-import type { ElementShim, PropertyValue } from "./apply"
+import { type ElementShim, type PropertyValue, applyValues } from "./apply"
 import { partitionByTier } from "./properties"
 import { type RafOpts, playRaf } from "./raf"
 import { type Animatable, type WaapiOpts, playWaapi } from "./waapi"
@@ -60,6 +61,16 @@ export interface StrategyOpts extends WaapiOpts, RafOpts {
    * Tests that assert synchronous WAAPI behavior should set `false`.
    */
   readonly lazy?: boolean
+  /**
+   * Honour `prefers-reduced-motion`. When the resolved decision is "snap",
+   * the final value is committed to every target immediately and no
+   * rAF/WAAPI setup happens; `finished` resolves on the next microtask.
+   *
+   * Defaults to whatever was set via `setReducedMotionDefault()`,
+   * which is `"never"` out of the box. Pass `"user"` per-call to
+   * delegate to the OS pref, or set the global default at app startup.
+   */
+  readonly reducedMotion?: ReducedMotion
 }
 
 export type AnimationProps = Readonly<Record<string, PropertyValue>>
@@ -309,6 +320,13 @@ export function playStrategy(
   // `opts.backend ?? "auto"`.
   backendOverride?: StrategyBackend,
 ): StrategyHandle {
+  // Reduced-motion short-circuit: commit the final value once, skip all
+  // backend setup, hand back a pre-finished handle. Done before the
+  // backend dispatch so neither WAAPI nor rAF ever wake up.
+  if (shouldReduceMotion(opts.reducedMotion)) {
+    return reducedMotionHandle(def, targets)
+  }
+
   const backend: StrategyBackend = backendOverride ?? opts.backend ?? "auto"
 
   // Backend-independent fast path for the rAF-only case: skip the
@@ -392,3 +410,36 @@ export function playStrategy(
 }
 
 const EMPTY_PROPS: readonly string[] = Object.freeze([])
+
+/**
+ * Build a no-op handle that has already committed `def.interpolate(1)`
+ * to every target. Used when `prefers-reduced-motion` is honoured and
+ * resolves to "snap". The handle's `finished` is a pre-resolved promise
+ * so `await play(...)` continues on the next microtask.
+ */
+function reducedMotionHandle(
+  def: AnimationDef<AnimationProps>,
+  targets: readonly StrategyTarget[],
+): StrategyHandle {
+  const final = def.interpolate(1)
+  for (let i = 0; i < targets.length; i++) {
+    applyValues(targets[i] as ElementShim, final)
+  }
+  let cancelled = false
+  return {
+    pause() {},
+    resume() {},
+    seek() {},
+    reverse() {},
+    setSpeed() {},
+    cancel() {
+      cancelled = true
+    },
+    get state() {
+      return cancelled ? "cancelled" : "finished"
+    },
+    progress: 1,
+    direction: 1,
+    finished: Promise.resolve(),
+  }
+}

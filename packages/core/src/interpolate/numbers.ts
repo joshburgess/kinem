@@ -5,12 +5,18 @@
  * The source and target must have the same length. Output is a fresh
  * array per frame (the caller may copy it into a typed array if needed).
  */
+
+import { KinemError } from "../core/errors"
+
 export function interpolateNumbers(
   from: readonly number[],
   to: readonly number[],
 ): (progress: number) => number[] {
   if (from.length !== to.length) {
-    throw new Error(`interpolateNumbers(): length mismatch (${from.length} vs ${to.length})`)
+    throw new KinemError(
+      `interpolateNumbers(): length mismatch (${from.length} vs ${to.length})`,
+      "from and to must have the same length (e.g. both vec3 or both mat4)",
+    )
   }
   const n = from.length
   const deltas = new Array<number>(n)

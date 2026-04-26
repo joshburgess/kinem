@@ -1,3 +1,4 @@
+import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
 import { parsePath } from "../interpolate/path"
 import {
@@ -53,8 +54,9 @@ export function svgPathToCubicPoints(d: string): readonly Point2[] {
         if (out.length === 0) {
           out.push([x, y])
         } else {
-          throw new Error(
+          throw new KinemError(
             "motionPath: multiple subpaths (additional 'M' commands) are not supported",
+            "split the path into separate motionPath() calls or merge subpaths",
           )
         }
         cx = x
@@ -144,15 +146,21 @@ export function svgPathToCubicPoints(d: string): readonly Point2[] {
         break
       }
       case "A":
-        throw new Error("motionPath: arc commands ('A') are not yet supported")
+        throw new KinemError(
+          "motionPath: arc commands ('A') are not yet supported",
+          "approximate arcs with cubic Bezier ('C') segments",
+        )
       default:
-        throw new Error(`motionPath: unknown command "${cmd.type}"`)
+        throw new KinemError(`motionPath: unknown command "${cmd.type}"`)
     }
     prevType = T
   }
 
   if (out.length < 2) {
-    throw new Error("motionPath: path produced no movable segments")
+    throw new KinemError(
+      "motionPath: path produced no movable segments",
+      "make sure the SVG path includes at least one drawing command after 'M'",
+    )
   }
   return out
 }

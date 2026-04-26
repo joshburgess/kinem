@@ -16,6 +16,7 @@
  */
 
 import { type Controls, createControls } from "../api/controls"
+import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
 import {
   type AnimationProps,
@@ -67,11 +68,17 @@ export function parseToggleActions(input: string | ToggleActions): ToggleActions
   if (typeof input !== "string") return input
   const parts = input.trim().split(/\s+/)
   if (parts.length !== 4) {
-    throw new Error(`scroll: toggleActions must have 4 entries (got "${input}")`)
+    throw new KinemError(
+      `scroll: toggleActions must have 4 entries (got "${input}")`,
+      'format is "onEnter onLeave onEnterBack onLeaveBack", e.g. "play pause resume reset"',
+    )
   }
   for (const p of parts) {
     if (!isToggleAction(p)) {
-      throw new Error(`scroll: invalid toggle action "${p}"`)
+      throw new KinemError(
+        `scroll: invalid toggle action "${p}"`,
+        'allowed: "play", "pause", "resume", "reverse", "restart", "reset", "complete", "none"',
+      )
     }
   }
   return parts as unknown as ToggleActions

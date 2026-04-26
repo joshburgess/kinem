@@ -41,6 +41,5 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Bundle size (informational)
-        run: pnpm size
-        continue-on-error: true
+      - name: Bundle size (enforced)
+        run: pnpm size:check

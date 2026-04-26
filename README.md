@@ -95,11 +95,11 @@ ESM, minified + gzipped):
 
 | scenario | min + gzip |
 | --- | --- |
-| `tween + play` | 10.0 kB |
-| `tween + play` (slim entry) | 6.3 kB |
-| `tween + scroll` | 11.3 kB |
-| `tween + gesture` | 12.5 kB |
-| full library surface | 17.2 kB |
+| `tween + play` | 10.5 kB |
+| `tween + play` (slim entry) | 6.6 kB |
+| `tween + scroll` | 12.0 kB |
+| `tween + gesture` | 13.0 kB |
+| full library surface | 17.9 kB |
 
 The slim entry (`@kinem/core/slim`) skips the color, transform, path, and
 CSS-unit interpolator registrations. Use it when you only animate numbers,
@@ -112,17 +112,38 @@ Same recipe (animate one element's `opacity` from 0 to 1 and `x` from 0 to
 
 | library | min + gzip | vs kinem |
 | --- | --- | --- |
-| **kinem** (default) | 9.95 kB | 1.00x |
-| **kinem** (slim) | 6.22 kB | 0.63x |
-| popmotion | 5.52 kB | 0.55x |
-| anime.js | 11.36 kB | 1.14x |
-| motion | 22.05 kB | 2.22x |
-| gsap | 27.05 kB | 2.72x |
+| **kinem** (default) | 10.49 kB | 1.00x |
+| **kinem** (slim) | 6.55 kB | 0.62x |
+| popmotion | 5.52 kB | 0.53x |
+| anime.js | 11.36 kB | 1.08x |
+| motion | 22.05 kB | 2.10x |
+| gsap | 27.05 kB | 2.58x |
 
 popmotion ships smaller because it's a primitive: the consumer writes the
 DOM commit themselves. kinem's `play()` does the write for you, so the
 fairer comparison is against motion or gsap, both of which have a
 compositor-routing renderer baked in. Reproduce with `pnpm size:compare`.
+
+## Reduced motion
+
+`play()` honours `prefers-reduced-motion: reduce` when the consumer
+opts in. Default is `"never"` (run animations as authored). Per-call:
+
+```ts
+play(entrance, ".card", { reducedMotion: "user" })
+```
+
+Or set a global default once at app startup:
+
+```ts
+import { setReducedMotionDefault } from "@kinem/core"
+setReducedMotionDefault("user")
+```
+
+When the resolved decision is to snap, the final value is committed to
+each target immediately and `finished` resolves on the next microtask;
+no rAF or WAAPI setup happens. `prefersReducedMotion()` is exported for
+ad-hoc checks.
 
 ## Framework usage
 

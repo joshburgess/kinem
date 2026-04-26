@@ -1,4 +1,5 @@
 import { isSpringEasing, linear } from "../core/easing"
+import { KinemError } from "../core/errors"
 import type { AnimationDef, EasingFn } from "../core/types"
 import { partitionByTier } from "../render/properties"
 
@@ -91,7 +92,7 @@ function partitionPoints(points: readonly Point2[]): Point2[][] {
     return [[...points]]
   }
   if ((points.length - 1) % 3 !== 0) {
-    throw new Error(
+    throw new KinemError(
       `bezierPath: with ${points.length} points expected 2 (linear), 3 (quadratic), 4 (cubic), or 1+3N points (chained cubics)`,
     )
   }
@@ -117,7 +118,7 @@ export function buildBezierSegments(
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): BuiltSegments {
   if (points.length < 2) {
-    throw new Error("bezierPath: need at least 2 points")
+    throw new KinemError("bezierPath: need at least 2 points")
   }
   const partitions = partitionPoints(points)
   const segs: Segment[] = []
@@ -234,7 +235,7 @@ export function sampleBezierPath(
   samples: number,
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): Point2[] {
-  if (samples < 2) throw new Error("sampleBezierPath: need at least 2 samples")
+  if (samples < 2) throw new KinemError("sampleBezierPath: need at least 2 samples")
   const built = buildBezierSegments(points, samplesPerSegment)
   const out: Point2[] = new Array(samples)
   for (let i = 0; i < samples; i++) {

@@ -24,6 +24,7 @@
  * those modules.
  */
 
+import { KinemError } from "../core/errors"
 import type { StrategyHandle, StrategyState } from "../render/strategy"
 
 export interface Controls extends PromiseLike<void> {
@@ -89,7 +90,10 @@ class ControlsImpl implements Controls {
   seekLabel(label: string): Controls {
     const offset = this.#labels.get(label)
     if (offset === undefined) {
-      throw new Error(`seekLabel(): unknown label "${label}"`)
+      throw new KinemError(
+        `seekLabel(): unknown label "${label}"`,
+        "add a label first via timeline.label(name) before seeking to it",
+      )
     }
     this.#handle.seek(offset)
     return this

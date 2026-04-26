@@ -1,4 +1,5 @@
 import { getCssEasing, isSpringEasing, linear } from "../core/easing"
+import { KinemError } from "../core/errors"
 import type { AnimationDef, CommitTarget, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
 import { classify, partitionByTier, pseudoToTransformFn } from "../render/properties"
@@ -199,8 +200,9 @@ export function tween<P extends TweenProps>(
     const key = keys[i] as string
     const pair = props[key] as readonly unknown[]
     if (pair.length !== 2) {
-      throw new Error(
-        `tween(): property "${key}" must be a [from, to] pair (got length ${pair.length}); use keyframes() for more than two stops`,
+      throw new KinemError(
+        `tween(): property "${key}" must be a [from, to] pair (got length ${pair.length})`,
+        "use keyframes() for more than two stops",
       )
     }
     perPropFns[i] = interpolate(pair[0], pair[1])

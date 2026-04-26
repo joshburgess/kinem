@@ -11,6 +11,7 @@
  * normalizing into a 4x4 matrix.
  */
 
+import { KinemError } from "../core/errors"
 import { interpolateNumber } from "./number"
 import { interpolateUnit, parseUnit } from "./units"
 
@@ -67,9 +68,17 @@ const shortestAngleDelta = (fromDegVal: number, toDegVal: number): number => {
 function interpolateAngleArg(from: string, to: string): (progress: number) => string {
   const a = parseUnit(from)
   const b = parseUnit(to)
-  if (!a || !b) throw new Error(`Cannot parse angle args: "${from}", "${to}"`)
+  if (!a || !b)
+    throw new KinemError(
+      `interpolate: cannot parse angle args "${from}", "${to}"`,
+      "use a number with an angle unit (deg, rad, turn, grad)",
+    )
   const outUnit = b.unit || a.unit || "deg"
-  if (!ANGLE_UNITS.has(outUnit)) throw new Error(`Unsupported angle unit: "${outUnit}"`)
+  if (!ANGLE_UNITS.has(outUnit))
+    throw new KinemError(
+      `interpolate: unsupported angle unit "${outUnit}"`,
+      "use deg, rad, turn, or grad",
+    )
   const fromDegVal = toDeg(a.value, a.unit)
   const toDegVal = toDeg(b.value, b.unit)
   const delta = shortestAngleDelta(fromDegVal, toDegVal)
@@ -88,7 +97,7 @@ function interpolateFnArg(fn: string, from: string, to: string): (progress: numb
     const a = Number.parseFloat(from)
     const b = Number.parseFloat(to)
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      throw new Error(`Cannot parse ${fn} arg: "${from}", "${to}"`)
+      throw new KinemError(`interpolate: cannot parse ${fn} arg "${from}", "${to}"`)
     }
     const interp = interpolateNumber(a, b)
     const unit = fn === "perspective" ? "px" : ""
@@ -104,15 +113,18 @@ function interpolateFnArg(fn: string, from: string, to: string): (progress: numb
     const interp = interpolateNumber(a, b)
     return (p) => `${interp(p)}`
   }
-  throw new Error(`Unsupported transform function "${fn}" with args "${from}" / "${to}"`)
+  throw new KinemError(
+    `interpolate: unsupported transform function "${fn}" with args "${from}" / "${to}"`,
+  )
 }
 
 export function interpolateTransform(from: string, to: string): (progress: number) => string {
   const fromFns = parseTransform(from)
   const toFns = parseTransform(to)
   if (fromFns.length !== toFns.length) {
-    throw new Error(
-      `transform structure mismatch: "${from}" (${fromFns.length} fns) vs "${to}" (${toFns.length} fns)`,
+    throw new KinemError(
+      `interpolate: transform structure mismatch: "${from}" (${fromFns.length} fns) vs "${to}" (${toFns.length} fns)`,
+      "from and to must contain the same transform functions in the same order",
     )
   }
   const pairs: Array<{ name: string; argFns: Array<(p: number) => string> }> = []
@@ -120,10 +132,15 @@ export function interpolateTransform(from: string, to: string): (progress: numbe
     const a = fromFns[i] as TransformFn
     const b = toFns[i] as TransformFn
     if (a.name !== b.name) {
-      throw new Error(`transform function mismatch at index ${i}: ${a.name} vs ${b.name}`)
+      throw new KinemError(
+        `interpolate: transform function mismatch at index ${i}: ${a.name} vs ${b.name}`,
+        "from and to must contain the same transform functions in the same order",
+      )
     }
     if (a.args.length !== b.args.length) {
-      throw new Error(`${a.name}() arg count mismatch: ${a.args.length} vs ${b.args.length}`)
+      throw new KinemError(
+        `interpolate: ${a.name}() arg count mismatch: ${a.args.length} vs ${b.args.length}`,
+      )
     }
     const argFns: Array<(p: number) => string> = []
     for (let j = 0; j < a.args.length; j++) {

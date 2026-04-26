@@ -1,3 +1,4 @@
+import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
 import { type BezierPathOpts, type BezierPathValue, type Point2, bezierPath } from "./bezier-path"
 
@@ -25,7 +26,7 @@ export function catmullRomToCubicPoints(
   closed: boolean,
 ): Point2[] {
   const n = waypoints.length
-  if (n < 2) throw new Error("catmullRom: need at least 2 waypoints")
+  if (n < 2) throw new KinemError("catmullRom: need at least 2 waypoints")
 
   const get = (i: number): Point2 => {
     if (closed) return waypoints[((i % n) + n) % n] as Point2

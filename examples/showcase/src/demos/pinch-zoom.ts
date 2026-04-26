@@ -107,7 +107,10 @@ export const pinchZoom: Demo = {
       onMove: (ev) => {
         scale = Math.max(
           MIN_SCALE * 0.8,
-          Math.min(MAX_SCALE * 1.2, dragBaseScale * Math.exp(-ev.offset.y * DRAG_SCALE_SENSITIVITY)),
+          Math.min(
+            MAX_SCALE * 1.2,
+            dragBaseScale * Math.exp(-ev.offset.y * DRAG_SCALE_SENSITIVITY),
+          ),
         )
         rotation = dragBaseRotation + ev.offset.x * DRAG_ROTATE_SENSITIVITY
         apply()

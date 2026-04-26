@@ -15,6 +15,8 @@
  * `ScrollSource.getRect()`.
  */
 
+import { KinemError } from "../core/errors"
+
 export interface TriggerPos {
   readonly element: number
   readonly viewport: number
@@ -29,7 +31,10 @@ function parseRef(raw: string): number {
   if (pct) return Number(pct[1]) / 100
   const n = Number(t)
   if (Number.isFinite(n)) return n
-  throw new Error(`scroll: invalid trigger reference "${raw}"`)
+  throw new KinemError(
+    `scroll: invalid trigger reference "${raw}"`,
+    'use "top"/"center"/"bottom", a percentage like "80%", or a number',
+  )
 }
 
 /** Parse a GSAP-style `"<element> <viewport>"` position string. */
@@ -37,7 +42,10 @@ export function parseTriggerPos(input: string | TriggerPos): TriggerPos {
   if (typeof input !== "string") return input
   const parts = input.trim().split(/\s+/)
   if (parts.length !== 2) {
-    throw new Error(`scroll: trigger position must be "<element> <viewport>" (got "${input}")`)
+    throw new KinemError(
+      `scroll: trigger position must be "<element> <viewport>" (got "${input}")`,
+      'example: "top 80%" means element top hits 80% down the viewport',
+    )
   }
   const [eRef, vRef] = parts as [string, string]
   return { element: parseRef(eRef), viewport: parseRef(vRef) }

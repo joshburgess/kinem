@@ -6,6 +6,8 @@
  * target's original format. Hue interpolation follows the shortest arc.
  */
 
+import { KinemError } from "../core/errors"
+
 export type ColorFormat = "hex" | "rgb" | "hsl" | "oklch"
 
 interface OklchColor {
@@ -194,26 +196,45 @@ function parseColor(input: string): { oklch: OklchColor; format: ColorFormat } {
   const trimmed = input.trim()
   if (trimmed.startsWith("#")) {
     const rgba = parseHex(trimmed)
-    if (!rgba) throw new Error(`Cannot parse color: "${input}"`)
+    if (!rgba)
+      throw new KinemError(
+        `interpolate: cannot parse color "${input}"`,
+        "supported formats: #rrggbb / #rrggbbaa hex, rgb()/rgba(), hsl()/hsla(), oklch()",
+      )
     return { oklch: srgbToOklch(rgba[0], rgba[1], rgba[2], rgba[3]), format: "hex" }
   }
   const lower = trimmed.toLowerCase()
   if (lower.startsWith("oklch")) {
     const c = parseOklchFn(trimmed)
-    if (!c) throw new Error(`Cannot parse color: "${input}"`)
+    if (!c)
+      throw new KinemError(
+        `interpolate: cannot parse color "${input}"`,
+        "supported formats: #rrggbb / #rrggbbaa hex, rgb()/rgba(), hsl()/hsla(), oklch()",
+      )
     return { oklch: c, format: "oklch" }
   }
   if (lower.startsWith("hsl")) {
     const rgba = parseHslFn(trimmed)
-    if (!rgba) throw new Error(`Cannot parse color: "${input}"`)
+    if (!rgba)
+      throw new KinemError(
+        `interpolate: cannot parse color "${input}"`,
+        "supported formats: #rrggbb / #rrggbbaa hex, rgb()/rgba(), hsl()/hsla(), oklch()",
+      )
     return { oklch: srgbToOklch(rgba[0], rgba[1], rgba[2], rgba[3]), format: "hsl" }
   }
   if (lower.startsWith("rgb")) {
     const rgba = parseRgbFn(trimmed)
-    if (!rgba) throw new Error(`Cannot parse color: "${input}"`)
+    if (!rgba)
+      throw new KinemError(
+        `interpolate: cannot parse color "${input}"`,
+        "supported formats: #rrggbb / #rrggbbaa hex, rgb()/rgba(), hsl()/hsla(), oklch()",
+      )
     return { oklch: srgbToOklch(rgba[0], rgba[1], rgba[2], rgba[3]), format: "rgb" }
   }
-  throw new Error(`Cannot parse color: "${input}"`)
+  throw new KinemError(
+    `interpolate: cannot parse color "${input}"`,
+    "supported formats: #rrggbb / #rrggbbaa hex, rgb()/rgba(), hsl()/hsla(), oklch()",
+  )
 }
 
 const toByte = (c: number): number => Math.round(clamp01(c) * 255)

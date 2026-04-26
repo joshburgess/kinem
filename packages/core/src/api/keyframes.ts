@@ -1,4 +1,5 @@
 import { isSpringEasing, linear } from "../core/easing"
+import { KinemError } from "../core/errors"
 import type { AnimationDef, EasingFn } from "../core/types"
 import { interpolate } from "../interpolate/registry"
 import { partitionByTier } from "../render/properties"
@@ -32,14 +33,23 @@ function evenOffsets(n: number): number[] {
 
 function validateOffsets(offsets: readonly number[], n: number): void {
   if (offsets.length !== n) {
-    throw new Error(`offsets length ${offsets.length} must match stops length ${n}`)
+    throw new KinemError(
+      `keyframes(): offsets length ${offsets.length} must match stops length ${n}`,
+      "either omit `offsets` to use even spacing or provide one offset per stop",
+    )
   }
   if (offsets[0] !== 0 || offsets[n - 1] !== 1) {
-    throw new Error("offsets must start at 0 and end at 1")
+    throw new KinemError(
+      "keyframes(): offsets must start at 0 and end at 1",
+      "anchor the first stop at 0 and the last at 1",
+    )
   }
   for (let i = 1; i < n; i++) {
     if ((offsets[i] ?? 0) < (offsets[i - 1] ?? 0)) {
-      throw new Error("offsets must be monotonically non-decreasing")
+      throw new KinemError(
+        "keyframes(): offsets must be monotonically non-decreasing",
+        "each subsequent offset must be >= the previous one",
+      )
     }
   }
 }
@@ -70,7 +80,10 @@ export function keyframes<P extends KeyframeStops>(
     const key = keys[i] as string
     const values = stops[key] as readonly unknown[]
     if (values.length < 2) {
-      throw new Error(`keyframes(): property "${key}" needs at least two stops`)
+      throw new KinemError(
+        `keyframes(): property "${key}" needs at least two stops`,
+        "use tween() for [from, to] pairs",
+      )
     }
     const n = values.length
     const offsets = opts.offsets ?? evenOffsets(n)

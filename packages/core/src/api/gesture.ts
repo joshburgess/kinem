@@ -10,6 +10,7 @@
  * in-flight animation.
  */
 
+import { KinemError } from "../core/errors"
 import type { DragHandle, DragOpts } from "../gesture/drag"
 import { playDrag } from "../gesture/drag"
 import type { HoverHandle, HoverOpts } from "../gesture/hover"
@@ -73,7 +74,10 @@ function pickPointerTarget(
   if (explicit) return explicit
   const first = resolved[0]
   if (!first) {
-    throw new Error("gesture: no target element resolved and no opts.target provided")
+    throw new KinemError(
+      "gesture: no target element resolved",
+      "pass an element/selector or provide opts.target explicitly",
+    )
   }
   return first as PointerBindTarget
 }

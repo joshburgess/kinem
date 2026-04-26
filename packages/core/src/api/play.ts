@@ -5,6 +5,7 @@
  * and returns a PromiseLike `Controls` object.
  */
 
+import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
 import { trackAnimation } from "../devtools/tracker"
 import {
@@ -93,8 +94,9 @@ export function resolveTargets(target: Target, opts: PlayOpts): readonly Strateg
   if (typeof target === "string") {
     if (opts.resolve) return opts.resolve(target)
     if (typeof document === "undefined") {
-      throw new Error(
-        "play(): cannot resolve selector string outside a DOM environment — pass elements directly or provide opts.resolve",
+      throw new KinemError(
+        "play(): cannot resolve selector string outside a DOM environment",
+        "pass elements directly or provide opts.resolve",
       )
     }
     const nodes = document.querySelectorAll(target)

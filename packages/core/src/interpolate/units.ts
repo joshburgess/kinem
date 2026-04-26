@@ -1,3 +1,5 @@
+import { KinemError } from "../core/errors"
+
 export interface UnitValue {
   readonly value: number
   readonly unit: string
@@ -39,7 +41,10 @@ export function interpolateUnit(from: string, to: string): (progress: number) =>
   const a = parseUnit(from)
   const b = parseUnit(to)
   if (!a || !b) {
-    throw new Error(`Cannot parse unit value: from="${from}" to="${to}"`)
+    throw new KinemError(
+      `interpolateUnit(): cannot parse unit value (from="${from}" to="${to}")`,
+      'expected a number with optional CSS unit, e.g. "100px", "1.5rem", "50%"',
+    )
   }
 
   let unit: string

@@ -8,6 +8,7 @@
  * to drive scroll position deterministically without jsdom.
  */
 
+import { KinemError } from "../core/errors"
 import type { StrategyTarget } from "../render/strategy"
 
 export interface ScrollRect {
@@ -45,7 +46,10 @@ interface RectCapable {
 export function createDomScrollSource(win?: MinimalWindow): ScrollSource {
   const w = win ?? (globalThis as unknown as { window?: MinimalWindow }).window
   if (!w) {
-    throw new Error("createDomScrollSource(): no window available; pass one explicitly")
+    throw new KinemError(
+      "createDomScrollSource(): no window available",
+      "pass a window-like object explicitly when running outside the browser",
+    )
   }
 
   return {

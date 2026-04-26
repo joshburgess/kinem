@@ -33,6 +33,16 @@ export {
   type StepPosition,
 } from "./core/easing"
 
+export { KinemError } from "./core/errors"
+
+export {
+  type ReducedMotion,
+  getReducedMotionDefault,
+  prefersReducedMotion,
+  setReducedMotionDefault,
+  shouldReduceMotion,
+} from "./core/reduced-motion"
+
 export {
   animation,
   delay,

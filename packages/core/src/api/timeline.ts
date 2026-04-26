@@ -22,6 +22,7 @@
  */
 
 import { linear } from "../core/easing"
+import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
 import {
   type AnimationProps,
@@ -140,7 +141,10 @@ export function timeline(): Timeline {
     } else {
       const ms = labels.get(at)
       if (ms === undefined) {
-        throw new Error(`timeline: unknown label "${at}"`)
+        throw new KinemError(
+          `timeline: unknown label "${at}"`,
+          "add a label first via .label(name) before referring to it",
+        )
       }
       base = ms
     }

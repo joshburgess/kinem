@@ -13,6 +13,8 @@
  * rules override the defaults.
  */
 
+import { KinemError } from "../core/errors"
+
 export type ValueInterpolator<T> = (from: T, to: T) => (progress: number) => T
 
 export interface InterpolatorEntry {
@@ -63,7 +65,10 @@ export function findInterpolator(value: unknown): InterpolatorEntry | null {
 export function interpolate<T>(from: T, to: T): (progress: number) => T {
   const entry = findInterpolator(from)
   if (!entry) {
-    throw new Error(`No interpolator registered for value of type ${typeof from}: ${String(from)}`)
+    throw new KinemError(
+      `interpolate(): no interpolator registered for value of type ${typeof from}: ${String(from)}`,
+      "register a custom interpolator with registerInterpolator() or use a supported value type",
+    )
   }
   return entry.interpolate(from as unknown, to as unknown) as (p: number) => T
 }

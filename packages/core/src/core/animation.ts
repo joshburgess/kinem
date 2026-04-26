@@ -1,4 +1,5 @@
 import { linear } from "./easing"
+import { KinemError } from "./errors"
 import type { AnimationDef, EasingFn, ParallelValues, StaggerFrom, StaggerOpts } from "./types"
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
@@ -27,7 +28,7 @@ export function animation<T>(
  */
 export function sequence<T>(...anims: AnimationDef<T>[]): AnimationDef<T> {
   if (anims.length === 0) {
-    throw new Error("sequence() requires at least one animation")
+    throw new KinemError("sequence() requires at least one animation")
   }
   if (anims.length === 1) return anims[0] as AnimationDef<T>
 
@@ -75,7 +76,7 @@ export function parallel<T extends readonly AnimationDef<unknown>[]>(
   ...anims: T
 ): AnimationDef<ParallelValues<T>> {
   if (anims.length === 0) {
-    throw new Error("parallel() requires at least one animation")
+    throw new KinemError("parallel() requires at least one animation")
   }
   let maxDur = 0
   for (const a of anims) if (a.duration > maxDur) maxDur = a.duration

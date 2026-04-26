@@ -8,6 +8,8 @@
  * will be added in a later pass.
  */
 
+import { KinemError } from "../core/errors"
+
 export interface PathCommand {
   readonly type: string
   readonly params: readonly number[]
@@ -51,11 +53,15 @@ export function parsePath(input: string): readonly PathCommand[] {
       .map((s) => Number.parseFloat(s))
 
     if (nums.some(Number.isNaN)) {
-      throw new Error(`Invalid numeric parameter in path command "${type}${body}"`)
+      throw new KinemError(
+        `interpolate: invalid numeric parameter in path command "${type}${body}"`,
+      )
     }
 
     if (nums.length % paramsPer !== 0) {
-      throw new Error(`"${type}" expects multiples of ${paramsPer} parameters, got ${nums.length}`)
+      throw new KinemError(
+        `interpolate: "${type}" expects multiples of ${paramsPer} parameters, got ${nums.length}`,
+      )
     }
 
     // Implicit repeats: an M followed by extra coord pairs is treated as M then L...
@@ -81,7 +87,10 @@ export function interpolatePath(from: string, to: string): (progress: number) =>
   const a = parsePath(from)
   const b = parsePath(to)
   if (a.length !== b.length) {
-    throw new Error(`path structure mismatch: ${a.length} command(s) vs ${b.length} command(s)`)
+    throw new KinemError(
+      `interpolate: path structure mismatch: ${a.length} command(s) vs ${b.length} command(s)`,
+      "from and to must contain the same number of path commands",
+    )
   }
 
   const template: PathCommand[] = new Array(a.length)
@@ -90,10 +99,15 @@ export function interpolatePath(from: string, to: string): (progress: number) =>
     const ca = a[i] as PathCommand
     const cb = b[i] as PathCommand
     if (ca.type !== cb.type) {
-      throw new Error(`path command mismatch at index ${i}: "${ca.type}" vs "${cb.type}"`)
+      throw new KinemError(
+        `interpolate: path command mismatch at index ${i}: "${ca.type}" vs "${cb.type}"`,
+        "from and to must contain the same path commands in the same order",
+      )
     }
     if (ca.params.length !== cb.params.length) {
-      throw new Error(`path command "${ca.type}" param count mismatch at index ${i}`)
+      throw new KinemError(
+        `interpolate: path command "${ca.type}" param count mismatch at index ${i}`,
+      )
     }
 
     const d = new Array<number>(ca.params.length)
