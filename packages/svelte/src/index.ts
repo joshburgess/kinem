@@ -8,6 +8,12 @@
 
 export { type GestureActionOpts, type GestureActionReturn, gesture } from "./gesture"
 export { type MotionActionOpts, type MotionValues, motion } from "./motion"
+export {
+  type ReducedMotionStore,
+  createReducedMotionStore,
+  prefersReducedMotion,
+  reducedMotion,
+} from "./reduced-motion"
 export { type ScrollActionOpts, type ScrollActionReturn, scroll } from "./scroll"
 export { type SpringStore, type SpringStoreOpts, spring } from "./spring"
 export {

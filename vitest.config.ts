@@ -9,6 +9,40 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov", "json-summary"],
+      reportsDirectory: "./coverage",
+      include: [
+        "packages/core/src/**/*.ts",
+        "packages/react/src/**/*.{ts,tsx}",
+        "packages/vue/src/**/*.ts",
+        "packages/svelte/src/**/*.ts",
+        "packages/devtools/src/**/*.ts",
+      ],
+      exclude: [
+        "**/*.test.{ts,tsx}",
+        "**/*.bench.ts",
+        "**/test/**",
+        "**/test-setup.ts",
+        "**/dist/**",
+        "**/index.ts",
+        "**/slim.ts",
+        "packages/devtools-extension/**",
+        "packages/core/src/interpolate/register-defaults.ts",
+        "packages/core/src/render/worker-protocol.ts",
+      ],
+      // Floors set ~5 points below current measurements (lines 90.9 /
+      // statements 87.5 / functions 88.7 / branches 74.4) so casual
+      // churn doesn't trip CI but a real coverage regression does.
+      // Bump these up, never down, when adding tests.
+      thresholds: {
+        lines: 85,
+        statements: 82,
+        functions: 85,
+        branches: 70,
+      },
+    },
     projects: [
       {
         extends: true,

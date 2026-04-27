@@ -3,6 +3,9 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .turbo/
+coverage/
+playwright-report/
+test-results/
 *.cpuprofile
 benchmarks/browser/scripts/cpu-profile.mjs
 docs/public/playground/

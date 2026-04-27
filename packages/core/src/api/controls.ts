@@ -63,7 +63,6 @@ export interface Controls extends PromiseLike<void> {
 const EMPTY_LABELS: ReadonlyMap<string, number> = new Map()
 
 class ControlsImpl implements Controls {
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: read via getters below
   readonly #handle: StrategyHandle
   readonly #duration: number
   readonly #labels: ReadonlyMap<string, number>
@@ -158,7 +157,10 @@ class ControlsImpl implements Controls {
   ): Promise<T1 | T2> {
     return this.#handle.finished.then(onfulfilled, onrejected)
   }
-  catch<R>(onrejected: (err: unknown) => R | PromiseLike<R>): Promise<void | R> {
+  catch<R>(
+    onrejected: (err: unknown) => R | PromiseLike<R>,
+    // biome-ignore lint/suspicious/noConfusingVoidType: matches Promise.catch's signature
+  ): Promise<void | R> {
     return this.#handle.finished.catch(onrejected)
   }
   finally(onfinally?: (() => void) | null): Promise<void> {

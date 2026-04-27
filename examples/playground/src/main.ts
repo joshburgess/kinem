@@ -46,6 +46,7 @@ const grid = document.getElementById("grid") as HTMLElement
 for (const ex of examples) {
   const card = document.createElement("article")
   card.className = "card"
+  card.dataset["exampleId"] = ex.id
 
   const title = document.createElement("h2")
   title.textContent = ex.title
@@ -65,7 +66,9 @@ for (const ex of examples) {
 
   try {
     ex.mount(stage)
+    card.dataset["exampleStatus"] = "mounted"
   } catch (err) {
+    card.dataset["exampleStatus"] = "failed"
     const msg = document.createElement("pre")
     msg.textContent = `failed: ${(err as Error).message}`
     msg.style.color = "#f87171"

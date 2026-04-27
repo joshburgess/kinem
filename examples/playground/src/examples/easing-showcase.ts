@@ -64,7 +64,9 @@ export const easingShowcase: Example = {
     let dispose = run()
     const interval = setInterval(() => {
       dispose()
-      boxes.forEach((b) => (b.style.transform = "translate(0, -50%)"))
+      for (const b of boxes) {
+        b.style.transform = "translate(0, -50%)"
+      }
       dispose = run()
     }, 1900)
 

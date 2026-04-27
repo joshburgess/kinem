@@ -132,7 +132,6 @@ async function runMotif(
 ): Promise<number> {
   const targets = spawnTargets(count)
   const start = performance.now()
-  // biome-ignore lint/suspicious/noExplicitAny: union with handles we only need to cancel
   const handles = new Array<any>(count)
   if (scenario === "startup-shared-def") {
     // Real-world pattern: one def reused across N targets. Exercises the
@@ -168,7 +167,6 @@ async function runMotif(
 async function runMotion(scenario: Scenario, count: number): Promise<number> {
   const targets = spawnTargets(count)
   const start = performance.now()
-  // biome-ignore lint/suspicious/noExplicitAny: motion's handle type
   const handles = new Array<any>(count)
   if (scenario === "startup-shared-def") {
     // motion has no "reusable def" handle; closest equivalent is passing
@@ -198,7 +196,6 @@ async function runMotion(scenario: Scenario, count: number): Promise<number> {
 async function runGsap(scenario: Scenario, count: number): Promise<number> {
   const targets = spawnTargets(count)
   const start = performance.now()
-  // biome-ignore lint/suspicious/noExplicitAny: gsap's tween type
   const handles = new Array<any>(count)
   if (scenario === "startup-shared-def") {
     // gsap has no reusable-def concept at the tween level; pass the
@@ -275,7 +272,6 @@ async function profileMain(count: number, samples = 7): Promise<ProfileResult> {
   const oneSample = async (): Promise<ProfileSample> => {
     const targets = spawnTargets(count)
     const defs = new Array(count)
-    // biome-ignore lint/suspicious/noExplicitAny: handle type union
     const handles = new Array<any>(count)
 
     const t0 = performance.now()
@@ -295,7 +291,6 @@ async function profileMain(count: number, samples = 7): Promise<ProfileResult> {
 
     const sharedDef = tween({ opacity: [0, 1], x: [0, 100] }, { duration: 800 })
     const targets2 = spawnTargets(count)
-    // biome-ignore lint/suspicious/noExplicitAny: handle type union
     const handles2 = new Array<any>(count)
     const u0 = performance.now()
     for (let i = 0; i < count; i++) {
@@ -369,7 +364,6 @@ async function profileStartupPhases(
 ): Promise<StartupPhaseResult> {
   const oneSample = async (): Promise<StartupPhaseSample> => {
     const targets = spawnTargets(count)
-    // biome-ignore lint/suspicious/noExplicitAny: handle type union
     const handles = new Array<any>(count)
 
     const t0 = performance.now()
