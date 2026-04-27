@@ -8,6 +8,7 @@ import { galaxySpiral } from "./demos/galaxy-spiral"
 import { gooDrag } from "./demos/goo-drag"
 import { heatShimmer } from "./demos/heat-shimmer"
 import { holoCard } from "./demos/holo-card"
+import { lavaLamp } from "./demos/lava-lamp"
 import { liquidCursor } from "./demos/liquid-cursor"
 import { liquidMenu } from "./demos/liquid-menu"
 import { magneticNav } from "./demos/magnetic-nav"
@@ -38,6 +39,7 @@ const demos: readonly Demo[] = [
   meshGradient,
   confettiBurst,
   gooDrag,
+  lavaLamp,
   pathFlight,
   cometTrail,
   ribbonTrail,
