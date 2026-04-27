@@ -29,7 +29,7 @@ import {
   type TargetDescriptor,
 } from "./shared/protocol"
 
-interface AnimationRecordLike {
+export interface AnimationRecordLike {
   readonly id: number
   readonly duration: number
   readonly state: string
@@ -45,7 +45,7 @@ interface AnimationRecordLike {
   }
 }
 
-interface HookLike {
+export interface HookLike {
   readonly version: number
   listActive(): ReadonlyArray<AnimationRecordLike>
   subscribe(
@@ -58,7 +58,7 @@ interface HookLike {
   ): () => void
 }
 
-function describeTarget(target: unknown): TargetDescriptor {
+export function describeTarget(target: unknown): TargetDescriptor {
   if (target && typeof target === "object") {
     const el = target as { tagName?: string; id?: string; className?: string }
     if (typeof el.tagName === "string") {
@@ -80,7 +80,7 @@ function describeTarget(target: unknown): TargetDescriptor {
   return { kind: "unknown" }
 }
 
-function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
+export function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
   return {
     id: rec.id,
     duration: rec.duration,
@@ -104,7 +104,7 @@ function now(): number {
   return Date.now()
 }
 
-function connect(hook: HookLike, byId: Map<number, AnimationRecordLike>): void {
+export function connect(hook: HookLike, byId: Map<number, AnimationRecordLike>): void {
   for (const rec of hook.listActive()) byId.set(rec.id, rec)
 
   post({ kind: "hello", hookVersion: hook.version })
@@ -128,7 +128,7 @@ function connect(hook: HookLike, byId: Map<number, AnimationRecordLike>): void {
   })
 }
 
-function handleCommand(
+export function handleCommand(
   command: PanelCommand,
   byId: Map<number, AnimationRecordLike>,
   hook: HookLike,
@@ -228,4 +228,9 @@ async function boot(): Promise<void> {
   })
 }
 
-void boot()
+// Skip auto-boot under vitest so unit tests can drive `connect` /
+// `handleCommand` directly without `waitForHook` spinning a 30s timer.
+declare const process: { env?: { VITEST?: string } } | undefined
+if (typeof process === "undefined" || process?.env?.VITEST !== "true") {
+  void boot()
+}

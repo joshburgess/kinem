@@ -94,6 +94,16 @@ export default defineConfig({
           benchmark: { include: [] },
         },
       },
+      {
+        extends: true,
+        test: {
+          name: "devtools-extension",
+          include: ["packages/devtools-extension/src/**/*.test.ts"],
+          environment: "happy-dom",
+          setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: [] },
+        },
+      },
     ],
   },
 })
