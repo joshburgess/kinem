@@ -48,12 +48,7 @@ const NUM_PETALS = 8
 // Tangents at each point are estimated from the chord between its two
 // neighbors (Catmull-Rom-to-Bezier with tension 1/6), giving a smooth
 // continuous closed curve that follows the radii without kinks.
-const buildBlobPath = (
-  cx: number,
-  cy: number,
-  radii: number[],
-  rotation: number,
-): string => {
+const buildBlobPath = (cx: number, cy: number, radii: number[], rotation: number): string => {
   const n = radii.length
   const xs = new Array<number>(n)
   const ys = new Array<number>(n)
@@ -98,8 +93,7 @@ export const lavaLamp: Demo = {
       inset: "0",
       display: "grid",
       placeItems: "center",
-      background:
-        "radial-gradient(ellipse at 50% 70%, #1a1430 0%, #0a0818 50%, #04030a 100%)",
+      background: "radial-gradient(ellipse at 50% 70%, #1a1430 0%, #0a0818 50%, #04030a 100%)",
       overflow: "hidden",
     })
     stage.appendChild(wrap)

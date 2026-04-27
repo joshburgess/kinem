@@ -102,6 +102,20 @@ describe("morphPath: square -> diamond", () => {
   })
 })
 
+describe("morphPath: cubic-curved (realistic)", () => {
+  // Two curved blob shapes. Sampling these produces points with arbitrary
+  // long-tail decimals which is the workload that exposes Number.toString
+  // cost on the hot path. The square/diamond bench above lands on clean
+  // integers and hides that cost.
+  const a =
+    "M 50 0 C 80 0 100 20 100 50 C 100 80 80 100 50 100 C 20 100 0 80 0 50 C 0 20 20 0 50 0 Z"
+  const b = "M 30 10 C 75 5 95 30 90 60 C 85 90 55 95 25 85 C 5 75 5 35 30 10 Z"
+  const def = morphPath(a, b)
+  bench("interpolate(0.5)", () => {
+    def.interpolate(0.5)
+  })
+})
+
 describe("inertia: 2-property flick", () => {
   const def = inertia({ x: [0, 1500], y: [0, 800] })
   bench("build", () => {
