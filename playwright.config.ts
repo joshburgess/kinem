@@ -32,5 +32,19 @@ export default defineConfig({
     reuseExistingServer: !process.env["CI"],
     timeout: 120_000,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /devtools-extension\.spec\.ts$/,
+    },
+    {
+      // Loads the built devtools extension into a persistent Chromium
+      // context. Requires `pnpm --filter @kinem/devtools-extension build`
+      // first; the spec's fixture errors out with a pointer to that
+      // command if the dist bundle is missing.
+      name: "devtools-extension",
+      testMatch: /devtools-extension\.spec\.ts$/,
+    },
+  ],
 })

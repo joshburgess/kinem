@@ -22,7 +22,7 @@
     "size:compare": "node scripts/bundle-size-compare.mjs",
     "api:snapshot": "node scripts/api-snapshot.mjs",
     "api:check": "node scripts/api-snapshot.mjs --check",
-    "e2e": "playwright test",
+    "e2e": "pnpm --filter @kinem/devtools-extension build && playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "release:dry-run": "pnpm -r publish --access public --no-git-checks --dry-run",
     "release": "pnpm -r publish --access public --no-git-checks"
