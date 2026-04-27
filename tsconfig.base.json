@@ -15,6 +15,10 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "esModuleInterop": false,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@kinem/core": ["${configDir}/../../packages/core/src/index.ts"],
+      "@kinem/core/slim": ["${configDir}/../../packages/core/src/slim.ts"]
+    }
   }
 }
