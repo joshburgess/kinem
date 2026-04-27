@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { motionPath, svgPathToCubicPoints } from "./motion-path"
+import { motionPath, svgPathLength, svgPathToCubicPoints } from "./motion-path"
 
 describe("svgPathToCubicPoints", () => {
   it("converts a simple line to cubic control points", () => {
@@ -64,6 +64,90 @@ describe("svgPathToCubicPoints", () => {
 
   it("rejects arc commands", () => {
     expect(() => svgPathToCubicPoints("M 0 0 A 50 50 0 0 1 100 0")).toThrow(/arc/)
+  })
+
+  it("rejects M-only paths with no movable segments", () => {
+    expect(() => svgPathToCubicPoints("M 50 50")).toThrow(/no movable segments/)
+  })
+
+  it("rejects empty path strings", () => {
+    expect(() => svgPathToCubicPoints("")).toThrow(/no movable segments/)
+  })
+
+  it("S falls back to current point when prev was not C/S", () => {
+    // S after L: c1 should default to the current point (100, 0).
+    const pts = svgPathToCubicPoints("M 0 0 L 100 0 S 250 100 300 0")
+    // M(1) + L(3) + S(3) = 7
+    expect(pts).toHaveLength(7)
+    expect(pts[4]).toEqual([100, 0])
+    expect(pts[5]).toEqual([250, 100])
+    expect(pts[6]).toEqual([300, 0])
+  })
+
+  it("T smooth-quadratic reflects off prior Q control point", () => {
+    // Q control = (50, 100), endpoint = (100, 0).
+    // Reflection: (2*100-50, 2*0-100) = (150, -100).
+    // For the second segment: P0=(100,0), Q=(150,-100), P1=(200,0).
+    // c1 = P0 + 2/3*(Q-P0) = (100 + 100/3, -200/3)
+    // c2 = P1 + 2/3*(Q-P1) = (200 - 100/3, -200/3)
+    const pts = svgPathToCubicPoints("M 0 0 Q 50 100 100 0 T 200 0")
+    expect(pts).toHaveLength(7)
+    expect(pts[4]?.[0]).toBeCloseTo(400 / 3, 5)
+    expect(pts[4]?.[1]).toBeCloseTo(-200 / 3, 5)
+    expect(pts[5]?.[0]).toBeCloseTo(500 / 3, 5)
+    expect(pts[5]?.[1]).toBeCloseTo(-200 / 3, 5)
+    expect(pts[6]).toEqual([200, 0])
+  })
+
+  it("T falls back to current point when prev was not Q/T", () => {
+    // T after L: prev wasn't a quadratic, so the implicit Q lies at the
+    // current point (100, 0). The second segment degenerates to a line.
+    // c1 = P0 + 2/3*(Q-P0) = (100, 0).
+    // c2 = P1 + 2/3*(Q-P1) = (200 - 200/3, 0) = (400/3, 0).
+    const pts = svgPathToCubicPoints("M 0 0 L 100 0 T 200 0")
+    expect(pts).toHaveLength(7)
+    expect(pts[4]?.[0]).toBeCloseTo(100, 5)
+    expect(pts[4]?.[1]).toBeCloseTo(0, 5)
+    expect(pts[5]?.[0]).toBeCloseTo(400 / 3, 5)
+    expect(pts[5]?.[1]).toBeCloseTo(0, 5)
+    expect(pts[6]).toEqual([200, 0])
+  })
+
+  it("T chains by reflecting off the prior T's implicit control", () => {
+    // Q control=(50,100), endpoint=(100,0); first T endpoint=(200,0).
+    // Implicit Q for first T = reflection of (50,100) through (100,0) = (150,-100).
+    // Second T endpoint=(300,0); its implicit Q = reflection of (150,-100)
+    // through (200,0) = (250, 100). The third segment must contain (250, 100)
+    // in its converted cubic controls (via quadToCubic with that Q).
+    const pts = svgPathToCubicPoints("M 0 0 Q 50 100 100 0 T 200 0 T 300 0")
+    // M(1) + Q(3) + T(3) + T(3) = 10
+    expect(pts).toHaveLength(10)
+    // Final endpoint
+    expect(pts[9]).toEqual([300, 0])
+    // Both controls of the third segment should sit on the reflected-Q line
+    // (y > 0) since Q=(250, 100).
+    expect(pts[7]?.[1]).toBeGreaterThan(0)
+    expect(pts[8]?.[1]).toBeGreaterThan(0)
+  })
+})
+
+describe("svgPathLength", () => {
+  it("returns the chord length for a straight line", () => {
+    expect(svgPathLength("M 0 0 L 100 0")).toBeCloseTo(100, 1)
+  })
+
+  it("returns an arc length greater than the chord for a curve", () => {
+    const len = svgPathLength("M 0 0 C 50 100 150 100 200 0")
+    expect(len).toBeGreaterThan(200)
+    expect(len).toBeLessThan(400)
+  })
+
+  it("accepts a custom samplesPerSegment", () => {
+    const coarse = svgPathLength("M 0 0 C 50 100 150 100 200 0", 4)
+    const fine = svgPathLength("M 0 0 C 50 100 150 100 200 0", 64)
+    // Both approximate the true arc length; finer sampling should be at
+    // least as long (chord-sum underestimates).
+    expect(fine).toBeGreaterThanOrEqual(coarse - 0.01)
   })
 })
 

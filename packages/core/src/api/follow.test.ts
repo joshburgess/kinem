@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { follow } from "./follow"
 
 interface FakeTarget {
@@ -118,5 +118,28 @@ describe("follow", () => {
     const h = follow(targets, { raf: sched.raf, cancelRaf: sched.cancelRaf })
     h.cancel()
     expect(h.state).toBe("cancelled")
+  })
+
+  it("falls back to setTimeout when rAF is unavailable", () => {
+    vi.useFakeTimers()
+    try {
+      const target = mkTarget()
+      // No raf/cancelRaf override: in the node test env, rAF is undefined,
+      // so the default falls through to setTimeout.
+      const h = follow([target], { stiffness: 1, decay: 1 })
+      h.snapTo(0, 0)
+      h.setLeader(100, 0)
+      // Advance past one 16ms tick so the setTimeout-backed loop fires.
+      vi.advanceTimersByTime(20)
+      const after = target.lastTransform ?? ""
+      expect(/translate3d\(100px,/.test(after)).toBe(true)
+      h.cancel()
+      // After cancel further timers must not move the target.
+      h.setLeader(500, 500)
+      vi.advanceTimersByTime(40)
+      expect(target.lastTransform).toBe(after)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

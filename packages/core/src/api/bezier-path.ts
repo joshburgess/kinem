@@ -31,7 +31,7 @@ export interface BezierPathOpts {
  * `catmullRom`. `x` and `y` are always present; `rotate` is populated
  * only when the call was opted in via `{ rotateAlongPath: true }` and
  * is `undefined` otherwise. Consumers that don't ask for rotation can
- * ignore the field entirely — it won't be present at runtime, so
+ * ignore the field entirely. it won't be present at runtime, so
  * destructuring `{ x, y }` works with no unused-property warning.
  */
 export interface BezierPathValue {
@@ -40,18 +40,13 @@ export interface BezierPathValue {
   readonly rotate?: number
 }
 
-interface ArcSample {
-  readonly s: number
-  readonly t: number
-}
-
-interface Segment {
-  readonly points: readonly Point2[]
-  readonly cumulativeStart: number
-  readonly arcLength: number
-  readonly samples: readonly ArcSample[]
-}
-
+/**
+ * Generic de Casteljau evaluation for a Bézier of arbitrary degree.
+ * Kept as a public export for use cases that want to evaluate a Bézier
+ * directly without going through `bezierPath()`. Internally `bezierPath`
+ * uses closed-form cubic math instead, since every segment is normalized
+ * to a cubic at construction.
+ */
 export function deCasteljau(points: readonly Point2[], t: number): Point2 {
   const n = points.length
   if (n === 2) {
@@ -75,18 +70,6 @@ export function deCasteljau(points: readonly Point2[], t: number): Point2 {
   return [xs[0] as number, ys[0] as number]
 }
 
-function bezierTangent(points: readonly Point2[], t: number): Point2 {
-  const n = points.length - 1
-  if (n <= 0) return [0, 0]
-  const dpts: Point2[] = new Array(n)
-  for (let i = 0; i < n; i++) {
-    const a = points[i] as Point2
-    const b = points[i + 1] as Point2
-    dpts[i] = [n * (b[0] - a[0]), n * (b[1] - a[1])]
-  }
-  return deCasteljau(dpts, t)
-}
-
 function partitionPoints(points: readonly Point2[]): Point2[][] {
   if (points.length === 2 || points.length === 3 || points.length === 4) {
     return [[...points]]
@@ -108,106 +91,123 @@ function partitionPoints(points: readonly Point2[]): Point2[][] {
   return segs
 }
 
-interface BuiltSegments {
-  readonly segments: readonly Segment[]
+/**
+ * Degree-elevate a 2-point (linear) or 3-point (quadratic) segment to
+ * an equivalent 4-point cubic. The resulting cubic traces the exact
+ * same curve, so callers that mix linear/quadratic/cubic inputs all go
+ * through one closed-form evaluator.
+ */
+function elevateToCubic(seg: readonly Point2[]): [Point2, Point2, Point2, Point2] {
+  if (seg.length === 4) {
+    return [seg[0] as Point2, seg[1] as Point2, seg[2] as Point2, seg[3] as Point2]
+  }
+  if (seg.length === 3) {
+    const p0 = seg[0] as Point2
+    const q = seg[1] as Point2
+    const p2 = seg[2] as Point2
+    return [
+      p0,
+      [p0[0] + (2 * (q[0] - p0[0])) / 3, p0[1] + (2 * (q[1] - p0[1])) / 3],
+      [p2[0] + (2 * (q[0] - p2[0])) / 3, p2[1] + (2 * (q[1] - p2[1])) / 3],
+      p2,
+    ]
+  }
+  // Linear: insert two points at thirds along the segment.
+  const p0 = seg[0] as Point2
+  const p1 = seg[1] as Point2
+  const dx = p1[0] - p0[0]
+  const dy = p1[1] - p0[1]
+  return [
+    p0,
+    [p0[0] + dx / 3, p0[1] + dy / 3],
+    [p0[0] + (2 * dx) / 3, p0[1] + (2 * dy) / 3],
+    p1,
+  ]
+}
+
+interface CubicEval {
+  /** segCount * 8 floats laid out as (x0,y0,x1,y1,x2,y2,x3,y3) per segment. */
+  readonly cps: Float64Array
+  /** segCount + 1 floats; cumulative[segCount] is the total arc length. */
+  readonly cumulative: Float64Array
+  /** segCount * (samplesPerSegment + 1) floats: arc length at each sample. */
+  readonly sampleS: Float64Array
+  /** Parallel array to sampleS, holding the matching parameter t. */
+  readonly sampleT: Float64Array
+  readonly samplesPerSegment: number
+  readonly segmentCount: number
   readonly total: number
 }
 
-export function buildBezierSegments(
-  points: readonly Point2[],
-  samplesPerSegment: number = DEFAULT_SAMPLES,
-): BuiltSegments {
+function buildCubicEval(points: readonly Point2[], samplesPerSegment: number): CubicEval {
   if (points.length < 2) {
     throw new KinemError("bezierPath: need at least 2 points")
   }
   const partitions = partitionPoints(points)
-  const segs: Segment[] = []
-  let cumulative = 0
-  for (const sp of partitions) {
-    const samples: ArcSample[] = new Array(samplesPerSegment + 1)
-    samples[0] = { s: 0, t: 0 }
-    let last = sp[0] as Point2
+  const segCount = partitions.length
+  const stride = samplesPerSegment + 1
+
+  const cps = new Float64Array(segCount * 8)
+  const cumulative = new Float64Array(segCount + 1)
+  const sampleS = new Float64Array(segCount * stride)
+  const sampleT = new Float64Array(segCount * stride)
+
+  let cumLen = 0
+  for (let s = 0; s < segCount; s++) {
+    const cubic = elevateToCubic(partitions[s] as Point2[])
+    const base = s * 8
+    cps[base] = cubic[0][0]
+    cps[base + 1] = cubic[0][1]
+    cps[base + 2] = cubic[1][0]
+    cps[base + 3] = cubic[1][1]
+    cps[base + 4] = cubic[2][0]
+    cps[base + 5] = cubic[2][1]
+    cps[base + 6] = cubic[3][0]
+    cps[base + 7] = cubic[3][1]
+
+    cumulative[s] = cumLen
+
+    const sampleBase = s * stride
+    sampleS[sampleBase] = 0
+    sampleT[sampleBase] = 0
+    const x0 = cps[base] as number
+    const y0 = cps[base + 1] as number
+    const x1 = cps[base + 2] as number
+    const y1 = cps[base + 3] as number
+    const x2 = cps[base + 4] as number
+    const y2 = cps[base + 5] as number
+    const x3 = cps[base + 6] as number
+    const y3 = cps[base + 7] as number
+    let lastX = x0
+    let lastY = y0
     let arc = 0
     for (let i = 1; i <= samplesPerSegment; i++) {
       const t = i / samplesPerSegment
-      const pt = deCasteljau(sp, t)
-      arc += Math.hypot(pt[0] - last[0], pt[1] - last[1])
-      samples[i] = { s: arc, t }
-      last = pt
+      const omt = 1 - t
+      const a = omt * omt * omt
+      const b = 3 * omt * omt * t
+      const c = 3 * omt * t * t
+      const d = t * t * t
+      const px = a * x0 + b * x1 + c * x2 + d * x3
+      const py = a * y0 + b * y1 + c * y2 + d * y3
+      arc += Math.hypot(px - lastX, py - lastY)
+      sampleS[sampleBase + i] = arc
+      sampleT[sampleBase + i] = t
+      lastX = px
+      lastY = py
     }
-    segs.push({ points: sp, cumulativeStart: cumulative, arcLength: arc, samples })
-    cumulative += arc
+    cumLen += arc
   }
-  return { segments: segs, total: cumulative }
-}
-
-export function evaluateBezierAt(
-  segments: readonly Segment[],
-  totalLength: number,
-  p: number,
-): { readonly segIdx: number; readonly t: number } {
-  if (segments.length === 0) return { segIdx: 0, t: p }
-  if (totalLength === 0) return { segIdx: 0, t: 0 }
-  if (p <= 0) return { segIdx: 0, t: 0 }
-  if (p >= 1) {
-    const lastIdx = segments.length - 1
-    return { segIdx: lastIdx, t: 1 }
-  }
-  const targetS = p * totalLength
-  let segIdx = segments.length - 1
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i] as Segment
-    if (targetS <= seg.cumulativeStart + seg.arcLength) {
-      segIdx = i
-      break
-    }
-  }
-  const seg = segments[segIdx] as Segment
-  if (seg.arcLength === 0) return { segIdx, t: 0 }
-  const localS = targetS - seg.cumulativeStart
-  const samples = seg.samples
-  let lo = 0
-  let hi = samples.length - 1
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1
-    if ((samples[mid] as ArcSample).s <= localS) lo = mid
-    else hi = mid
-  }
-  const a = samples[lo] as ArcSample
-  const b = samples[hi] as ArcSample
-  const span = b.s - a.s
-  const localT = span === 0 ? a.t : a.t + (b.t - a.t) * ((localS - a.s) / span)
-  return { segIdx, t: localT }
-}
-
-export function bezierPathFromSegments(
-  segments: readonly Segment[],
-  total: number,
-  opts: BezierPathOpts = {},
-): AnimationDef<BezierPathValue> {
-  const easing = opts.easing ?? linear
-  const duration = opts.duration ?? (isSpringEasing(easing) ? easing.duration : DEFAULT_DURATION)
-  const rotate = opts.rotateAlongPath === true
-
-  const properties: readonly string[] = rotate ? ["x", "y", "rotate"] : ["x", "y"]
-  const tierSplit = partitionByTier(properties)
+  cumulative[segCount] = cumLen
 
   return {
-    duration,
-    easing,
-    interpolate: (p) => {
-      const eased = easing(clamp01(p))
-      const { segIdx, t } = evaluateBezierAt(segments, total, eased)
-      const seg = segments[segIdx] as Segment
-      const pt = deCasteljau(seg.points, t)
-      if (rotate) {
-        const tan = bezierTangent(seg.points, t)
-        return { x: pt[0], y: pt[1], rotate: (Math.atan2(tan[1], tan[0]) * 180) / Math.PI }
-      }
-      return { x: pt[0], y: pt[1] }
-    },
-    properties,
-    tierSplit,
+    cps,
+    cumulative,
+    sampleS,
+    sampleT,
+    samplesPerSegment,
+    segmentCount: segCount,
+    total: cumLen,
   }
 }
 
@@ -221,7 +221,7 @@ export function bezierPathLength(
   points: readonly Point2[],
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): number {
-  return buildBezierSegments(points, samplesPerSegment).total
+  return buildCubicEval(points, samplesPerSegment).total
 }
 
 /**
@@ -236,14 +236,116 @@ export function sampleBezierPath(
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): Point2[] {
   if (samples < 2) throw new KinemError("sampleBezierPath: need at least 2 samples")
-  const built = buildBezierSegments(points, samplesPerSegment)
+  const ev = buildCubicEval(points, samplesPerSegment)
   const out: Point2[] = new Array(samples)
+  const tmp = new Float64Array(4)
   for (let i = 0; i < samples; i++) {
-    const p = i / (samples - 1)
-    const { segIdx, t } = evaluateBezierAt(built.segments, built.total, p)
-    out[i] = deCasteljau((built.segments[segIdx] as Segment).points, t)
+    evalAt(ev, i / (samples - 1), tmp)
+    out[i] = [tmp[0] as number, tmp[1] as number]
   }
   return out
+}
+
+/**
+ * Evaluate the cubic at progress p (0..1) along the whole path. Writes
+ * four scalars into the supplied output: x, y, segIdx, t. The segIdx
+ * and t fields let callers (the rotate-along-path variant) compute the
+ * tangent without redoing the binary searches.
+ */
+function evalAt(ev: CubicEval, p: number, out: Float64Array): void {
+  const { cps, cumulative, sampleS, sampleT, samplesPerSegment, segmentCount, total } = ev
+  const stride = samplesPerSegment + 1
+
+  if (segmentCount === 0 || total === 0 || p <= 0) {
+    out[0] = cps[0] as number
+    out[1] = cps[1] as number
+    out[2] = 0
+    out[3] = 0
+    return
+  }
+  if (p >= 1) {
+    const lastIdx = segmentCount - 1
+    const last = lastIdx * 8
+    out[0] = cps[last + 6] as number
+    out[1] = cps[last + 7] as number
+    out[2] = lastIdx
+    out[3] = 1
+    return
+  }
+
+  const targetS = p * total
+  // Binary search for the segment whose cumulative range contains targetS.
+  let lo = 0
+  let hi = segmentCount
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1
+    if ((cumulative[mid] as number) <= targetS) lo = mid
+    else hi = mid
+  }
+  const segIdx = lo
+  const segBase = segIdx * 8
+  const segArc = (cumulative[segIdx + 1] as number) - (cumulative[segIdx] as number)
+
+  let t: number
+  if (segArc === 0) {
+    t = 0
+  } else {
+    const localS = targetS - (cumulative[segIdx] as number)
+    const sampleBase = segIdx * stride
+    let sLo = 0
+    let sHi = samplesPerSegment
+    while (sHi - sLo > 1) {
+      const mid = (sLo + sHi) >> 1
+      if ((sampleS[sampleBase + mid] as number) <= localS) sLo = mid
+      else sHi = mid
+    }
+    const sa = sampleS[sampleBase + sLo] as number
+    const sb = sampleS[sampleBase + sHi] as number
+    const ta = sampleT[sampleBase + sLo] as number
+    const tb = sampleT[sampleBase + sHi] as number
+    const span = sb - sa
+    t = span === 0 ? ta : ta + (tb - ta) * ((localS - sa) / span)
+  }
+
+  const omt = 1 - t
+  const a = omt * omt * omt
+  const b = 3 * omt * omt * t
+  const c = 3 * omt * t * t
+  const d = t * t * t
+  const x0 = cps[segBase] as number
+  const y0 = cps[segBase + 1] as number
+  const x1 = cps[segBase + 2] as number
+  const y1 = cps[segBase + 3] as number
+  const x2 = cps[segBase + 4] as number
+  const y2 = cps[segBase + 5] as number
+  const x3 = cps[segBase + 6] as number
+  const y3 = cps[segBase + 7] as number
+  out[0] = a * x0 + b * x1 + c * x2 + d * x3
+  out[1] = a * y0 + b * y1 + c * y2 + d * y3
+  out[2] = segIdx
+  out[3] = t
+}
+
+/**
+ * Closed-form cubic-Bézier tangent angle in degrees, given the segment's
+ * 8 control-point scalars (laid out x0,y0,x1,y1,x2,y2,x3,y3) and the
+ * local parameter t.
+ */
+function cubicTangentDegrees(cps: Float64Array, base: number, t: number): number {
+  const omt = 1 - t
+  const x0 = cps[base] as number
+  const y0 = cps[base + 1] as number
+  const x1 = cps[base + 2] as number
+  const y1 = cps[base + 3] as number
+  const x2 = cps[base + 4] as number
+  const y2 = cps[base + 5] as number
+  const x3 = cps[base + 6] as number
+  const y3 = cps[base + 7] as number
+  const dx =
+    3 * omt * omt * (x1 - x0) + 6 * omt * t * (x2 - x1) + 3 * t * t * (x3 - x2)
+  const dy =
+    3 * omt * omt * (y1 - y0) + 6 * omt * t * (y2 - y1) + 3 * t * t * (y3 - y2)
+  return (Math.atan2(dy, dx) * 180) / Math.PI
 }
 
 /**
@@ -276,6 +378,45 @@ export function bezierPath(
   points: readonly Point2[],
   opts: BezierPathOpts = {},
 ): AnimationDef<BezierPathValue> {
-  const { segments, total } = buildBezierSegments(points, opts.samplesPerSegment ?? DEFAULT_SAMPLES)
-  return bezierPathFromSegments(segments, total, opts)
+  const easing = opts.easing ?? linear
+  const duration = opts.duration ?? (isSpringEasing(easing) ? easing.duration : DEFAULT_DURATION)
+  const rotate = opts.rotateAlongPath === true
+  const samplesPerSegment = opts.samplesPerSegment ?? DEFAULT_SAMPLES
+
+  const ev = buildCubicEval(points, samplesPerSegment)
+  const properties: readonly string[] = rotate ? ["x", "y", "rotate"] : ["x", "y"]
+  const tierSplit = partitionByTier(properties)
+
+  // Reused per-frame to receive (x, y, segIdx, t) from evalAt without
+  // a fresh allocation. The final returned object is a fresh literal so
+  // the consumer-visible contract (a new value each frame) is preserved.
+  const tmp = new Float64Array(4)
+
+  if (rotate) {
+    return {
+      duration,
+      easing,
+      interpolate: (p) => {
+        evalAt(ev, easing(clamp01(p)), tmp)
+        return {
+          x: tmp[0] as number,
+          y: tmp[1] as number,
+          rotate: cubicTangentDegrees(ev.cps, (tmp[2] as number) * 8, tmp[3] as number),
+        }
+      },
+      properties,
+      tierSplit,
+    }
+  }
+
+  return {
+    duration,
+    easing,
+    interpolate: (p) => {
+      evalAt(ev, easing(clamp01(p)), tmp)
+      return { x: tmp[0] as number, y: tmp[1] as number }
+    },
+    properties,
+    tierSplit,
+  }
 }
