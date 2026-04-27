@@ -82,4 +82,72 @@ describe("interpolateColor", () => {
   it("throws on unparseable input", () => {
     expect(() => interpolateColor("notacolor", "#000")).toThrow()
   })
+
+  it("throws on malformed rgb()", () => {
+    expect(() => interpolateColor("#000", "rgb(only-one-arg)")).toThrow(/cannot parse/)
+  })
+
+  it("throws on malformed hsl()", () => {
+    expect(() => interpolateColor("#000", "hsl(only-one)")).toThrow(/cannot parse/)
+  })
+
+  it("throws on malformed oklch()", () => {
+    expect(() => interpolateColor("#000", "oklch(too-few)")).toThrow(/cannot parse/)
+  })
+
+  it("throws on malformed hex", () => {
+    expect(() => interpolateColor("#0", "#000")).toThrow(/cannot parse/)
+    expect(() => interpolateColor("#00000", "#000")).toThrow(/cannot parse/)
+  })
+
+  it("renders oklch with alpha < 1 in the alpha-bearing form", () => {
+    const fn = interpolateColor("oklch(0.5 0.1 200 / 0.4)", "oklch(0.5 0.1 200 / 0.4)")
+    const out = fn(0)
+    expect(out).toContain("/")
+  })
+
+  it("renders rgb with fractional alpha", () => {
+    const fn = interpolateColor("rgb(255 0 0 / 0.25)", "rgb(255 0 0 / 0.25)")
+    expect(fn(0)).toContain("/")
+  })
+
+  it("renders hsl with fractional alpha", () => {
+    const fn = interpolateColor("hsl(0 100% 50% / 0.5)", "hsl(0 100% 50% / 0.5)")
+    expect(fn(0)).toContain("/")
+  })
+
+  it("parses 4-digit hex (rgba shorthand)", () => {
+    const fn = interpolateColor("#f00f", "#f00f")
+    expect(fn(0)).toBe("#ff0000")
+  })
+
+  it("parses 8-digit hex (with alpha)", () => {
+    const fn = interpolateColor("#ff000080", "#ff000080")
+    const out = fn(0)
+    // Alpha < 1 should add a trailing alpha pair to the hex.
+    expect(out.length).toBe(9)
+  })
+
+  it("rejects unrecognized format prefixes", () => {
+    expect(() => interpolateColor("#000", "xyz(0 0 0)")).toThrow(/cannot parse/)
+  })
+
+  it("parses hsl across the full hue wheel", () => {
+    // hp >= 3 (cyan/blue/magenta) covers the late branches in hslToRgb.
+    for (const hue of [180, 240, 300]) {
+      const fn = interpolateColor(`hsl(${hue} 100% 50%)`, `hsl(${hue} 100% 50%)`)
+      const out = fn(0)
+      expect(out.startsWith("hsl")).toBe(true)
+    }
+  })
+
+  it("renders hsl output where green or blue is the max channel", () => {
+    // Tween between two greens — output format is hsl, parser exercises the
+    // max==g branch in rgbToHsl.
+    const greenFn = interpolateColor("hsl(120 100% 50%)", "hsl(120 100% 50%)")
+    expect(greenFn(0).startsWith("hsl")).toBe(true)
+    // And a blue, to hit max==b.
+    const blueFn = interpolateColor("hsl(240 100% 50%)", "hsl(240 100% 50%)")
+    expect(blueFn(0).startsWith("hsl")).toBe(true)
+  })
 })

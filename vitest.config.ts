@@ -32,15 +32,15 @@ export default defineConfig({
         "packages/core/src/interpolate/register-defaults.ts",
         "packages/core/src/render/worker-protocol.ts",
       ],
-      // Floors set ~5 points below current measurements (lines 90.9 /
-      // statements 87.5 / functions 88.7 / branches 74.4) so casual
+      // Floors set ~5 points below current measurements (lines 94.7 /
+      // statements 91.6 / functions 92.9 / branches 80.3) so casual
       // churn doesn't trip CI but a real coverage regression does.
       // Bump these up, never down, when adding tests.
       thresholds: {
-        lines: 85,
-        statements: 82,
-        functions: 85,
-        branches: 70,
+        lines: 90,
+        statements: 87,
+        functions: 88,
+        branches: 75,
       },
     },
     projects: [

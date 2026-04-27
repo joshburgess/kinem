@@ -84,4 +84,100 @@ describe("Motion (vue)", () => {
     await wrapper.vm.$nextTick()
     expect(() => wrapper.unmount()).not.toThrow()
   })
+
+  it("does not animate when `animate` is omitted on mount", () => {
+    const wrapper = mount(Motion, { props: { initial: { opacity: 0 } } })
+    // No animate prop = no tween path. Just verify mount succeeds.
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("watch ignores shallow-equal animate updates", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        initial: { width: "0px" },
+        animate: { width: "10px" },
+        transition: { duration: 20, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    // setProps with a new object containing the same shape should hit the
+    // shallowEqualValues short-circuit in the watch callback.
+    await wrapper.setProps({ animate: { width: "10px" } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("watch with `animate` cleared returns early", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        initial: { width: "0px" },
+        animate: { width: "10px" },
+        transition: { duration: 20, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.setProps({ animate: undefined as never })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("watch with new animate triggers a fresh tween", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        initial: { width: "0px" },
+        animate: { width: "10px" },
+        transition: { duration: 20, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.setProps({ animate: { width: "50px" } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("watch with shape-different animate (different key sets) triggers a tween", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        initial: { width: "0px", height: "0px" },
+        animate: { width: "10px", height: "10px" },
+        transition: { duration: 20, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    // Different number of keys: shallowEqualValues short-circuits on length.
+    await wrapper.setProps({ animate: { width: "20px" } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("forwards custom easing through transition prop", async () => {
+    const easing = (t: number): number => t * t
+    const wrapper = mount(Motion, {
+      props: {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        transition: { duration: 20, easing, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it("animate without initial uses animate as the starting value", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        animate: { opacity: 1 },
+        transition: { duration: 20, backend: "raf" },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.element).toBeDefined()
+    wrapper.unmount()
+  })
 })

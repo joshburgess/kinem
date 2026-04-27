@@ -1,3 +1,4 @@
+import { frame } from "@kinem/core"
 import { mount } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 import { defineComponent, h, onMounted } from "vue"
@@ -95,6 +96,27 @@ describe("useSpring (vue)", () => {
     s.set(100)
     expect(s.isAnimating).toBe(true)
     wrapper.unmount()
+    expect(s.isAnimating).toBe(false)
+  })
+
+  it("ticks the spring through to completion", () => {
+    let s: SpringValue | undefined
+    mount(
+      harness((x) => {
+        s = x
+      }),
+    )
+    if (!s) throw new Error("no spring")
+    const seen: number[] = []
+    s.subscribe((v) => seen.push(v))
+    s.set(100)
+    let t = 0
+    for (let i = 0; i < 200 && s.isAnimating; i++) {
+      t += 16
+      frame.flushSync(t)
+    }
+    expect(seen.length).toBeGreaterThan(0)
+    expect(s.get()).toBe(100)
     expect(s.isAnimating).toBe(false)
   })
 })

@@ -56,6 +56,74 @@ describe("useKinemTransition (vue)", () => {
     expect(done).toBe(true)
   })
 
+  it("onLeave starts a tween and eventually resolves done()", async () => {
+    const t = useKinemTransition({
+      leave: { from: { opacity: 1 }, to: { opacity: 0 }, duration: 20, backend: "raf" },
+    })
+    const el = document.createElement("div")
+    document.body.appendChild(el)
+    const done = await new Promise<boolean>((resolve) => {
+      t.onLeave(el, () => resolve(true))
+      setTimeout(() => resolve(false), 500)
+    })
+    document.body.removeChild(el)
+    expect(done).toBe(true)
+  })
+
+  it("onEnterCancelled cancels an in-flight enter tween", () => {
+    const t = useKinemTransition({
+      enter: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 1000, backend: "raf" },
+    })
+    const el = document.createElement("div")
+    document.body.appendChild(el)
+    t.onEnter(el, () => {})
+    expect(() => t.onEnterCancelled(el)).not.toThrow()
+    // A second cancel on a no-longer-tracked element is a no-op.
+    expect(() => t.onEnterCancelled(el)).not.toThrow()
+    document.body.removeChild(el)
+  })
+
+  it("onLeaveCancelled cancels an in-flight leave tween", () => {
+    const t = useKinemTransition({
+      leave: { from: { opacity: 1 }, to: { opacity: 0 }, duration: 1000, backend: "raf" },
+    })
+    const el = document.createElement("div")
+    document.body.appendChild(el)
+    t.onLeave(el, () => {})
+    expect(() => t.onLeaveCancelled(el)).not.toThrow()
+    document.body.removeChild(el)
+  })
+
+  it("phase with no overlapping props still calls done() synchronously", () => {
+    const t = useKinemTransition({
+      // `from` and `to` share no keys, so buildTweenProps yields {}.
+      enter: { from: {}, to: {} },
+    })
+    let called = false
+    t.onEnter(document.createElement("div"), () => {
+      called = true
+    })
+    expect(called).toBe(true)
+  })
+
+  it("custom easing is forwarded to the tween", () => {
+    const easing = (t: number): number => t * t
+    const t = useKinemTransition({
+      enter: {
+        from: { opacity: 0 },
+        to: { opacity: 1 },
+        duration: 20,
+        easing,
+        backend: "raf",
+      },
+    })
+    const el = document.createElement("div")
+    document.body.appendChild(el)
+    expect(() => t.onEnter(el, () => {})).not.toThrow()
+    t.onEnterCancelled(el)
+    document.body.removeChild(el)
+  })
+
   it("spreads cleanly onto <Transition> without throwing", async () => {
     const Host = defineComponent({
       setup() {

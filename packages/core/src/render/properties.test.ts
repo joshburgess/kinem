@@ -30,6 +30,14 @@ describe("property classification", () => {
     expect(classify("strokeDashoffset").target).toBe("stroke-dashoffset")
   })
 
+  it("preserves viewBox casing rather than kebab-casing", () => {
+    // SVG's viewBox is one of the few attrs the spec keeps in camelCase.
+    const info = classify("viewBox")
+    expect(info.tier).toBe("main")
+    expect(info.apply).toBe("attr")
+    expect(info.target).toBe("viewBox")
+  })
+
   it("unknown props default to main-thread style writes", () => {
     const info = classify("width")
     expect(info.tier).toBe("main")

@@ -231,6 +231,7 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
     const records = listActiveAnimations()
     rowsWrap.textContent = ""
     rowsWrap.appendChild(playhead)
+    rowsWrap.appendChild(hitZone)
 
     if (records.length === 0) {
       const empty = document.createElement("div")

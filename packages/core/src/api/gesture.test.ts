@@ -96,4 +96,55 @@ describe("gesture.drag", () => {
     expect(animated.styles.get("touch-action")).toBeUndefined()
     handle.cancel()
   })
+
+  it("throws when neither animated targets nor explicit target are provided", () => {
+    expect(() => gesture.drag([])).toThrow(/no target element resolved/)
+  })
+
+  it("accepts a resolve override without throwing", () => {
+    const el = makeEl()
+    const handle = gesture.drag([el], {
+      resolve: () => [el] as readonly StrategyTarget[],
+    })
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
+})
+
+describe("gesture.tap / press / pan / pinch", () => {
+  it("tap binds a pointer target", () => {
+    const el = makeEl()
+    const handle = gesture.tap([el])
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
+
+  it("press binds a pointer target", () => {
+    const el = makeEl()
+    const handle = gesture.press([el])
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
+
+  it("pan binds a pointer target", () => {
+    const el = makeEl()
+    const handle = gesture.pan([el])
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
+
+  it("pinch binds a pointer target", () => {
+    const el = makeEl()
+    const handle = gesture.pinch([el])
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
+
+  it("tap honors explicit target opt", () => {
+    const animated = makeEl()
+    const control = makeEl()
+    const handle = gesture.tap([animated], { target: control })
+    expect(typeof handle.cancel).toBe("function")
+    handle.cancel()
+  })
 })

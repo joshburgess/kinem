@@ -1,3 +1,4 @@
+import { frame } from "@kinem/core"
 import { act, render } from "@testing-library/react"
 import { useEffect } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -127,5 +128,45 @@ describe("useSpring", () => {
     expect(spring.isAnimating).toBe(true)
     unmount()
     expect(spring.isAnimating).toBe(false)
+  })
+
+  it("ticks the spring through to completion", () => {
+    let spring: Spring | undefined
+    render(
+      <Probe
+        onReady={(s) => {
+          spring = s
+        }}
+      />,
+    )
+    if (!spring) throw new Error("no spring")
+    const seen: number[] = []
+    spring.subscribe((v) => seen.push(v))
+    act(() => spring?.set(100))
+    let t = 0
+    for (let i = 0; i < 200 && spring.isAnimating; i++) {
+      t += 16
+      act(() => frame.flushSync(t))
+    }
+    expect(seen.length).toBeGreaterThan(0)
+    expect(spring.get()).toBe(100)
+    expect(spring.isAnimating).toBe(false)
+  })
+
+  it("set() called mid-flight cancels the previous spring", () => {
+    let spring: Spring | undefined
+    render(
+      <Probe
+        onReady={(s) => {
+          spring = s
+        }}
+      />,
+    )
+    if (!spring) throw new Error("no spring")
+    act(() => spring?.set(100))
+    act(() => frame.flushSync(0))
+    act(() => spring?.set(50))
+    expect(spring.isAnimating).toBe(true)
+    act(() => spring?.stop())
   })
 })

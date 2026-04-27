@@ -73,4 +73,52 @@ describe("interpolateTransform", () => {
   it("throws on function name mismatch", () => {
     expect(() => interpolateTransform("translateX(0px)", "translateY(0px)")).toThrow()
   })
+
+  it("throws on arg count mismatch", () => {
+    expect(() => interpolateTransform("translate(0px, 0px)", "translate(10px)")).toThrow(
+      /arg count mismatch/,
+    )
+  })
+
+  it("interpolates rotate using turn units", () => {
+    // 0.25turn = 90deg, well within shortest-arc range (no wrap).
+    const fn = interpolateTransform("rotate(0turn)", "rotate(0.25turn)")
+    const mid = fn(0.5)
+    const m = /rotate\(([-\d.]+)turn\)/.exec(mid)
+    expect(m).not.toBeNull()
+    expect(Number.parseFloat(m?.[1] ?? "0")).toBeCloseTo(0.125, 3)
+  })
+
+  it("interpolates rotate using grad units", () => {
+    // 100grad = 90deg, no shortest-arc wraparound.
+    const fn = interpolateTransform("rotate(0grad)", "rotate(100grad)")
+    const mid = fn(0.5)
+    const m = /rotate\(([-\d.]+)grad\)/.exec(mid)
+    expect(m).not.toBeNull()
+    expect(Number.parseFloat(m?.[1] ?? "0")).toBeCloseTo(50, 1)
+  })
+
+  it("interpolates skew angles", () => {
+    const fn = interpolateTransform("skewX(0deg)", "skewX(30deg)")
+    expect(fn(0.5)).toBe("skewx(15deg)")
+  })
+
+  it("interpolates perspective with px unit", () => {
+    const fn = interpolateTransform("perspective(100)", "perspective(200)")
+    expect(fn(0.5)).toBe("perspective(150px)")
+  })
+
+  it("throws on non-numeric scale args", () => {
+    expect(() => interpolateTransform("scale(abc)", "scale(2)")).toThrow(/cannot parse/)
+  })
+
+  it("throws on unsupported angle unit", () => {
+    expect(() => interpolateTransform("rotate(0xy)", "rotate(1xy)")).toThrow(
+      /unsupported angle unit|cannot parse/,
+    )
+  })
+
+  it("throws on unparseable angle args", () => {
+    expect(() => interpolateTransform("rotate(notanangle)", "rotate(0deg)")).toThrow(/cannot parse/)
+  })
 })

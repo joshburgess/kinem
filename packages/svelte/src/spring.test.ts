@@ -1,3 +1,4 @@
+import { frame } from "@kinem/core"
 import { describe, expect, it } from "vitest"
 import { spring } from "./spring"
 
@@ -49,5 +50,36 @@ describe("spring (svelte store)", () => {
     off()
     s.jump(1)
     expect(seen).toEqual([])
+  })
+
+  it("ticks the spring and notifies subscribers as it animates", () => {
+    const s = spring(0, { stiffness: 800, damping: 40, mass: 1 })
+    const seen: number[] = []
+    const off = s.subscribe((v) => seen.push(v))
+    seen.length = 0
+    s.set(100)
+    // Drive enough ticks to reach the spring's natural completion. Each
+    // flushSync runs one frame; advancing in 16ms steps simulates 60fps.
+    let t = 0
+    for (let i = 0; i < 200 && s.isAnimating; i++) {
+      t += 16
+      frame.flushSync(t)
+    }
+    expect(seen.length).toBeGreaterThan(0)
+    // Final value should land on the target after the spring resolves.
+    expect(seen[seen.length - 1]).toBe(100)
+    expect(s.isAnimating).toBe(false)
+    off()
+  })
+
+  it("set(target) called mid-flight cancels the previous spring", () => {
+    const s = spring(0, { stiffness: 200, damping: 20 })
+    s.set(100)
+    expect(s.isAnimating).toBe(true)
+    // Advance one frame so the prior tick captures startTime.
+    frame.flushSync(0)
+    s.set(50)
+    expect(s.isAnimating).toBe(true)
+    s.stop()
   })
 })
