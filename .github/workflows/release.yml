@@ -26,9 +26,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
           cache: pnpm
+
+      # OIDC trusted publishing requires npm CLI 11.5.1+. Node 22 ships
+      # an older npm, so refresh to latest before pnpm shells out.
+      - name: Upgrade npm CLI for OIDC
+        run: npm install -g npm@latest
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -40,6 +45,4 @@ jobs:
         run: pnpm test
 
       - name: Publish
-        run: pnpm -r publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm -r publish --access public --no-git-checks --provenance
