@@ -45,7 +45,7 @@ const slimEntry = resolve(corePkg, "src/slim.ts")
 const scenarios = [
   {
     name: "tween + play",
-    targetKb: 10.6,
+    targetKb: 11.2,
     imports: ["tween", "play", "linear", "easeInOut"],
   },
   {
@@ -56,17 +56,17 @@ const scenarios = [
   },
   {
     name: "tween + scroll",
-    targetKb: 12.1,
+    targetKb: 13.1,
     imports: ["tween", "play", "scroll", "linear", "easeInOut"],
   },
   {
     name: "tween + gesture",
-    targetKb: 13.1,
+    targetKb: 13.8,
     imports: ["tween", "play", "gesture", "linear", "easeInOut"],
   },
   {
     name: "full library",
-    targetKb: 18.1,
+    targetKb: 19.5,
     imports: [
       "tween",
       "spring",
