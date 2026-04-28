@@ -207,11 +207,7 @@ function ambientControls(handle: AmbientHandle): Controls {
   // see the rejection.
   finished.catch(() => {})
 
-  // biome-ignore lint/suspicious/noExplicitAny: minimal façade; Controls's full surface isn't meaningful here
-  const noop = function (this: any) {
-    // biome-ignore lint/suspicious/noThisInStatic: this is bound to the controls façade
-    return controls
-  }
+  const noop = (): Controls => controls
   const controls: Controls = {
     pause: noop as Controls["pause"],
     resume: noop as Controls["resume"],
@@ -249,17 +245,22 @@ function ambientControls(handle: AmbientHandle): Controls {
     set speed(_v: number) {
       // ambient handles don't support speed control
     },
-    then<T1 = void, T2 = never>(
-      onfulfilled?: ((v: void) => T1 | PromiseLike<T1>) | null,
+    // biome-ignore lint/suspicious/noThenProperty: Controls is intentionally thenable so callers can `await` it
+    then<T1 = undefined, T2 = never>(
+      onfulfilled?: ((v: undefined) => T1 | PromiseLike<T1>) | null,
       onrejected?: ((err: unknown) => T2 | PromiseLike<T2>) | null,
     ): Promise<T1 | T2> {
-      return finished.then(onfulfilled, onrejected)
+      const adapt =
+        onfulfilled === null || onfulfilled === undefined
+          ? onfulfilled
+          : (): T1 | PromiseLike<T1> => onfulfilled(undefined)
+      return finished.then(adapt, onrejected)
     },
-    catch<R>(onrejected: (err: unknown) => R | PromiseLike<R>): Promise<void | R> {
-      return finished.catch(onrejected)
+    catch<R>(onrejected: (err: unknown) => R | PromiseLike<R>): Promise<undefined | R> {
+      return finished.catch(onrejected) as Promise<undefined | R>
     },
-    finally(onfinally?: (() => void) | null): Promise<void> {
-      return finished.finally(onfinally)
+    finally(onfinally?: (() => void) | null): Promise<undefined> {
+      return finished.finally(onfinally) as Promise<undefined>
     },
   }
   // We never call `resolveFinished`: ambient records only end via

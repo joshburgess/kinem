@@ -1,10 +1,4 @@
-import {
-  type ValuesHandle,
-  createVelocityTracker,
-  inertia,
-  playValues,
-  spring,
-} from "@kinem/core"
+import { type ValuesHandle, createVelocityTracker, inertia, playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const RESET_DELAY = 600

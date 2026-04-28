@@ -134,10 +134,7 @@ function formatTarget(targets: AnimationSnapshot["targets"]): string {
 
 function isAmbientBackend(backend: string): boolean {
   return (
-    backend === "follow" ||
-    backend === "scroll" ||
-    backend === "scrub" ||
-    backend === "ambient"
+    backend === "follow" || backend === "scroll" || backend === "scrub" || backend === "ambient"
   )
 }
 
