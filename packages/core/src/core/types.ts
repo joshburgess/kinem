@@ -125,6 +125,15 @@ export interface StaggerOpts {
   readonly from?: StaggerFrom
 }
 
+/**
+ * Options for the array form of `stagger()`. `count` is inferred from
+ * the array length, so it is omitted here.
+ */
+export interface StaggerArrayOpts {
+  readonly each: number
+  readonly from?: StaggerFrom
+}
+
 export interface LoopOpts {
   readonly count?: number
   readonly yoyo?: boolean

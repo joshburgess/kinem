@@ -11,6 +11,10 @@ until 1.0.
 
 ### Added
 
+- `stagger()` array overload: `stagger(anims, { each, from? })` accepts
+  an array of definitions, one per element, with `count` inferred. The
+  existing `stagger(anim, { each, count, from? })` form is unchanged.
+- `StaggerArrayOpts` exported alongside `StaggerOpts`.
 - `@kinem/devtools-extension`: agent wire-protocol unit tests and a
   Playwright e2e smoke test that confirms the manifest loads and the
   agent posts `hello` + initial `snapshot` envelopes in real Chromium.
@@ -38,6 +42,8 @@ until 1.0.
 - `BezierPathValue.rotate` and `FollowOpts.commit` doc clarifications.
 - `@kinem/core` `package.json` now declares `publishConfig.access: public`
   to match the other publishable packages.
+- Docs playground iframe destructured the renamed `playCanvas` symbol;
+  updated to `playValues` so embedded samples no longer throw on Run.
 
 ## [0.2.0] - 2026-04-20
 

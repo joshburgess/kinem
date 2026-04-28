@@ -1,6 +1,13 @@
 import { linear } from "./easing"
 import { KinemError } from "./errors"
-import type { AnimationDef, EasingFn, ParallelValues, StaggerFrom, StaggerOpts } from "./types"
+import type {
+  AnimationDef,
+  EasingFn,
+  ParallelValues,
+  StaggerArrayOpts,
+  StaggerFrom,
+  StaggerOpts,
+} from "./types"
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
@@ -119,18 +126,45 @@ const staggerDelay = (i: number, count: number, from: StaggerFrom): number => {
 }
 
 /**
- * Spread `anim` across `count` elements with `each` ms between successive
- * starts. Returns an animation whose value is a readonly array of per-element
- * values; index 0 corresponds to element 0.
+ * Spread an animation across multiple elements with `each` ms between
+ * successive starts. Returns an animation whose value is a readonly array
+ * of per-element values; index 0 corresponds to element 0.
+ *
+ * Two shapes are accepted:
+ *
+ * - `stagger(anim, { each, count, from? })` repeats the same `anim` across
+ *   `count` elements. Every element runs the identical animation, just
+ *   offset in time.
+ * - `stagger(anims, { each, from? })` runs a different animation per
+ *   element. `count` is inferred from `anims.length`, and each element's
+ *   duration may differ.
  *
  * `from` selects the stagger origin: "start" (default), "end", "center",
- * "edges", or a numeric index to stagger outward from.
+ * "edges", a numeric index to stagger outward from, or a custom
+ * `(i, count) => order` function.
  */
-export function stagger<T>(anim: AnimationDef<T>, opts: StaggerOpts): AnimationDef<readonly T[]> {
-  const { each, count } = opts
+export function stagger<T>(anim: AnimationDef<T>, opts: StaggerOpts): AnimationDef<readonly T[]>
+export function stagger<T>(
+  anims: readonly AnimationDef<T>[],
+  opts: StaggerArrayOpts,
+): AnimationDef<readonly T[]>
+export function stagger<T>(
+  animOrAnims: AnimationDef<T> | readonly AnimationDef<T>[],
+  opts: StaggerOpts | StaggerArrayOpts,
+): AnimationDef<readonly T[]> {
+  const isArray = Array.isArray(animOrAnims)
+  const anims = isArray ? (animOrAnims as readonly AnimationDef<T>[]) : null
+  const single = isArray ? null : (animOrAnims as AnimationDef<T>)
+  const count = isArray ? (anims as readonly AnimationDef<T>[]).length : (opts as StaggerOpts).count
+  const { each } = opts
   const from: StaggerFrom = opts.from ?? "start"
 
-  if (count < 1) throw new RangeError("stagger(): count must be >= 1")
+  if (isArray && count === 0) {
+    throw new RangeError("stagger(): array form requires at least one animation")
+  }
+  if (!isArray && (typeof count !== "number" || count < 1)) {
+    throw new RangeError("stagger(): count must be >= 1")
+  }
 
   const raw = new Float64Array(count)
   let minOrder = Number.POSITIVE_INFINITY
@@ -146,9 +180,17 @@ export function stagger<T>(anim: AnimationDef<T>, opts: StaggerOpts): AnimationD
   for (let i = 0; i < count; i++) {
     delays[i] = ((raw[i] as number) - minOrder) * each
   }
-  const maxDelay = (maxOrder - minOrder) * each
 
-  const total = maxDelay + anim.duration
+  let total = 0
+  if (single) {
+    total = (maxOrder - minOrder) * each + single.duration
+  } else {
+    for (let i = 0; i < count; i++) {
+      const end =
+        (delays[i] ?? 0) + ((anims as readonly AnimationDef<T>[])[i] as AnimationDef<T>).duration
+      if (end > total) total = end
+    }
+  }
 
   return {
     duration: total,
@@ -160,13 +202,14 @@ export function stagger<T>(anim: AnimationDef<T>, opts: StaggerOpts): AnimationD
       for (let i = 0; i < count; i++) {
         const delay = delays[i] ?? 0
         const childT = t - delay
+        const child = single ?? ((anims as readonly AnimationDef<T>[])[i] as AnimationDef<T>)
         const childP =
-          anim.duration === 0
+          child.duration === 0
             ? childT >= 0
               ? 1
               : 0
-            : Math.max(0, Math.min(1, childT / anim.duration))
-        out[i] = anim.interpolate(childP)
+            : Math.max(0, Math.min(1, childT / child.duration))
+        out[i] = child.interpolate(childP)
       }
       return out
     },

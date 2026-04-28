@@ -140,6 +140,37 @@ describe("animation combinators", () => {
     it("rejects count < 1", () => {
       expect(() => stagger(tween(0, 1, 100), { each: 50, count: 0 })).toThrow()
     })
+
+    describe("array form", () => {
+      it("infers count from array length and uses identical defs", () => {
+        const a = tween(0, 1, 100)
+        const s = stagger([a, a, a], { each: 100, from: "start" })
+        expect(s.duration).toBe(300)
+        expect(s.interpolate(1)).toEqual([1, 1, 1])
+      })
+
+      it("supports per-element duration", () => {
+        const a = tween(0, 1, 100)
+        const b = tween(0, 1, 400)
+        const s = stagger([a, b], { each: 100, from: "start" })
+        // delays = [0, 100], ends = [0+100, 100+400] = max 500
+        expect(s.duration).toBe(500)
+      })
+
+      it("samples each element with its own duration", () => {
+        const a = tween(0, 10, 100)
+        const b = tween(0, 100, 400)
+        const s = stagger([a, b], { each: 100, from: "start" })
+        // total=500, p=0.4 -> t=200. child a: t=200, clamped to 1 -> 10. child b: t=200-100=100, p=100/400=0.25 -> 25.
+        const r = s.interpolate(0.4)
+        expect(r[0]).toBe(10)
+        expect(r[1]).toBe(25)
+      })
+
+      it("rejects empty array", () => {
+        expect(() => stagger([], { each: 50 })).toThrow()
+      })
+    })
   })
 
   describe("loop()", () => {

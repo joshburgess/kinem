@@ -13,6 +13,7 @@ export type {
   Interpolator,
   LoopOpts,
   ParallelValues,
+  StaggerArrayOpts,
   StaggerFn,
   StaggerFrom,
   StaggerOpts,
