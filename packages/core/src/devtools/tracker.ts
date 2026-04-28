@@ -18,21 +18,40 @@
 import type { Controls } from "../api/controls"
 import type { StrategyBackend, StrategyState, StrategyTarget } from "../render/strategy"
 
+/**
+ * Backends recognized by the tracker. The `play*` family uses the
+ * strategy backends (auto / waapi / raf). Open-ended primitives
+ * register under a label that names the primitive itself; their records
+ * have `duration === 0` and a Controls façade whose only working method
+ * is `cancel()`.
+ */
+export type TrackerBackend = StrategyBackend | "follow" | "scroll" | "scrub" | "ambient"
+
 export interface AnimationRecord {
   readonly id: number
+  /**
+   * Total span in ms. `0` is a sentinel for ambient/open-ended records
+   * (follow, scroll-sync, scrub) that have no fixed duration.
+   */
   readonly duration: number
   readonly targets: readonly StrategyTarget[]
   readonly startedAt: number
   readonly state: StrategyState
-  /** Rendering backend the play() call requested (auto/waapi/raf). */
-  readonly backend: StrategyBackend
+  /** Rendering backend or ambient-primitive label. */
+  readonly backend: TrackerBackend
   /**
    * Wall-clock elapsed ratio in [0, 1]. Not adjusted for pause or
    * seek, so treat this as a rough indicator rather than ground truth.
-   * For exact timing, read from the strategy handle.
+   * For exact timing, read from the strategy handle. For ambient
+   * records this reads from the underlying handle when available and
+   * otherwise stays at 0.
    */
   readonly progress: number
-  /** Live Controls handle. Useful for devtools that need to pause/seek. */
+  /**
+   * Live Controls handle. For ambient records this is a façade whose
+   * `cancel()` delegates to the underlying primitive; pause / resume /
+   * seek / reverse / restart are no-ops.
+   */
   readonly controls: Controls
 }
 
@@ -121,7 +140,7 @@ export function isTrackerEnabled(): boolean {
 export function trackAnimation(
   controls: Controls,
   targets: readonly StrategyTarget[],
-  backend: StrategyBackend = "auto",
+  backend: TrackerBackend = "auto",
 ): number {
   if (!enabled) return -1
   const id = nextId++
@@ -154,6 +173,164 @@ export function trackAnimation(
     },
   )
   return id
+}
+
+/**
+ * Minimal contract a primitive needs to be registered as ambient. The
+ * tracker only needs to be able to cancel the handle and observe its
+ * state; everything else (pause / resume / seek) is a no-op for these
+ * open-ended records.
+ */
+export interface AmbientHandle {
+  cancel(): void
+  readonly state: string
+  /** Optional progress in [0, 1]. Defaults to 0 when not present. */
+  readonly progress?: number
+}
+
+/**
+ * Build a Controls-shaped façade for an ambient handle. Only `cancel`
+ * has real behavior; pause / resume / seek / reverse / restart are
+ * no-ops because open-ended primitives don't model those operations.
+ * `finished` resolves once the handle is cancelled; this is what the
+ * tracker watches to remove the record.
+ */
+function ambientControls(handle: AmbientHandle): Controls {
+  let resolveFinished: () => void = () => {}
+  let rejectFinished: (err: unknown) => void = () => {}
+  const finished = new Promise<void>((resolve, reject) => {
+    resolveFinished = resolve
+    rejectFinished = reject
+  })
+  // The tracker awaits this promise to remove the record on cancel.
+  // Mark it handled here; consumers reading `.finished` directly still
+  // see the rejection.
+  finished.catch(() => {})
+
+  // biome-ignore lint/suspicious/noExplicitAny: minimal façade; Controls's full surface isn't meaningful here
+  const noop = function (this: any) {
+    // biome-ignore lint/suspicious/noThisInStatic: this is bound to the controls façade
+    return controls
+  }
+  const controls: Controls = {
+    pause: noop as Controls["pause"],
+    resume: noop as Controls["resume"],
+    seek: noop as Controls["seek"],
+    seekLabel: noop as Controls["seekLabel"],
+    reverse: noop as Controls["reverse"],
+    restart: noop as Controls["restart"],
+    cancel(): Controls {
+      handle.cancel()
+      rejectFinished(new Error("kinem: ambient handle cancelled"))
+      return controls
+    },
+    duration: 0,
+    get state(): StrategyState {
+      // Map the primitive's "active"/"cancelled" state into the strategy
+      // vocabulary so consumers don't need to special-case ambient.
+      return handle.state === "cancelled" ? "cancelled" : "playing"
+    },
+    get progress(): number {
+      const p = handle.progress
+      return typeof p === "number" ? p : 0
+    },
+    get direction(): 1 | -1 {
+      return 1
+    },
+    get finished(): Promise<void> {
+      return finished
+    },
+    get labels(): ReadonlyMap<string, number> {
+      return EMPTY_LABELS
+    },
+    get speed(): number {
+      return 1
+    },
+    set speed(_v: number) {
+      // ambient handles don't support speed control
+    },
+    then<T1 = void, T2 = never>(
+      onfulfilled?: ((v: void) => T1 | PromiseLike<T1>) | null,
+      onrejected?: ((err: unknown) => T2 | PromiseLike<T2>) | null,
+    ): Promise<T1 | T2> {
+      return finished.then(onfulfilled, onrejected)
+    },
+    catch<R>(onrejected: (err: unknown) => R | PromiseLike<R>): Promise<void | R> {
+      return finished.catch(onrejected)
+    },
+    finally(onfinally?: (() => void) | null): Promise<void> {
+      return finished.finally(onfinally)
+    },
+  }
+  // We never call `resolveFinished`: ambient records only end via
+  // cancel. Reference it to satisfy the no-unused warning.
+  void resolveFinished
+  return controls
+}
+
+const EMPTY_LABELS: ReadonlyMap<string, number> = new Map()
+
+/**
+ * Register an open-ended primitive (follow, scroll-sync, scrub, …) with
+ * the tracker so devtools can see it. Returns the allocated id, or
+ * `-1` if tracking is disabled.
+ *
+ * Records produced by `trackAmbient` carry `duration === 0` to signal
+ * "no fixed span", and a Controls façade whose only meaningful method
+ * is `cancel()`. Pause / resume / seek are no-ops because the source
+ * primitives don't model them.
+ *
+ * Called from inside the primitives themselves; user code should not
+ * invoke directly.
+ */
+export function trackAmbient(
+  handle: AmbientHandle,
+  backend: TrackerBackend,
+  targets: readonly StrategyTarget[] = [],
+): number {
+  if (!enabled) return -1
+  const controls = ambientControls(handle)
+  const id = nextId++
+  const startedAt = now()
+  const record: AnimationRecord = {
+    id,
+    duration: 0,
+    targets,
+    startedAt,
+    backend,
+    controls,
+    get state(): StrategyState {
+      return controls.state
+    },
+    get progress(): number {
+      return controls.progress
+    },
+  }
+  active.set(id, record)
+  emit({ type: "start", id, record })
+  controls.finished.then(
+    () => {
+      if (active.delete(id)) emit({ type: "finish", id })
+    },
+    () => {
+      if (active.delete(id)) emit({ type: "cancel", id })
+    },
+  )
+  return id
+}
+
+/**
+ * Remove an ambient record by id and emit a `cancel` event. Called from
+ * the primitives' own `cancel()` paths so that records get cleaned up
+ * even when callers cancel the underlying handle directly (rather than
+ * routing through the tracker's controls façade). No-op if the id is
+ * unknown (already removed, or tracking was disabled when the record
+ * was registered).
+ */
+export function untrackAmbient(id: number): void {
+  if (id < 0) return
+  if (!active.delete(id)) return
+  emit({ type: "cancel", id })
 }
 
 /** Snapshot of currently-active animations. Order is insertion (oldest first). */

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { __resetTracker, enableTracker, listActive } from "../devtools/tracker"
 import { follow } from "./follow"
 
 interface FakeTarget {
@@ -118,6 +119,34 @@ describe("follow", () => {
     const h = follow(targets, { raf: sched.raf, cancelRaf: sched.cancelRaf })
     h.cancel()
     expect(h.state).toBe("cancelled")
+  })
+
+  it("handle.cancel() removes the ambient record from the tracker", () => {
+    enableTracker()
+    try {
+      const targets = [mkTarget()]
+      const sched = mkScheduler()
+      const h = follow(targets, { raf: sched.raf, cancelRaf: sched.cancelRaf })
+      expect(listActive()).toHaveLength(1)
+      h.cancel()
+      expect(listActive()).toHaveLength(0)
+    } finally {
+      __resetTracker()
+    }
+  })
+
+  it("handle.cancel() is idempotent", () => {
+    enableTracker()
+    try {
+      const targets = [mkTarget()]
+      const sched = mkScheduler()
+      const h = follow(targets, { raf: sched.raf, cancelRaf: sched.cancelRaf })
+      h.cancel()
+      expect(() => h.cancel()).not.toThrow()
+      expect(listActive()).toHaveLength(0)
+    } finally {
+      __resetTracker()
+    }
   })
 
   it("falls back to setTimeout when rAF is unavailable", () => {

@@ -15,6 +15,7 @@
  */
 
 import type { AnimationDef } from "../core/types"
+import { isTrackerEnabled, trackAmbient, untrackAmbient } from "../devtools/tracker"
 import { applyValues } from "../render/apply"
 import type { AnimationProps, StrategyTarget } from "../render/strategy"
 import type { FrameScheduler } from "../scheduler/frame"
@@ -93,13 +94,15 @@ export function playScrollSync(
   const unsubScroll = opts.source.onScroll(markDirty)
   const unsubResize = opts.source.onResize(invalidate)
 
-  return {
+  let trackerId = -1
+  const handle: ScrollSyncHandle = {
     cancel() {
       if (state === "cancelled") return
       state = "cancelled"
       unsubScroll()
       unsubResize()
       scheduler.cancel("update", render)
+      untrackAmbient(trackerId)
     },
     get state() {
       return state
@@ -108,4 +111,10 @@ export function playScrollSync(
       return progress
     },
   }
+
+  if (isTrackerEnabled()) {
+    trackerId = trackAmbient(handle, "scroll", targets)
+  }
+
+  return handle
 }

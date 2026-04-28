@@ -9,6 +9,7 @@
  */
 
 import type { AnimationDef } from "../core/types"
+import { isTrackerEnabled, trackAmbient, untrackAmbient } from "../devtools/tracker"
 import { applyValues } from "../render/apply"
 import type { AnimationProps, StrategyTarget } from "../render/strategy"
 
@@ -74,6 +75,8 @@ export function scrub(
   }
 
   const source = opts.source
+  let trackerId = -1
+  let handle: ScrubHandle
   if (source) {
     const raf: RafLike =
       opts.raf ??
@@ -91,13 +94,33 @@ export function scrub(
       rafId = raf(tick)
     }
     rafId = raf(tick)
-    return {
+    handle = {
       setProgress(p) {
         apply(p)
       },
       cancel() {
+        if (state === "cancelled") return
         state = "cancelled"
         cancelRaf(rafId)
+        untrackAmbient(trackerId)
+      },
+      get state() {
+        return state
+      },
+      get progress() {
+        return progress
+      },
+    }
+  } else {
+    handle = {
+      setProgress(p) {
+        if (state === "cancelled") return
+        apply(p)
+      },
+      cancel() {
+        if (state === "cancelled") return
+        state = "cancelled"
+        untrackAmbient(trackerId)
       },
       get state() {
         return state
@@ -108,19 +131,9 @@ export function scrub(
     }
   }
 
-  return {
-    setProgress(p) {
-      if (state === "cancelled") return
-      apply(p)
-    },
-    cancel() {
-      state = "cancelled"
-    },
-    get state() {
-      return state
-    },
-    get progress() {
-      return progress
-    },
+  if (isTrackerEnabled()) {
+    trackerId = trackAmbient(handle, "scrub", targets)
   }
+
+  return handle
 }

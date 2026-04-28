@@ -5,6 +5,9 @@
  * follower lattices.
  */
 
+import { isTrackerEnabled, trackAmbient, untrackAmbient } from "../devtools/tracker"
+import type { StrategyTarget } from "../render/strategy"
+
 export interface FollowTarget {
   readonly style: { setProperty(name: string, value: string): void }
 }
@@ -112,6 +115,7 @@ export function follow(targets: readonly FollowTarget[], opts: FollowOpts = {}):
   }
 
   let rafId = 0
+  let trackerId = -1
   const tick = (): void => {
     if (state === "cancelled") return
     let prevX = leaderX
@@ -132,7 +136,7 @@ export function follow(targets: readonly FollowTarget[], opts: FollowOpts = {}):
 
   rafId = raf(tick)
 
-  return {
+  const handle: FollowHandle = {
     setLeader(x, y) {
       leaderX = x
       leaderY = y
@@ -147,11 +151,22 @@ export function follow(targets: readonly FollowTarget[], opts: FollowOpts = {}):
       }
     },
     cancel() {
+      if (state === "cancelled") return
       state = "cancelled"
       cancelRaf(rafId)
+      untrackAmbient(trackerId)
     },
     get state() {
       return state
     },
   }
+
+  if (isTrackerEnabled()) {
+    // FollowTarget is a structurally smaller subset of StrategyTarget;
+    // the tracker only reads target metadata for display, so the cast
+    // is safe in practice.
+    trackerId = trackAmbient(handle, "follow", targets as readonly StrategyTarget[])
+  }
+
+  return handle
 }

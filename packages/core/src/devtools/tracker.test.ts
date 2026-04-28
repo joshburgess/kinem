@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { play } from "../api/play"
 import { tween } from "../api/tween"
 import type { StrategyTarget } from "../render/strategy"
-import { __resetTracker, enableTracker, listActive, subscribe, trackAnimation } from "./tracker"
+import {
+  type AmbientHandle,
+  __resetTracker,
+  enableTracker,
+  listActive,
+  subscribe,
+  trackAmbient,
+  trackAnimation,
+  untrackAmbient,
+} from "./tracker"
 
 function fakeTarget(): StrategyTarget {
   return {
@@ -139,5 +148,103 @@ describe("tracker", () => {
     }
     expect(() => trackAnimation(controls as never, [fakeTarget()])).not.toThrow()
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it("trackAmbient registers an open-ended record with duration 0", () => {
+    const handle: AmbientHandle = {
+      cancel() {},
+      state: "active",
+      progress: 0.42,
+    }
+    trackAmbient(handle, "follow", [fakeTarget()])
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(record.duration).toBe(0)
+    expect(record.backend).toBe("follow")
+    expect(record.state).toBe("playing")
+    expect(record.progress).toBeCloseTo(0.42)
+  })
+
+  it("trackAmbient is a no-op when tracking is disabled", () => {
+    __resetTracker()
+    const handle: AmbientHandle = { cancel() {}, state: "active" }
+    expect(trackAmbient(handle, "scrub")).toBe(-1)
+    expect(listActive()).toHaveLength(0)
+  })
+
+  it("ambient controls.cancel() removes the record and forwards to the handle", async () => {
+    let cancelled = false
+    const handle: AmbientHandle = {
+      cancel() {
+        cancelled = true
+      },
+      state: "active",
+    }
+    trackAmbient(handle, "scroll")
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(listActive()).toHaveLength(1)
+    record.controls.cancel()
+    expect(cancelled).toBe(true)
+    // tracker awaits the façade's `finished` promise to remove the
+    // record; let microtasks drain.
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(listActive()).toHaveLength(0)
+  })
+
+  it("ambient controls.pause/resume/seek are no-ops (don't throw)", () => {
+    const handle: AmbientHandle = { cancel() {}, state: "active" }
+    trackAmbient(handle, "ambient")
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(() => {
+      record.controls.pause()
+      record.controls.resume()
+      record.controls.seek(0.5)
+      record.controls.reverse()
+      record.controls.restart()
+    }).not.toThrow()
+  })
+
+  it("untrackAmbient removes the record and emits cancel without invoking the handle", () => {
+    const events: string[] = []
+    const off = subscribe((e) => events.push(e.type))
+    let cancelled = false
+    const handle: AmbientHandle = {
+      cancel() {
+        cancelled = true
+      },
+      state: "active",
+    }
+    const id = trackAmbient(handle, "follow")
+    expect(listActive()).toHaveLength(1)
+    untrackAmbient(id)
+    off()
+    expect(listActive()).toHaveLength(0)
+    // untrackAmbient does NOT call handle.cancel(); the primitive is
+    // expected to invoke this in its own cancel path, after it has
+    // already torn down its own state.
+    expect(cancelled).toBe(false)
+    expect(events).toEqual(["start", "cancel"])
+  })
+
+  it("untrackAmbient is a no-op for unknown / negative ids", () => {
+    expect(() => untrackAmbient(-1)).not.toThrow()
+    expect(() => untrackAmbient(9999)).not.toThrow()
+  })
+
+  it("ambient subscribers see start then cancel events", async () => {
+    const events: string[] = []
+    const off = subscribe((e) => events.push(e.type))
+    const handle: AmbientHandle = { cancel() {}, state: "active" }
+    trackAmbient(handle, "follow")
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    record.controls.cancel()
+    await Promise.resolve()
+    await Promise.resolve()
+    off()
+    expect(events).toEqual(["start", "cancel"])
   })
 })

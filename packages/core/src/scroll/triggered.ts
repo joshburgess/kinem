@@ -18,6 +18,7 @@
 import { type Controls, createControls } from "../api/controls"
 import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
+import { isTrackerEnabled, trackAnimation } from "../devtools/tracker"
 import {
   type AnimationProps,
   type StrategyOpts,
@@ -167,6 +168,14 @@ export function playScrollTriggered(
   const controls = createControls(handle, def.duration)
   controls.pause()
   controls.seek(0)
+
+  // Scroll-triggered animations don't go through `play()`, so we
+  // register them with the tracker here. Backend label is "scroll" so
+  // devtools can distinguish them from clock-driven animations even
+  // though the underlying handle is a normal time-based one.
+  if (isTrackerEnabled()) {
+    trackAnimation(controls, targets, "scroll")
+  }
 
   let state: ScrollTriggeredState = "idle"
   let bounds: ScrollBounds | null = null

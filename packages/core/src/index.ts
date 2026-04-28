@@ -198,8 +198,10 @@ export { type SplitBy, type SplitOpts, type SplitResult, splitText } from "./tex
 export type { Controls } from "./api/controls"
 export { type PlayMode, type PlayOpts, type Target, play } from "./api/play"
 export {
+  type AmbientHandle,
   type AnimationRecord,
   type KinemDevtoolsHook,
+  type TrackerBackend,
   type TrackerEvent,
   type TrackerListener,
   __resetTracker,
@@ -207,7 +209,9 @@ export {
   isTrackerEnabled,
   listActive as listActiveAnimations,
   subscribe as subscribeTracker,
+  trackAmbient,
   trackAnimation,
+  untrackAmbient,
 } from "./devtools/tracker"
 export {
   type Timeline,
