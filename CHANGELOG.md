@@ -44,6 +44,12 @@ until 1.0.
   to match the other publishable packages.
 - Docs playground iframe destructured the renamed `playCanvas` symbol;
   updated to `playValues` so embedded samples no longer throw on Run.
+- `play(stagger(...), targets)` now actually fans out per-element values
+  to per-element targets. Previously the renderer iterated the array as
+  a property bag and silently wrote nothing. `stagger()` output now
+  carries an internal `fanOut` hint that `play()` detects and routes
+  through a single rAF loop that samples once per frame and dispatches
+  `value[i]` to `target[i]`.
 
 ## [0.2.0] - 2026-04-20
 

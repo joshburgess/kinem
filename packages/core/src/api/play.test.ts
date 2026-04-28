@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { stagger } from "../core/animation"
 import type { StrategyTarget } from "../render/strategy"
 import { createClock } from "../scheduler/clock"
 import { type RafLike, createFrameScheduler } from "../scheduler/frame"
@@ -319,6 +320,69 @@ describe("play", () => {
       })
       env.tick()
       expect(el.styles.get("opacity")).toBe("0")
+    })
+  })
+
+  describe("fan-out (stagger output)", () => {
+    // Regression for the silent-no-op bug where `play(stagger(...), targets)`
+    // tried to read property names off an array of value bags. The renderer
+    // iterated array indices ("0", "1", "2") as CSS keys and wrote nothing
+    // visible. Fan-out defs must dispatch `value[i]` to `target[i]` instead.
+    it("commits per-target values from a stagger output", () => {
+      const a = makeTarget()
+      const b = makeTarget()
+      const c = makeTarget()
+      const env = setup()
+      const def = stagger(
+        [
+          tween({ opacity: [0, 1] }, { duration: 100 }),
+          tween({ opacity: [0, 1] }, { duration: 100 }),
+          tween({ opacity: [0, 1] }, { duration: 100 }),
+        ],
+        { each: 50 },
+      )
+      play(def, [a, b, c], {
+        backend: "raf",
+        scheduler: env.scheduler,
+        clock: env.clock,
+      })
+      // First tick: progress 0. Element 0 starts immediately; 1 and 2 are
+      // delayed by 50ms and 100ms respectively, so they should still be at
+      // their start value (0).
+      env.tick()
+      expect(a.styles.get("opacity")).toBe("0")
+      expect(b.styles.get("opacity")).toBe("0")
+      expect(c.styles.get("opacity")).toBe("0")
+
+      // At t=100 (half the total 200ms duration), element 0 has finished,
+      // element 1 is halfway, element 2 has just started.
+      env.advance(100)
+      env.tick()
+      expect(a.styles.get("opacity")).toBe("1")
+      expect(b.styles.get("opacity")).toBe("0.5")
+      expect(c.styles.get("opacity")).toBe("0")
+
+      // At t=210 every element has finished.
+      env.advance(110)
+      env.tick()
+      expect(a.styles.get("opacity")).toBe("1")
+      expect(b.styles.get("opacity")).toBe("1")
+      expect(c.styles.get("opacity")).toBe("1")
+    })
+
+    it("snaps to the final per-target values under reducedMotion: always", () => {
+      const a = makeTarget()
+      const b = makeTarget()
+      const def = stagger(
+        [
+          tween({ opacity: [0, 1] }, { duration: 100 }),
+          tween({ opacity: [0, 1] }, { duration: 100 }),
+        ],
+        { each: 50 },
+      )
+      play(def, [a, b], { reducedMotion: "always" })
+      expect(a.styles.get("opacity")).toBe("1")
+      expect(b.styles.get("opacity")).toBe("1")
     })
   })
 })

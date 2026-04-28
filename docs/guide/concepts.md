@@ -3,8 +3,7 @@ const staggerCode = `const boxes = Array.from({ length: 6 }, (_, i) => {
   const el = document.createElement('div')
   el.className = 'box'
   el.style.left = (40 + i * 56) + 'px'
-  el.style.top = '50%'
-  el.style.transform = 'translateY(-50%)'
+  el.style.top = 'calc(50% - 24px)'
   stage.appendChild(el)
   return el
 })

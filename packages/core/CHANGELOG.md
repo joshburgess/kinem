@@ -29,6 +29,12 @@ until 1.0.
 - `BezierPathValue.rotate` and `FollowOpts.commit` doc clarifications.
 - `package.json` now declares `publishConfig.access: public` to match
   the other publishable packages.
+- `play(stagger(...), targets)` now actually fans out per-element values
+  to per-element targets. Previously the renderer iterated the array as
+  a property bag and silently wrote nothing. `stagger()` output now
+  carries an internal `fanOut` hint that `play()` detects and routes
+  through a single rAF loop that samples once per frame and dispatches
+  `value[i]` to `target[i]`.
 
 ## [0.2.0] - 2026-04-20
 

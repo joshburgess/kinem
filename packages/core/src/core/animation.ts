@@ -195,6 +195,7 @@ export function stagger<T>(
   return {
     duration: total,
     easing: linear,
+    fanOut: count,
     interpolate: (p) => {
       const clamped = clamp01(p)
       const t = total === 0 ? 0 : clamped * total

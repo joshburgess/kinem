@@ -112,7 +112,7 @@ export function resolveTargets(target: Target, opts: PlayOpts): readonly Strateg
 }
 
 export function play(
-  def: AnimationDef<AnimationProps>,
+  def: AnimationDef<AnimationProps> | AnimationDef<readonly AnimationProps[]>,
   target: Target,
   opts: PlayOpts = {},
 ): Controls {

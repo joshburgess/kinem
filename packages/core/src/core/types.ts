@@ -95,6 +95,20 @@ export interface AnimationDef<T> {
    * @internal
    */
   readonly commit?: (p: number, el: CommitTarget) => void
+  /**
+   * Marks the def as producing a length-N tuple of per-element values
+   * (one per target). When `play()` sees this, it samples the def once
+   * per frame and dispatches `value[i]` to `target[i]`, instead of
+   * trying to read property names off the array itself. Set by
+   * `stagger()`. The number is the element count baked into the def.
+   *
+   * Fan-out defs cannot be tier-split for compositor routing because
+   * each target gets a different value at any given time; they always
+   * run on the rAF backend.
+   *
+   * @internal
+   */
+  readonly fanOut?: number
 }
 
 /** Extract the value type from an AnimationDef. */

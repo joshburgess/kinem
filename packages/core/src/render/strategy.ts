@@ -21,6 +21,7 @@ import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
 import { type ElementShim, type PropertyValue, applyValues } from "./apply"
 import { partitionByTier } from "./properties"
 import { type RafOpts, playRaf } from "./raf"
+import { createTiming } from "./timing"
 import { type Animatable, type WaapiOpts, playWaapi } from "./waapi"
 
 export type StrategyBackend = "auto" | "waapi" | "raf"
@@ -311,7 +312,7 @@ function splitDef(def: AnimationDef<AnimationProps>): TierSplit {
 }
 
 export function playStrategy(
-  def: AnimationDef<AnimationProps>,
+  def: AnimationDef<AnimationProps> | AnimationDef<readonly AnimationProps[]>,
   targets: readonly StrategyTarget[],
   opts: StrategyOpts = {},
   // Optional explicit backend. Lets callers (notably `play()`, which has
@@ -320,11 +321,22 @@ export function playStrategy(
   // `opts.backend ?? "auto"`.
   backendOverride?: StrategyBackend,
 ): StrategyHandle {
+  // Fan-out defs (produced by `stagger()`) carry a tuple of per-target
+  // values. They cannot be tier-split — each target sees a different
+  // value at any given progress — so they always run on a single rAF
+  // loop that samples the def once and dispatches `value[i]` to
+  // `target[i]`.
+  if (def.fanOut !== undefined) {
+    return playFanOut(def as AnimationDef<readonly AnimationProps[]>, targets, opts)
+  }
+
+  const propDef = def as AnimationDef<AnimationProps>
+
   // Reduced-motion short-circuit: commit the final value once, skip all
   // backend setup, hand back a pre-finished handle. Done before the
   // backend dispatch so neither WAAPI nor rAF ever wake up.
   if (shouldReduceMotion(opts.reducedMotion)) {
-    return reducedMotionHandle(def, targets)
+    return reducedMotionHandle(propDef, targets)
   }
 
   const backend: StrategyBackend = backendOverride ?? opts.backend ?? "auto"
@@ -335,7 +347,7 @@ export function playStrategy(
   // `mode: "main"` path hits for every play, so every alloc we save
   // here shows up in cancel-before-first and startup-commit.
   if (backend === "raf") {
-    return playRaf(def, targets, opts)
+    return playRaf(propDef, targets, opts)
   }
 
   const waapiCap = opts.waapiSupported ?? detectWaapi()
@@ -345,9 +357,9 @@ export function playStrategy(
 
   // If `auto` is asked but WAAPI isn't available, the whole animation
   // must run on rAF. Fast path out like the explicit "raf" case.
-  if (!useWaapi) return playRaf(def, targets, opts)
+  if (!useWaapi) return playRaf(propDef, targets, opts)
 
-  const { compositor, main } = splitDef(def)
+  const { compositor, main } = splitDef(propDef)
   // `mainProps` is the set of properties we route to rAF. For `auto` we
   // take whatever `splitDef` classified as main-tier; for `backend ===
   // "waapi"` we force everything onto WAAPI, so mainProps is empty.
@@ -358,7 +370,7 @@ export function playStrategy(
   // `auto` where every property is main-tier: no compositor handle to
   // build, no will-change to manage. Straight to rAF. (`backend ===
   // "waapi"` can't land here because mainProps is empty.)
-  if (!hasCompProps && backend === "auto") return playRaf(def, targets, opts)
+  if (!hasCompProps && backend === "auto") return playRaf(propDef, targets, opts)
 
   // Past this point there is a compositor-bound handle to build.
   //
@@ -394,7 +406,7 @@ export function playStrategy(
   // common `auto` case where every animated property is compositor-safe
   // (e.g. opacity/transform-only tweens).
   if (!needsMain) {
-    return playWaapi(def, targets, opts, waapiScheduler)
+    return playWaapi(propDef, targets, opts, waapiScheduler)
   }
 
   // Mixed auto path: both tiers have props. `project()` allocates an
@@ -402,8 +414,8 @@ export function playStrategy(
   // closure every tick, so only run it when the filter isn't the
   // identity (here it always is, since both tiers are non-empty).
   const handles: StrategyHandle[] = [
-    playWaapi(project(def, compositor), targets, opts, waapiScheduler),
-    playRaf(project(def, mainProps), targets, opts),
+    playWaapi(project(propDef, compositor), targets, opts, waapiScheduler),
+    playRaf(project(propDef, mainProps), targets, opts),
   ]
 
   return combineHandles(handles)
@@ -442,4 +454,60 @@ function reducedMotionHandle(
     direction: 1,
     finished: Promise.resolve(),
   }
+}
+
+/**
+ * Play a fan-out def (one whose `interpolate(p)` returns a tuple of
+ * per-target value bags) against an array of targets. Sample once per
+ * frame, dispatch `value[i]` to `target[i]`. This is what makes
+ * `play(stagger(...), targets)` actually animate per-element values
+ * rather than silently iterating array indices as CSS keys.
+ */
+function playFanOut(
+  def: AnimationDef<readonly AnimationProps[]>,
+  targets: readonly StrategyTarget[],
+  opts: StrategyOpts,
+): StrategyHandle {
+  // Reduced-motion: commit the final per-target values once, hand back
+  // a pre-finished handle. Same shape as `reducedMotionHandle`, but the
+  // dispatch is per-target rather than the same value to every target.
+  if (shouldReduceMotion(opts.reducedMotion)) {
+    const final = def.interpolate(1)
+    const n = Math.min(final.length, targets.length)
+    for (let i = 0; i < n; i++) {
+      const v = final[i]
+      const el = targets[i]
+      if (v !== undefined && el !== undefined) applyValues(el as ElementShim, v)
+    }
+    let cancelled = false
+    return {
+      pause() {},
+      resume() {},
+      seek() {},
+      reverse() {},
+      setSpeed() {},
+      cancel() {
+        cancelled = true
+      },
+      get state() {
+        return cancelled ? "cancelled" : "finished"
+      },
+      progress: 1,
+      direction: 1,
+      finished: Promise.resolve(),
+    }
+  }
+
+  return createTiming(
+    def,
+    (values) => {
+      const n = Math.min(values.length, targets.length)
+      for (let i = 0; i < n; i++) {
+        const v = values[i]
+        const el = targets[i]
+        if (v !== undefined && el !== undefined) applyValues(el as ElementShim, v)
+      }
+    },
+    opts,
+  )
 }
