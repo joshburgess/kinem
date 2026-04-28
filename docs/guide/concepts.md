@@ -76,8 +76,18 @@ Composition is function-to-function. Combinators accept one or more
   max of children.
 - `sequence(a, b, ...)` plays children back to back. Duration is the
   sum.
-- `stagger(defs, { each, from })` plays an array of definitions with
-  per-index offsets.
+- `stagger(...)` fans an animation across multiple elements with
+  per-index offsets. Two shapes:
+  - `stagger(anim, { each, count, from })` repeats the same `anim`
+    `count` times, offsetting each by `each` ms.
+  - `stagger(defs, { each, from })` runs a different `def` per element;
+    `count` is inferred from the array length.
+
+  In both shapes, `play(stagger(...), targets)` dispatches each frame's
+  per-element value to the corresponding target. For the "fan one
+  animation across many DOM targets" case where you want each target
+  to route through WAAPI independently, reach for `playStagger(anim,
+  targets, { each, from })` instead.
 - `map(def, fn)` transforms the interpolated value.
 - `loop(def, { count, reverse })` repeats an animation.
 - `reverse(def)` swaps the direction.
