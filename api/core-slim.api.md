@@ -32,6 +32,7 @@ export interface AnimationDef<T> {
         readonly main: readonly string[];
     };
     readonly commit?: (p: number, el: CommitTarget) => void;
+    readonly fanOut?: number;
 }
 ```
 
@@ -50,7 +51,7 @@ export interface AnimationRecord {
     readonly targets: readonly StrategyTarget[];
     readonly startedAt: number;
     readonly state: StrategyState;
-    readonly backend: StrategyBackend;
+    readonly backend: TrackerBackend;
     readonly progress: number;
     readonly controls: Controls;
 }
@@ -1667,7 +1668,7 @@ export declare function partitionByTier(props: readonly string[]): {
 ### function `play`
 
 ```ts
-export declare function play(def: AnimationDef<AnimationProps>, target: Target, opts?: PlayOpts): Controls;
+export declare function play(def: AnimationDef<AnimationProps> | AnimationDef<readonly AnimationProps[]>, target: Target, opts?: PlayOpts): Controls;
 ```
 
 ### function `playDrag`
@@ -1709,7 +1710,7 @@ export declare function playStagger(def: AnimationDef<AnimationProps>, target: T
 ### function `playStrategy`
 
 ```ts
-export declare function playStrategy(def: AnimationDef<AnimationProps>, targets: readonly StrategyTarget[], opts?: StrategyOpts, backendOverride?: StrategyBackend): StrategyHandle;
+export declare function playStrategy(def: AnimationDef<AnimationProps> | AnimationDef<readonly AnimationProps[]>, targets: readonly StrategyTarget[], opts?: StrategyOpts, backendOverride?: StrategyBackend): StrategyHandle;
 ```
 
 ### function `playUniforms`
@@ -1848,7 +1849,7 @@ export declare function timeline(): Timeline;
 ### function `trackAnimation`
 
 ```ts
-export declare function trackAnimation(controls: Controls, targets: readonly StrategyTarget[], backend?: StrategyBackend): number;
+export declare function trackAnimation(controls: Controls, targets: readonly StrategyTarget[], backend?: TrackerBackend): number;
 ```
 
 ### function `tween`

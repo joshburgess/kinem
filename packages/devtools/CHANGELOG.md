@@ -8,8 +8,25 @@ until 1.0.
 
 ## [Unreleased]
 
-No package-level changes. Tracker channel updates are documented in
-`@kinem/core`.
+## [0.3.0] - 2026-04-28
+
+### Added
+
+- Ambient lanes: `follow`, `scroll`, `scrub`, and other open-ended
+  primitives now surface in the in-page timeline panel. Their bars
+  render with an animated diagonal stripe to make it visually obvious
+  that "playing" means "still running" rather than "stuck at 0%".
+  Honors `prefers-reduced-motion`.
+
+### Fixed
+
+- The timeline panel now updates rows in place instead of rebuilding
+  the row DOM on every tick. The previous full-rebuild reset CSS
+  animation state every frame, which made the ambient stripe appear
+  frozen even when the underlying primitive was live.
+
+The remaining channel-level updates that this package consumes are
+documented in `@kinem/core`.
 
 ## [0.2.0] - 2026-04-20
 

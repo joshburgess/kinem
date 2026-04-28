@@ -8,6 +8,8 @@ until 1.0.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-28
+
 ### Changed
 
 - Reduced-motion handling reaches parity with the other adapters and

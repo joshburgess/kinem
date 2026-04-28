@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kinem DevTools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Inspect, scrub, and record kinem animations from a dedicated Chrome DevTools panel.",
   "minimum_chrome_version": "111",
   "icons": {

@@ -1,6 +1,6 @@
 {
   "name": "@kinem/devtools-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Chrome DevTools extension that adds a Kinem panel for inspecting, scrubbing, and recording kinem animations.",
   "license": "(Apache-2.0 OR MIT)",
   "author": "Josh Burgess",
