@@ -46,6 +46,7 @@ export default defineConfig({
           items: [
             { text: "From GSAP", link: "/migrations/gsap" },
             { text: "From Motion One", link: "/migrations/motion" },
+            { text: "From Popmotion", link: "/migrations/popmotion" },
           ],
         },
       ],
