@@ -50,6 +50,11 @@ until 1.0.
   carries an internal `fanOut` hint that `play()` detects and routes
   through a single rAF loop that samples once per frame and dispatches
   `value[i]` to `target[i]`.
+- `playStagger()` and `playValues()` (and `playUniforms()` by
+  extension) now report to the devtools tracker, so canvas, WebGL, and
+  fan-out staggered animations show up in the devtools panel alongside
+  `play()` calls. Previously only animations routed through `play()`
+  were visible.
 
 ## [0.2.0] - 2026-04-20
 

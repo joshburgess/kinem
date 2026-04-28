@@ -20,7 +20,9 @@
  * scheduler).
  */
 
+import { createControls } from "../api/controls"
 import type { AnimationDef } from "../core/types"
+import { isTrackerEnabled, trackAnimation } from "../devtools/tracker"
 import { type TimingHandle, type TimingOpts, createTiming } from "./timing"
 
 export type ValuesHandle = TimingHandle
@@ -33,5 +35,16 @@ export function playValues<V>(
   onValue: ValuesCommit<V>,
   opts: ValuesOpts = {},
 ): ValuesHandle {
-  return createTiming(def, onValue, opts)
+  const handle = createTiming(def, onValue, opts)
+  // When the tracker is enabled, expose this animation to the devtools
+  // panel by wrapping the timing handle in a Controls (cheap; only the
+  // PromiseLike adapter on top of the same handle) and registering it.
+  // Targets is empty because `playValues` doesn't know about DOM
+  // elements; the user owns the commit. Backend label is "raf" — every
+  // values-callback animation runs through the rAF scheduler.
+  if (isTrackerEnabled()) {
+    const controls = createControls(handle, def.duration)
+    trackAnimation(controls, [], "raf")
+  }
+  return handle
 }

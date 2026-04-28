@@ -12,6 +12,7 @@
 
 import { delay as delayDef } from "../core/animation"
 import type { AnimationDef, StaggerFrom } from "../core/types"
+import { trackAnimation } from "../devtools/tracker"
 import {
   type AnimationProps,
   type StrategyBackend,
@@ -109,5 +110,7 @@ export function playStagger(
     handles.push(playStrategy(childDef, [targets[i] as never], opts, backend))
   }
 
-  return createControls(combineHandles(handles), totalDuration)
+  const controls = createControls(combineHandles(handles), totalDuration)
+  trackAnimation(controls, targets, backend)
+  return controls
 }

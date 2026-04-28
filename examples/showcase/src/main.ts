@@ -1,3 +1,4 @@
+import { enableTracker } from "@kinem/core"
 import type { Demo } from "./demo"
 import { cardStack } from "./demos/card-stack"
 import { cascadeGrid } from "./demos/cascade-grid"
@@ -58,6 +59,8 @@ const demos: readonly Demo[] = [
   shaderReveal,
   magneticNav,
 ]
+
+enableTracker()
 
 const stage = document.getElementById("stage") as HTMLElement
 const nav = document.getElementById("nav") as HTMLElement
