@@ -66,7 +66,7 @@ const {
   play, tween, spring, keyframes, animation,
   parallel, sequence, stagger, loop, delay, reverse, map,
   timeline, scroll, gesture, splitText,
-  playCanvas, playUniforms, strokeDraw,
+  playValues, playUniforms, strokeDraw,
   linear, easeIn, easeOut, easeInOut, cubicBezier, steps, springEasing,
   fromGrid, shuffle, wave,
   registerInterpolator, interpolate,
