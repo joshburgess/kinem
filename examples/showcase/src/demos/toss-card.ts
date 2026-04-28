@@ -1,4 +1,10 @@
-import { createVelocityTracker, inertia, spring } from "@kinem/core"
+import {
+  type ValuesHandle,
+  createVelocityTracker,
+  inertia,
+  playValues,
+  spring,
+} from "@kinem/core"
 import type { Demo } from "../demo"
 
 const RESET_DELAY = 600
@@ -83,7 +89,7 @@ export const tossCard: Demo = {
     let pointerId = -1
     let downX = 0
     let downY = 0
-    let releaseRaf = 0
+    let activeRelease: ValuesHandle | null = null
     let resetTimer = 0
 
     const tracker = createVelocityTracker({ windowMs: 80 })
@@ -99,30 +105,28 @@ export const tossCard: Demo = {
     }
 
     const cancelRelease = (): void => {
-      cancelAnimationFrame(releaseRaf)
-      releaseRaf = 0
+      activeRelease?.cancel()
+      activeRelease = null
     }
 
-    const driveDef = <T extends { x: number; y: number }>(
-      def: { duration: number; interpolate: (p: number) => T },
+    const driveDef = (
+      def: { duration: number; interpolate: (p: number) => { x: number; y: number } },
       onDone: () => void,
     ): void => {
-      const start = performance.now()
-      const step = (): void => {
-        const elapsed = performance.now() - start
-        const p = def.duration === 0 ? 1 : Math.min(1, elapsed / def.duration)
-        const v = def.interpolate(p)
-        x = v.x
-        y = v.y
-        apply()
-        if (p < 1) {
-          releaseRaf = requestAnimationFrame(step)
-        } else {
-          releaseRaf = 0
-          onDone()
-        }
-      }
-      releaseRaf = requestAnimationFrame(step)
+      activeRelease = playValues(
+        def,
+        (v) => {
+          x = v.x
+          y = v.y
+          apply()
+        },
+        {
+          onFinish: () => {
+            activeRelease = null
+            onDone()
+          },
+        },
+      )
     }
 
     const respawn = (): void => {
@@ -177,9 +181,12 @@ export const tossCard: Demo = {
       speedReadout.textContent = fmtSpeed(vxPerSec, vyPerSec)
 
       if (speed > FLING_THRESHOLD) {
+        // Tighter restDelta + shorter timeConstant so the formal
+        // animation ends close to when the eye stops noticing further
+        // drift, instead of trailing through the long exponential tail.
         const def = inertia(
           { x: [x, vxPerSec], y: [y, vyPerSec] },
-          { timeConstant: 380, power: 0.95, restDelta: 1 },
+          { timeConstant: 280, power: 0.95, restDelta: 4 },
         )
         driveDef(def, () => {
           resetTimer = window.setTimeout(respawn, RESET_DELAY)

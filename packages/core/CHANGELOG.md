@@ -40,6 +40,18 @@ until 1.0.
   fan-out staggered animations show up in the devtools panel alongside
   `play()` calls. Previously only animations routed through `play()`
   were visible.
+- `follow()`, `scrub()`, and `scroll()` now register with the devtools
+  tracker as ambient (open-ended) records. Records carry `duration: 0`
+  and a Controls façade whose `cancel()` forwards to the underlying
+  primitive; pause / resume / seek are no-ops because these handles
+  don't model bounded playback. New public API: `trackAmbient()`,
+  `untrackAmbient()`, `AmbientHandle`, and the `TrackerBackend`
+  widening that adds `"follow" | "scroll" | "scrub" | "ambient"`.
+- Calling `cancel()` directly on a `follow()` / `scrub()` / `scroll()`
+  handle now removes the ambient record from the tracker. Previously
+  the record only cleared if the caller went through the Controls
+  façade, so demos that called `handle.cancel()` in cleanup left a
+  stale tracked entry behind.
 
 ## [0.2.0] - 2026-04-20
 

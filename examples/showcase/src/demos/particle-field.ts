@@ -1,4 +1,7 @@
+import { playValues } from "@kinem/core"
 import type { Demo } from "../demo"
+
+const TICK_PERIOD = 60_000
 
 interface Particle {
   homeX: number
@@ -88,53 +91,67 @@ export const particleField: Demo = {
     }
     const onLeave = (): void => {
       inside = false
-      mx = -9999
-      my = -9999
     }
     canvas.addEventListener("pointermove", onMove)
     canvas.addEventListener("pointerleave", onLeave)
 
-    let rafId = 0
-    const tick = (): void => {
-      ctx.fillStyle = "rgba(7, 8, 11, 0.18)"
-      ctx.fillRect(0, 0, w, h)
+    const startedAt = performance.now()
+    // Drive the canvas tick through playValues so it shows up in the
+    // devtools panel. The lattice is otherwise pure rAF and the panel
+    // had no signal that anything was happening.
+    const handle = playValues(
+      { duration: TICK_PERIOD, interpolate: (p) => p },
+      () => {
+        ctx.fillStyle = "rgba(7, 8, 11, 0.18)"
+        ctx.fillRect(0, 0, w, h)
 
-      for (const p of particles) {
-        // spring to home
-        p.vx += (p.homeX - p.x) * SPRING_K
-        p.vy += (p.homeY - p.y) * SPRING_K
-
-        if (inside) {
-          const dx = p.x - mx
-          const dy = p.y - my
-          const d2 = dx * dx + dy * dy
-          if (d2 < REPEL_R_SQ && d2 > 0.0001) {
-            const d = Math.sqrt(d2)
-            const force = REPEL_STRENGTH / d2
-            p.vx += (dx / d) * force
-            p.vy += (dy / d) * force
-          }
+        // When the cursor isn't engaged, drive a slow Lissajous "ghost"
+        // pointer so the lattice always has visible motion. Without
+        // this the demo looks frozen until the user mouses in.
+        let fx = mx
+        let fy = my
+        let active = inside
+        if (!inside) {
+          const t = (performance.now() - startedAt) / 1000
+          fx = w / 2 + Math.cos(t * 0.45) * (w * 0.32)
+          fy = h / 2 + Math.sin(t * 0.7) * (h * 0.28)
+          active = true
         }
 
-        p.vx *= DAMPING
-        p.vy *= DAMPING
-        p.x += p.vx
-        p.y += p.vy
+        for (const p of particles) {
+          p.vx += (p.homeX - p.x) * SPRING_K
+          p.vy += (p.homeY - p.y) * SPRING_K
 
-        const displaced = Math.hypot(p.x - p.homeX, p.y - p.homeY)
-        const intensity = Math.min(1, displaced / 80)
-        const size = 1.2 + intensity * 2.4
-        const alpha = 0.5 + intensity * 0.5
-        ctx.fillStyle = `hsla(${p.hue}, 85%, ${55 + intensity * 20}%, ${alpha})`
-        ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size)
-      }
+          if (active) {
+            const dx = p.x - fx
+            const dy = p.y - fy
+            const d2 = dx * dx + dy * dy
+            if (d2 < REPEL_R_SQ && d2 > 0.0001) {
+              const d = Math.sqrt(d2)
+              const force = REPEL_STRENGTH / d2
+              p.vx += (dx / d) * force
+              p.vy += (dy / d) * force
+            }
+          }
 
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+          p.vx *= DAMPING
+          p.vy *= DAMPING
+          p.x += p.vx
+          p.y += p.vy
+
+          const displaced = Math.hypot(p.x - p.homeX, p.y - p.homeY)
+          const intensity = Math.min(1, displaced / 80)
+          const size = 1.2 + intensity * 2.4
+          const alpha = 0.5 + intensity * 0.5
+          ctx.fillStyle = `hsla(${p.hue}, 85%, ${55 + intensity * 20}%, ${alpha})`
+          ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size)
+        }
+      },
+      { repeat: true },
+    )
 
     return () => {
-      cancelAnimationFrame(rafId)
+      handle.cancel()
       window.removeEventListener("resize", onResize)
       canvas.removeEventListener("pointermove", onMove)
       canvas.removeEventListener("pointerleave", onLeave)

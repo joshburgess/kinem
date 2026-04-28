@@ -1,4 +1,4 @@
-import { easeInOut, tween } from "@kinem/core"
+import { type ValuesHandle, easeInOut, playValues, tween } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const COLS = 12
@@ -113,27 +113,33 @@ export const cubeWall: Demo = {
       }
     }
 
+    const pendingTimeouts = new Set<number>()
+    const liveHandles = new Set<ValuesHandle>()
+
     const flipTile = (tile: Tile, delay: number): void => {
-      window.setTimeout(() => {
+      const id = window.setTimeout(() => {
+        pendingTimeouts.delete(id)
         if (tile.busy) return
         tile.busy = true
         const startRot = tile.rot
         const endRot = startRot + 180
         const flipDef = tween({ r: [startRot, endRot] }, { duration: FLIP_MS, easing: easeInOut })
-        const t0 = performance.now()
-        const step = (): void => {
-          const p = Math.min(1, (performance.now() - t0) / FLIP_MS)
-          const v = flipDef.interpolate(p)
-          tile.inner.style.transform = `rotateY(${v.r.toFixed(2)}deg)`
-          if (p < 1) {
-            requestAnimationFrame(step)
-          } else {
-            tile.rot = endRot
-            tile.busy = false
-          }
-        }
-        requestAnimationFrame(step)
+        const handle = playValues(
+          flipDef,
+          (v) => {
+            tile.inner.style.transform = `rotateY(${v.r.toFixed(2)}deg)`
+          },
+          {
+            onFinish: () => {
+              tile.rot = endRot
+              tile.busy = false
+              liveHandles.delete(handle)
+            },
+          },
+        )
+        liveHandles.add(handle)
       }, delay)
+      pendingTimeouts.add(id)
     }
 
     const trigger = (e: PointerEvent): void => {
@@ -165,6 +171,10 @@ export const cubeWall: Demo = {
 
     return () => {
       window.clearTimeout(auto)
+      for (const id of pendingTimeouts) window.clearTimeout(id)
+      pendingTimeouts.clear()
+      for (const h of liveHandles) h.cancel()
+      liveHandles.clear()
       wrap.removeEventListener("pointerdown", trigger)
     }
   },

@@ -70,7 +70,20 @@ export const cardStack: Demo = {
     const order: number[] = CARDS.map((_, i) => i)
     const cardEls: HTMLDivElement[] = []
     const activeGestures: { cancel(): void }[] = []
-    const activePlays: { cancel(): void }[] = []
+    const playByEl = new Map<HTMLDivElement, { cancel(): void }>()
+
+    const setPlay = (el: HTMLDivElement, p: { cancel(): void }): void => {
+      playByEl.get(el)?.cancel()
+      playByEl.set(el, p)
+    }
+    const cancelPlay = (el: HTMLDivElement): void => {
+      playByEl.get(el)?.cancel()
+      playByEl.delete(el)
+    }
+    const cancelAllPlays = (): void => {
+      for (const p of playByEl.values()) p.cancel()
+      playByEl.clear()
+    }
 
     const buildCard = (def: CardDef, depth: number): HTMLDivElement => {
       const el = document.createElement("div")
@@ -151,7 +164,7 @@ export const cardStack: Demo = {
               apply(el)
             },
           )
-          activePlays.push(play)
+          setPlay(el, play)
         } else {
           s.x = 0
           s.y = target.y
@@ -174,6 +187,12 @@ export const cardStack: Demo = {
       if (!el) return
 
       const pan = gesture.pan(el, {
+        onStart: () => {
+          // The top card may have an in-flight layout spring left over
+          // from the previous fling. Cancel it so the drag has sole
+          // ownership of the card's transform state.
+          cancelPlay(el)
+        },
         onMove: (ev) => {
           const s = state.get(el)
           if (!s) return
@@ -224,11 +243,12 @@ export const cardStack: Demo = {
                   s.opacity = 0
                   state.set(el, s)
                   apply(el)
+                  playByEl.delete(el)
                   rebindAll()
                 },
               },
             )
-            activePlays.push(p)
+            setPlay(el, p)
           } else {
             // Snap back to top slot
             const target = positionForDepth(0)
@@ -247,7 +267,7 @@ export const cardStack: Demo = {
                 apply(el)
               },
             )
-            activePlays.push(p)
+            setPlay(el, p)
           }
         },
       })
@@ -255,6 +275,10 @@ export const cardStack: Demo = {
     }
 
     const rebindAll = (): void => {
+      // Cancel any in-flight plays so the new layout pass owns the
+      // transforms unambiguously. Without this, a previous spring can
+      // race with the new one and write stale values mid-frame.
+      cancelAllPlays()
       activeGestures.forEach((g) => g.cancel())
       activeGestures.length = 0
       layout(true)
@@ -273,7 +297,7 @@ export const cardStack: Demo = {
 
     return () => {
       activeGestures.forEach((g) => g.cancel())
-      activePlays.forEach((p) => p.cancel())
+      cancelAllPlays()
     }
   },
 }

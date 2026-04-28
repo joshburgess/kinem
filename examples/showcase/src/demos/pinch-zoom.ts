@@ -1,4 +1,4 @@
-import { gesture, playValues, spring } from "@kinem/core"
+import { type ValuesHandle, gesture, inertia, playValues, spring } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const DRAG_SCALE_SENSITIVITY = 0.005
@@ -6,6 +6,9 @@ const DRAG_ROTATE_SENSITIVITY = 0.005
 
 const MIN_SCALE = 0.5
 const MAX_SCALE = 4
+
+const VEL_WINDOW_MS = 80
+const FLING_THRESHOLD = 0.4 // |dscale/sec|, below this we just snapback
 
 export const pinchZoom: Demo = {
   id: "pinch-zoom",
@@ -61,10 +64,78 @@ export const pinchZoom: Demo = {
     let rotation = 0
     let baseScale = 1
     let baseRotation = 0
-    let activePlay: ReturnType<typeof playValues> | null = null
+    let activePlay: ValuesHandle | null = null
 
     const apply = (): void => {
       photo.style.transform = `scale(${scale}) rotate(${rotation}rad)`
+    }
+
+    // Sliding-window velocity tracker for scale and rotation. We can't
+    // use createVelocityTracker (Cartesian x/y) directly, so roll our own
+    // 1D variant that returns rate-of-change in units/sec.
+    interface Sample {
+      readonly s: number
+      readonly r: number
+      readonly t: number
+    }
+    const samples: Sample[] = []
+    const recordSample = (s: number, r: number): void => {
+      const t = performance.now()
+      samples.push({ s, r, t })
+      const cutoff = t - VEL_WINDOW_MS
+      while (samples.length > 0 && (samples[0] as Sample).t < cutoff) samples.shift()
+    }
+    const resetSamples = (): void => {
+      samples.length = 0
+    }
+    const velocityPerSec = (): { vScale: number; vRot: number } => {
+      if (samples.length < 2) return { vScale: 0, vRot: 0 }
+      const first = samples[0] as Sample
+      const last = samples[samples.length - 1] as Sample
+      const dt = (last.t - first.t) / 1000
+      if (dt <= 0) return { vScale: 0, vRot: 0 }
+      return { vScale: (last.s - first.s) / dt, vRot: (last.r - first.r) / dt }
+    }
+
+    // Release behavior is shared between pinch and pan. With nontrivial
+    // velocity we glide via `inertia` (clamped to the scale bounds);
+    // otherwise we just spring back to the nearest clamped scale. Either
+    // way the release goes through `playValues` so it shows up in the
+    // devtools panel.
+    const driveRelease = (): void => {
+      const { vScale, vRot } = velocityPerSec()
+      const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
+      const fastFling = Math.abs(vScale) > FLING_THRESHOLD
+
+      if (fastFling) {
+        // restDelta is in scale-units. 0.005 stops the formal animation
+        // around the moment the human eye stops noticing further drift,
+        // so the panel "playing" lifetime tracks the visible motion
+        // instead of dragging on into the long exponential tail.
+        const def = inertia(
+          { s: [scale, vScale], r: [rotation, vRot] },
+          {
+            bounds: { s: [MIN_SCALE, MAX_SCALE] },
+            timeConstant: 240,
+            power: 0.85,
+            restDelta: 0.005,
+          },
+        )
+        activePlay = playValues(def, (v) => {
+          scale = v.s
+          rotation = v.r
+          apply()
+        })
+        return
+      }
+
+      if (clampedScale !== scale) {
+        const def = spring({ s: [scale, clampedScale] }, { stiffness: 180, damping: 16 })
+        activePlay = playValues(def, (v) => {
+          scale = v.s
+          apply()
+        })
+      }
     }
 
     const pinchHandle = gesture.pinch(photo, {
@@ -72,26 +143,16 @@ export const pinchZoom: Demo = {
         activePlay?.cancel()
         baseScale = scale
         baseRotation = rotation
+        resetSamples()
+        recordSample(scale, rotation)
       },
       onChange: (ev) => {
         scale = Math.max(MIN_SCALE * 0.8, Math.min(MAX_SCALE * 1.2, baseScale * ev.scale))
         rotation = baseRotation + ev.rotation
+        recordSample(scale, rotation)
         apply()
       },
-      onEnd: () => {
-        // Spring to clamped range
-        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
-        if (clamped !== scale) {
-          const from = scale
-          activePlay = playValues(
-            spring({ s: [from, clamped] }, { stiffness: 180, damping: 16 }),
-            (v) => {
-              scale = v.s
-              apply()
-            },
-          )
-        }
-      },
+      onEnd: driveRelease,
     })
 
     // Mouse-friendly fallback: drag the photo. Vertical → scale,
@@ -103,6 +164,8 @@ export const pinchZoom: Demo = {
         activePlay?.cancel()
         dragBaseScale = scale
         dragBaseRotation = rotation
+        resetSamples()
+        recordSample(scale, rotation)
       },
       onMove: (ev) => {
         scale = Math.max(
@@ -113,21 +176,10 @@ export const pinchZoom: Demo = {
           ),
         )
         rotation = dragBaseRotation + ev.offset.x * DRAG_ROTATE_SENSITIVITY
+        recordSample(scale, rotation)
         apply()
       },
-      onEnd: () => {
-        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale))
-        if (clamped !== scale) {
-          const from = scale
-          activePlay = playValues(
-            spring({ s: [from, clamped] }, { stiffness: 180, damping: 16 }),
-            (v) => {
-              scale = v.s
-              apply()
-            },
-          )
-        }
-      },
+      onEnd: driveRelease,
     })
 
     // Trackpad pinch and ctrl+wheel: browsers report pinch as ctrlKey + wheel.

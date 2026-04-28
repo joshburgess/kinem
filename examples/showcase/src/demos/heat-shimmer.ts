@@ -1,4 +1,4 @@
-import { jitter } from "@kinem/core"
+import { jitter, playValues } from "@kinem/core"
 import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
@@ -93,26 +93,28 @@ export const heatShimmer: Demo = {
       title.appendChild(span)
 
       const def = jitter<ShimmerVal>(baseDef, {
-        amplitude: 2,
-        frequency: 6,
+        amplitude: 12,
+        frequency: 7,
         seed: i * 17 + 3,
       })
       chars.push({ el: span, def })
     }
 
-    let rafId = 0
-    const start = performance.now()
-    const tick = (): void => {
-      const t = performance.now() - start
-      const p = (((t / CYCLE_MS) % 1) + 1) % 1
-      for (const c of chars) {
-        const v = c.def.interpolate(p)
-        c.el.style.transform = `translate(${(v.x * 0.2).toFixed(2)}px, ${(v.y * 0.55).toFixed(2)}px) rotate(${(v.r * 0.05).toFixed(3)}deg)`
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+    // The shimmer is one repeating sweep through phase 0->1; each char
+    // samples its own jitter channel at the shared phase. Driving via
+    // playValues with repeat:true gives the loop devtools visibility and
+    // a real Controls handle for cleanup.
+    const handle = playValues(
+      { duration: CYCLE_MS, interpolate: (p) => p },
+      (p) => {
+        for (const c of chars) {
+          const v = c.def.interpolate(p)
+          c.el.style.transform = `translate(${(v.x * 0.6).toFixed(2)}px, ${(v.y * 1.6).toFixed(2)}px) rotate(${(v.r * 0.25).toFixed(3)}deg) skewX(${(v.x * 0.18).toFixed(3)}deg)`
+        }
+      },
+      { repeat: true },
+    )
 
-    return () => cancelAnimationFrame(rafId)
+    return () => handle.cancel()
   },
 }

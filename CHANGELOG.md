@@ -55,6 +55,56 @@ until 1.0.
   fan-out staggered animations show up in the devtools panel alongside
   `play()` calls. Previously only animations routed through `play()`
   were visible.
+- `follow()`, `scrub()`, and `scroll()` now register with the devtools
+  tracker as ambient (open-ended) records, so cursor trails, scrub
+  handles, and scroll-driven animations show up in the panel. Ambient
+  records render with a striped lane in the local timeline panel to
+  distinguish them from clock-driven animations.
+- Cancelling a `follow()` / `scrub()` / `scroll()` handle directly (the
+  common path: demos call `handle.cancel()` from their cleanup) now
+  removes the ambient record from the tracker. Previously the record
+  only cleared if the caller invoked `record.controls.cancel()` via the
+  tracker façade, leaving comet-trail / ribbon-trail panel rows stuck
+  on every demo unmount.
+- Ambient lanes in the local timeline panel now render with an animated
+  diagonal stripe so the bar visually conveys "running" instead of
+  appearing frozen. Honors `prefers-reduced-motion`.
+- Showcase demos that previously drove their own raf loops (lava-lamp,
+  cube-wall, shape-morph, heat-shimmer, starfield-warp, galaxy-spiral,
+  toss-card, liquid-cursor) now drive through `playValues`, so they
+  appear in the devtools panel too.
+- Pinch-zoom demo now releases through `inertia` (clamped to scale
+  bounds) when there's nontrivial pinch velocity, falling back to the
+  existing `spring` snapback for slow / in-bounds releases. Both paths
+  go through `playValues`, so every release records in the panel and
+  the demo's "with inertia" title is no longer aspirational.
+- Devtools timeline panel and the standalone Chrome extension panel
+  now update rows in place instead of rebuilding the row DOM on every
+  tick. The previous full-rebuild reset CSS animation state on every
+  poll, which made the ambient stripe (used by `follow` / `scroll` /
+  `scrub` records) visually frozen even though the underlying
+  primitive was live.
+- Chrome extension panel now renders ambient backends with the same
+  animated diagonal stripe used by the in-page timeline, so
+  open-ended primitives no longer look like a stuck "playing · 0%"
+  bar.
+- Cursor-reactive particle field demo now drives its canvas tick
+  through `playValues` (so it shows up in the devtools panel) and
+  drifts a Lissajous "ghost" cursor whenever the real pointer isn't
+  engaged, so the lattice has visible motion on first paint instead
+  of looking inert until you mouse in.
+- Heat shimmer / "MIRAGE" demo amplitudes increased so the wobble is
+  perceptible. The previous coefficients (max ~0.4 px translate)
+  rounded to a static glyph at most viewing distances.
+- Physics card stack demo: in-flight layout springs are now cancelled
+  when a new fling triggers `rebindAll()`, and tracked per element so
+  a fresh drag takes ownership of the top card without racing the
+  previous spring. Fixes per-card jitter mid-rebind and unbounded
+  growth of the active-plays array.
+- Stretchy goo drag demo now registers an ambient session for the
+  duration of the drag itself (via `trackAmbient` / `untrackAmbient`),
+  so the panel shows activity throughout the stretch instead of only
+  during the spring snap-back at release.
 
 ## [0.2.0] - 2026-04-20
 

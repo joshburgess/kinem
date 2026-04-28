@@ -1,4 +1,4 @@
-import { easeInOut, morphPath } from "@kinem/core"
+import { type ValuesHandle, easeInOut, morphPath, playValues, tween } from "@kinem/core"
 import type { Demo } from "../demo"
 
 interface ShapeDef {
@@ -140,6 +140,8 @@ export const shapeMorph: Demo = {
     path.setAttribute("d", current.d)
     setShapeColors(current)
 
+    let activeMorph: ValuesHandle | null = null
+
     const tray = document.createElement("div")
     Object.assign(tray.style, {
       display: "flex",
@@ -150,43 +152,46 @@ export const shapeMorph: Demo = {
     wrap.appendChild(tray)
 
     const buttons = new Map<string, HTMLButtonElement>()
-    let activeMorph = 0
 
     const renderMorph = (target: ShapeDef): void => {
       if (target.id === current.id) return
-      cancelAnimationFrame(activeMorph)
-      const def = morphPath(current.d, target.d, {
+      activeMorph?.cancel()
+
+      // Two parallel defs sampled in one playValues callback: the path
+      // morph (resampled polyline blend) and a hue tween for the gradient
+      // stops. Combining them here keeps it a single tracked animation.
+      const shapeDef = morphPath(current.d, target.d, {
         duration: MORPH_MS,
         easing: easeInOut,
         samples: 96,
       })
+      const hueDef = tween(
+        { a: [current.hueA, target.hueA], b: [current.hueB, target.hueB] },
+        { duration: MORPH_MS, easing: easeInOut },
+      )
 
-      // Color blends in parallel with shape morph; cleaner than another def.
-      const fromA = current.hueA
-      const fromB = current.hueB
-      const toA = target.hueA
-      const toB = target.hueB
-
-      const start = performance.now()
-      const step = (): void => {
-        const p = Math.min(1, (performance.now() - start) / MORPH_MS)
-        const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
-        const v = def.interpolate(p)
-        path.setAttribute("d", v.d)
-        const hueA = fromA + (toA - fromA) * eased
-        const hueB = fromB + (toB - fromB) * eased
-        stopA.setAttribute("stop-color", `hsl(${hueA}, 90%, 65%)`)
-        stopB.setAttribute("stop-color", `hsl(${hueB}, 90%, 55%)`)
-        if (p < 1) {
-          activeMorph = requestAnimationFrame(step)
-        } else {
-          activeMorph = 0
-          current = target
-          setShapeColors(target)
-          updateActive(target.id)
-        }
-      }
-      step()
+      activeMorph = playValues(
+        {
+          duration: MORPH_MS,
+          interpolate: (p) => ({
+            shape: shapeDef.interpolate(p),
+            hue: hueDef.interpolate(p),
+          }),
+        },
+        ({ shape, hue }) => {
+          path.setAttribute("d", shape.d)
+          stopA.setAttribute("stop-color", `hsl(${hue.a}, 90%, 65%)`)
+          stopB.setAttribute("stop-color", `hsl(${hue.b}, 90%, 55%)`)
+        },
+        {
+          onFinish: () => {
+            activeMorph = null
+            current = target
+            setShapeColors(target)
+            updateActive(target.id)
+          },
+        },
+      )
     }
 
     const updateActive = (id: string): void => {
@@ -242,7 +247,8 @@ export const shapeMorph: Demo = {
     canvas.addEventListener("click", stopAuto)
 
     return () => {
-      cancelAnimationFrame(activeMorph)
+      activeMorph?.cancel()
+      activeMorph = null
       window.clearInterval(auto)
       tray.removeEventListener("click", stopAuto)
       canvas.removeEventListener("click", stopAuto)

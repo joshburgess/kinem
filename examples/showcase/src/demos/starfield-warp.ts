@@ -1,4 +1,4 @@
-import { jitter } from "@kinem/core"
+import { jitter, playValues } from "@kinem/core"
 import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
@@ -100,67 +100,70 @@ export const starfieldWarp: Demo = {
     }
     window.addEventListener("resize", onResize)
 
-    let rafId = 0
+    // Per-star integration uses real-time dt and per-star jitter samples.
+    // Driving the tick via playValues with repeat:true (symbolic period)
+    // surfaces the loop in devtools and gives us a real cancel handle.
     let last = performance.now()
     const start = last
 
-    const tick = (): void => {
-      const now = performance.now()
-      const dt = Math.min(0.05, (now - last) / 1000)
-      last = now
-      const tt = (now - start) / 1000
+    const handle = playValues(
+      { duration: 10_000, interpolate: (p) => p },
+      () => {
+        const now = performance.now()
+        const dt = Math.min(0.05, (now - last) / 1000)
+        last = now
+        const tt = (now - start) / 1000
 
-      const targetX = inside ? mouseX : cx
-      const targetY = inside ? mouseY : cy
-      warpX += (targetX - warpX) * 0.06
-      warpY += (targetY - warpY) * 0.06
+        const targetX = inside ? mouseX : cx
+        const targetY = inside ? mouseY : cy
+        warpX += (targetX - warpX) * 0.06
+        warpY += (targetY - warpY) * 0.06
 
-      const w = wrap.clientWidth
-      const h = wrap.clientHeight
-      const maxR = Math.hypot(w, h) * 0.65
+        const w = wrap.clientWidth
+        const h = wrap.clientHeight
+        const maxR = Math.hypot(w, h) * 0.65
 
-      for (const s of stars) {
-        const newZ = s.z + dt * s.speed * (1 + 2.6 * s.z)
-        const prevR = s.z * maxR
-        const curR = newZ * maxR
-        const cos = Math.cos(s.theta)
-        const sin = Math.sin(s.theta)
+        for (const s of stars) {
+          const newZ = s.z + dt * s.speed * (1 + 2.6 * s.z)
+          const prevR = s.z * maxR
+          const curR = newZ * maxR
+          const cos = Math.cos(s.theta)
+          const sin = Math.sin(s.theta)
 
-        const x1 = warpX + cos * prevR
-        const y1 = warpY + sin * prevR
-        const x2 = warpX + cos * curR
-        const y2 = warpY + sin * curR
+          const x1 = warpX + cos * prevR
+          const y1 = warpY + sin * prevR
+          const x2 = warpX + cos * curR
+          const y2 = warpY + sin * curR
 
-        s.z = newZ
-        if (s.z > 1.05) {
-          s.z = 0
-          s.theta = Math.random() * Math.PI * 2
-          s.speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN)
-          s.line.setAttribute("x1", "0")
-          s.line.setAttribute("y1", "0")
-          s.line.setAttribute("x2", "0")
-          s.line.setAttribute("y2", "0")
-          continue
+          s.z = newZ
+          if (s.z > 1.05) {
+            s.z = 0
+            s.theta = Math.random() * Math.PI * 2
+            s.speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN)
+            s.line.setAttribute("x1", "0")
+            s.line.setAttribute("y1", "0")
+            s.line.setAttribute("x2", "0")
+            s.line.setAttribute("y2", "0")
+            continue
+          }
+
+          const fade = Math.min(1, s.z * 4)
+          const twinkle = 0.7 + s.twinkle.interpolate((((tt * 0.4 + s.twinklePhase) % 1) + 1) % 1).v
+          const alpha = Math.max(0, Math.min(1, fade * twinkle))
+          const width = 0.6 + s.z * 2.4
+          s.line.setAttribute("x1", x1.toFixed(2))
+          s.line.setAttribute("y1", y1.toFixed(2))
+          s.line.setAttribute("x2", x2.toFixed(2))
+          s.line.setAttribute("y2", y2.toFixed(2))
+          s.line.setAttribute("stroke", `hsla(${s.hue.toFixed(0)}, 95%, 80%, ${alpha.toFixed(3)})`)
+          s.line.setAttribute("stroke-width", width.toFixed(2))
         }
-
-        const fade = Math.min(1, s.z * 4)
-        const twinkle = 0.7 + s.twinkle.interpolate((((tt * 0.4 + s.twinklePhase) % 1) + 1) % 1).v
-        const alpha = Math.max(0, Math.min(1, fade * twinkle))
-        const width = 0.6 + s.z * 2.4
-        s.line.setAttribute("x1", x1.toFixed(2))
-        s.line.setAttribute("y1", y1.toFixed(2))
-        s.line.setAttribute("x2", x2.toFixed(2))
-        s.line.setAttribute("y2", y2.toFixed(2))
-        s.line.setAttribute("stroke", `hsla(${s.hue.toFixed(0)}, 95%, 80%, ${alpha.toFixed(3)})`)
-        s.line.setAttribute("stroke-width", width.toFixed(2))
-      }
-
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+      },
+      { repeat: true },
+    )
 
     return () => {
-      cancelAnimationFrame(rafId)
+      handle.cancel()
       wrap.removeEventListener("pointermove", onMove)
       wrap.removeEventListener("pointerleave", onLeave)
       window.removeEventListener("resize", onResize)

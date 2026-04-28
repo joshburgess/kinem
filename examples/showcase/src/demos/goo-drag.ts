@@ -1,4 +1,4 @@
-import { playValues, spring } from "@kinem/core"
+import { type AmbientHandle, playValues, spring, trackAmbient, untrackAmbient } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -151,6 +151,16 @@ export const gooDrag: Demo = {
     let startSvgY = 0
     let startHx = 0
     let startHy = 0
+    let dragTrackerId = -1
+    let dragHandleState: "active" | "cancelled" = "cancelled"
+    const dragAmbient: AmbientHandle = {
+      cancel: () => {
+        dragHandleState = "cancelled"
+      },
+      get state() {
+        return dragHandleState
+      },
+    }
 
     const screenToSvg = (clientX: number, clientY: number): { x: number; y: number } => {
       const r = svg.getBoundingClientRect()
@@ -171,6 +181,11 @@ export const gooDrag: Demo = {
       startSvgY = p.y
       startHx = hx
       startHy = hy
+      // Register the drag itself as an ambient session so the
+      // devtools panel shows activity throughout the stretch, not
+      // only during the spring snap-back at release.
+      dragHandleState = "active"
+      dragTrackerId = trackAmbient(dragAmbient, "ambient")
     }
     const onPointerMove = (e: PointerEvent): void => {
       if (!dragging || e.pointerId !== pointerId) return
@@ -185,6 +200,10 @@ export const gooDrag: Demo = {
       handle.releasePointerCapture(pointerId)
       pointerId = -1
       handle.style.cursor = "grab"
+
+      dragHandleState = "cancelled"
+      untrackAmbient(dragTrackerId)
+      dragTrackerId = -1
 
       const fromX = hx
       const fromY = hy
@@ -205,6 +224,11 @@ export const gooDrag: Demo = {
 
     return () => {
       activeSpring?.cancel()
+      if (dragTrackerId >= 0) {
+        dragHandleState = "cancelled"
+        untrackAmbient(dragTrackerId)
+        dragTrackerId = -1
+      }
       handle.removeEventListener("pointerdown", onPointerDown)
       handle.removeEventListener("pointermove", onPointerMove)
       handle.removeEventListener("pointerup", onPointerUp)

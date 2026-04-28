@@ -1,4 +1,4 @@
-import { type AnimationDef, easeInOut, tween } from "@kinem/core"
+import { type AnimationDef, easeInOut, playValues, tween } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -375,39 +375,47 @@ export const lavaLamp: Demo = {
       return u < half ? u / half : 1 - (u - half) / half
     }
 
-    let rafId = 0
+    // The lamp is composed from many independent oscillators (one rise,
+    // one sway, NUM_PETALS radial pulses per blob, plus the hue rotation),
+    // each with its own period. Folding them into one bounded def would
+    // need their LCM as a duration. Instead, we drive the tick via
+    // playValues with repeat:true on a long symbolic period; the value
+    // bag is unused and time math is owned by the callback. This still
+    // surfaces the lamp as a single tracked entry in devtools.
     const start = performance.now()
-    const tick = (): void => {
-      const t = performance.now() - start
+    const handle = playValues(
+      { duration: HUE_PERIOD, interpolate: (p) => p },
+      () => {
+        const t = performance.now() - start
 
-      // Drift the entire glass interior (liquid bg, wax, glow) through
-      // the spectrum together. White-based highlights stay neutral.
-      const hue = ((t / HUE_PERIOD) % 1) * 360
-      glassWrap.style.filter = `hue-rotate(${hue}deg)`
+        // Drift the entire glass interior (liquid bg, wax, glow) through
+        // the spectrum together. White-based highlights stay neutral.
+        const hue = ((t / HUE_PERIOD) % 1) * 360
+        glassWrap.style.filter = `hue-rotate(${hue}deg)`
 
-      for (const b of blobs) {
-        const py = yoyo(t + b.riseOffset, b.riseDur)
-        const px = yoyo(t + b.swayOffset, b.swayDur)
+        for (const b of blobs) {
+          const py = yoyo(t + b.riseOffset, b.riseDur)
+          const px = yoyo(t + b.swayOffset, b.swayDur)
 
-        const cy = b.rise.interpolate(py)
-        const margin = halfWidthAt(cy) - b.baseR * 1.4 - 2
-        const swayClamp = Math.max(0, Math.min(1, margin / 40))
-        const cx = b.baseX + b.sway.interpolate(px) * swayClamp
-        const rotation = b.baseRotation + (t / 1000) * b.spinRate
+          const cy = b.rise.interpolate(py)
+          const margin = halfWidthAt(cy) - b.baseR * 1.4 - 2
+          const swayClamp = Math.max(0, Math.min(1, margin / 40))
+          const cx = b.baseX + b.sway.interpolate(px) * swayClamp
+          const rotation = b.baseRotation + (t / 1000) * b.spinRate
 
-        for (let j = 0; j < b.petals.length; j++) {
-          const p = b.petals[j]!
-          const u = yoyo(t + p.rPhase, p.rDur)
-          const e = easeInOut(u)
-          b.scratch[j] = b.baseR * (p.baseScale + (e * 2 - 1) * p.rAmp)
+          for (let j = 0; j < b.petals.length; j++) {
+            const p = b.petals[j]!
+            const u = yoyo(t + p.rPhase, p.rDur)
+            const e = easeInOut(u)
+            b.scratch[j] = b.baseR * (p.baseScale + (e * 2 - 1) * p.rAmp)
+          }
+
+          b.el.setAttribute("d", buildBlobPath(cx, cy, b.scratch, rotation))
         }
+      },
+      { repeat: true },
+    )
 
-        b.el.setAttribute("d", buildBlobPath(cx, cy, b.scratch, rotation))
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-
-    return () => cancelAnimationFrame(rafId)
+    return () => handle.cancel()
   },
 }

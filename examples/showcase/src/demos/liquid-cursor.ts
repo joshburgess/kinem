@@ -1,4 +1,7 @@
+import { playValues } from "@kinem/core"
 import type { Demo } from "../demo"
+
+const TICK_PERIOD = 60_000
 
 const N = 14
 const HEAD_R = 44
@@ -103,32 +106,36 @@ export const liquidCursor: Demo = {
     wrap.addEventListener("pointermove", onMove)
     wrap.addEventListener("pointerleave", onLeave)
 
-    let rafId = 0
+    // Drive through playValues with a long symbolic period and repeat
+    // so the chain renders as a single tracked entry in devtools. The
+    // value bag is unused; the callback owns its own time integration.
     let drift = 0
-    const tick = (): void => {
-      drift += 0.012
-      const head = blobs[0]
-      if (head) {
-        const targetX = inside ? mx : wrap.clientWidth / 2 + Math.cos(drift) * 80
-        const targetY = inside ? my : wrap.clientHeight / 2 + Math.sin(drift * 1.3) * 60
-        head.x += (targetX - head.x) * HEAD_LERP
-        head.y += (targetY - head.y) * HEAD_LERP
-        head.el.style.transform = `translate(${head.x - head.r}px, ${head.y - head.r}px)`
-      }
-      for (let i = 1; i < N; i++) {
-        const prev = blobs[i - 1]
-        const cur = blobs[i]
-        if (!prev || !cur) continue
-        cur.x += (prev.x - cur.x) * CHAIN_LERP
-        cur.y += (prev.y - cur.y) * CHAIN_LERP
-        cur.el.style.transform = `translate(${cur.x - cur.r}px, ${cur.y - cur.r}px)`
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+    const handle = playValues(
+      { duration: TICK_PERIOD, interpolate: (p) => p },
+      () => {
+        drift += 0.012
+        const head = blobs[0]
+        if (head) {
+          const targetX = inside ? mx : wrap.clientWidth / 2 + Math.cos(drift) * 80
+          const targetY = inside ? my : wrap.clientHeight / 2 + Math.sin(drift * 1.3) * 60
+          head.x += (targetX - head.x) * HEAD_LERP
+          head.y += (targetY - head.y) * HEAD_LERP
+          head.el.style.transform = `translate(${head.x - head.r}px, ${head.y - head.r}px)`
+        }
+        for (let i = 1; i < N; i++) {
+          const prev = blobs[i - 1]
+          const cur = blobs[i]
+          if (!prev || !cur) continue
+          cur.x += (prev.x - cur.x) * CHAIN_LERP
+          cur.y += (prev.y - cur.y) * CHAIN_LERP
+          cur.el.style.transform = `translate(${cur.x - cur.r}px, ${cur.y - cur.r}px)`
+        }
+      },
+      { repeat: true },
+    )
 
     return () => {
-      cancelAnimationFrame(rafId)
+      handle.cancel()
       wrap.removeEventListener("pointermove", onMove)
       wrap.removeEventListener("pointerleave", onLeave)
     }

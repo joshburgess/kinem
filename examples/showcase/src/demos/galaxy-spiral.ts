@@ -1,4 +1,4 @@
-import { catmullRom } from "@kinem/core"
+import { catmullRom, playValues } from "@kinem/core"
 import type { AnimationDef } from "@kinem/core"
 import type { Demo } from "../demo"
 
@@ -162,61 +162,64 @@ export const galaxySpiral: Demo = {
     wrap.addEventListener("pointerdown", onDown)
 
     let layerRot = 0
-    let rafId = 0
     let last = performance.now()
     const DEG = Math.PI / 180
 
-    const tick = (): void => {
-      const now = performance.now()
-      const dt = Math.min(0.05, (now - last) / 1000)
-      last = now
+    // Per-particle phase advances by real-time dt; the loop is open-ended.
+    // playValues with repeat:true gives us a tracked entry plus a clean
+    // cancel handle on unmount.
+    const handle = playValues(
+      { duration: 16_000, interpolate: (p) => p },
+      () => {
+        const now = performance.now()
+        const dt = Math.min(0.05, (now - last) / 1000)
+        last = now
 
-      const cx = wrap.clientWidth / 2
-      const cy = wrap.clientHeight / 2
-      layerRot += dt * 22
-      burst = Math.max(0, burst - dt * 1.5)
+        const cx = wrap.clientWidth / 2
+        const cy = wrap.clientHeight / 2
+        layerRot += dt * 22
+        burst = Math.max(0, burst - dt * 1.5)
 
-      layer.setAttribute(
-        "transform",
-        `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) rotate(${layerRot.toFixed(3)})`,
-      )
+        layer.setAttribute(
+          "transform",
+          `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) rotate(${layerRot.toFixed(3)})`,
+        )
 
-      // Convert cursor from screen to layer-local (undo translate then rotate).
-      const sx = mouseX - cx
-      const sy = mouseY - cy
-      const ang = -layerRot * DEG
-      const cosA = Math.cos(ang)
-      const sinA = Math.sin(ang)
-      const lx = sx * cosA - sy * sinA
-      const ly = sx * sinA + sy * cosA
+        // Convert cursor from screen to layer-local (undo translate then rotate).
+        const sx = mouseX - cx
+        const sy = mouseY - cy
+        const ang = -layerRot * DEG
+        const cosA = Math.cos(ang)
+        const sinA = Math.sin(ang)
+        const lx = sx * cosA - sy * sinA
+        const ly = sx * sinA + sy * cosA
 
-      const pullStrength = inside ? 1 : 0
-      const speedMult = 1 + burst * 3
+        const pullStrength = inside ? 1 : 0
+        const speedMult = 1 + burst * 3
 
-      for (const p of particles) {
-        p.phase = (((p.phase + dt * p.speed * speedMult) % 1) + 1) % 1
-        const v = p.arm.def.interpolate(p.phase)
-        let px = v.x
-        let py = v.y
-        if (pullStrength > 0) {
-          const dx = lx - px
-          const dy = ly - py
-          const d2 = dx * dx + dy * dy
-          // Gaussian falloff (sigma ~ 90px); never overshoots since k <= 0.45.
-          const k = 0.45 * pullStrength * Math.exp(-d2 / 16200)
-          px += dx * k
-          py += dy * k
+        for (const p of particles) {
+          p.phase = (((p.phase + dt * p.speed * speedMult) % 1) + 1) % 1
+          const v = p.arm.def.interpolate(p.phase)
+          let px = v.x
+          let py = v.y
+          if (pullStrength > 0) {
+            const dx = lx - px
+            const dy = ly - py
+            const d2 = dx * dx + dy * dy
+            // Gaussian falloff (sigma ~ 90px); never overshoots since k <= 0.45.
+            const k = 0.45 * pullStrength * Math.exp(-d2 / 16200)
+            px += dx * k
+            py += dy * k
+          }
+          p.el.setAttribute("cx", px.toFixed(2))
+          p.el.setAttribute("cy", py.toFixed(2))
         }
-        p.el.setAttribute("cx", px.toFixed(2))
-        p.el.setAttribute("cy", py.toFixed(2))
-      }
-
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
+      },
+      { repeat: true },
+    )
 
     return () => {
-      cancelAnimationFrame(rafId)
+      handle.cancel()
       wrap.removeEventListener("pointermove", onMove)
       wrap.removeEventListener("pointerleave", onLeave)
       wrap.removeEventListener("pointerdown", onDown)
