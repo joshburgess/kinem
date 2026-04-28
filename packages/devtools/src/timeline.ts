@@ -109,6 +109,23 @@ const STYLES = `
   .bar.waapi { background: #3fb950; }
   .bar.raf { background: #d29922; }
   .bar.auto { background: #8ab4ff; }
+  .bar.ambient {
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(167, 139, 250, 0.55) 0 6px,
+      rgba(167, 139, 250, 0.22) 6px 12px
+    );
+    background-size: 17px 17px;
+    opacity: 0.85;
+    animation: kinem-ambient-stripe 1.1s linear infinite;
+  }
+  @keyframes kinem-ambient-stripe {
+    from { background-position: 0 0; }
+    to   { background-position: 17px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar.ambient { animation: none; }
+  }
   .progress {
     position: absolute;
     inset: 0 auto 0 0;
@@ -149,6 +166,8 @@ function targetLabel(record: AnimationRecord): string {
 function backendClass(backend: string): string {
   if (backend === "waapi") return "bar waapi"
   if (backend === "raf") return "bar raf"
+  if (backend === "follow" || backend === "scrub" || backend === "scroll" || backend === "ambient")
+    return "bar ambient"
   return "bar auto"
 }
 
@@ -212,6 +231,15 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
   let scrubbing = false
   let scrubPos = 0
 
+  interface RowNodes {
+    readonly row: HTMLElement
+    readonly bar: HTMLElement
+    readonly progress: HTMLElement
+    backend: string
+  }
+  const rowNodes = new Map<number, RowNodes>()
+  let emptyEl: HTMLElement | null = null
+
   toggle.addEventListener("click", () => {
     panel.classList.toggle("collapsed")
     toggle.textContent = panel.classList.contains("collapsed") ? "+" : "-"
@@ -229,53 +257,101 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
 
   const render = (): void => {
     const records = listActiveAnimations()
-    rowsWrap.textContent = ""
-    rowsWrap.appendChild(playhead)
-    rowsWrap.appendChild(hitZone)
+    const liveIds = new Set(records.map((r) => r.id))
+
+    // Drop rows whose record is gone so the in-place updates below
+    // don't leak dead entries.
+    for (const [id, nodes] of rowNodes) {
+      if (!liveIds.has(id)) {
+        nodes.row.remove()
+        rowNodes.delete(id)
+      }
+    }
 
     if (records.length === 0) {
-      const empty = document.createElement("div")
-      empty.className = "empty"
-      empty.textContent = "No active animations"
-      rowsWrap.appendChild(empty)
+      if (!emptyEl) {
+        emptyEl = document.createElement("div")
+        emptyEl.className = "empty"
+        emptyEl.textContent = "No active animations"
+        rowsWrap.appendChild(emptyEl)
+      }
       playhead.style.display = "none"
       return
     }
 
-    for (const rec of records) {
-      const row = document.createElement("div")
-      row.className = "track-row"
-      row.setAttribute("data-id", String(rec.id))
-
-      const label = document.createElement("div")
-      label.className = "label"
-      const idSpan = document.createElement("span")
-      idSpan.className = "id"
-      idSpan.textContent = `#${rec.id}`
-      label.appendChild(idSpan)
-      const targetSpan = document.createElement("span")
-      targetSpan.textContent = targetLabel(rec)
-      label.appendChild(targetSpan)
-      row.appendChild(label)
-
-      const lane = document.createElement("div")
-      lane.className = "lane"
-      const bar = document.createElement("div")
-      bar.className = backendClass(rec.backend)
-      bar.style.width = "100%"
-      lane.appendChild(bar)
-
-      const prog = document.createElement("div")
-      prog.className = "progress"
-      prog.style.left = `${Math.round(rec.progress * 100)}%`
-      lane.appendChild(prog)
-      row.appendChild(lane)
-
-      rowsWrap.appendChild(row)
+    if (emptyEl) {
+      emptyEl.remove()
+      emptyEl = null
     }
+
+    // Add or update rows in record order. Updating in place (rather than
+    // rebuilding every tick) preserves CSS animation state, which the
+    // ambient stripe relies on for its visible motion.
+    let prev: HTMLElement | null = null
+    for (const rec of records) {
+      const existing = rowNodes.get(rec.id)
+      const nodes = existing ?? createRow(rec)
+      if (!existing) {
+        rowNodes.set(rec.id, nodes)
+        if (prev) {
+          prev.after(nodes.row)
+        } else {
+          rowsWrap.insertBefore(nodes.row, rowsWrap.firstChild)
+        }
+      }
+      updateRow(nodes, rec)
+      prev = nodes.row
+    }
+
+    // The playhead and hit zone always live at the end of rowsWrap so
+    // they overlay the rows and capture pointer events on top.
+    rowsWrap.appendChild(playhead)
+    rowsWrap.appendChild(hitZone)
 
     playhead.style.display = scrubbing ? "block" : "none"
     if (scrubbing) positionPlayhead(scrubPos)
+  }
+
+  const createRow = (rec: AnimationRecord): RowNodes => {
+    const row = document.createElement("div")
+    row.className = "track-row"
+    row.setAttribute("data-id", String(rec.id))
+
+    const label = document.createElement("div")
+    label.className = "label"
+    const idSpan = document.createElement("span")
+    idSpan.className = "id"
+    idSpan.textContent = `#${rec.id}`
+    label.appendChild(idSpan)
+    const targetSpan = document.createElement("span")
+    targetSpan.textContent = targetLabel(rec)
+    label.appendChild(targetSpan)
+    row.appendChild(label)
+
+    const lane = document.createElement("div")
+    lane.className = "lane"
+    const bar = document.createElement("div")
+    bar.className = backendClass(rec.backend)
+    bar.style.width = "100%"
+    lane.appendChild(bar)
+
+    const progress = document.createElement("div")
+    progress.className = "progress"
+    lane.appendChild(progress)
+    row.appendChild(lane)
+
+    return { row, bar, progress, backend: rec.backend }
+  }
+
+  const updateRow = (nodes: RowNodes, rec: AnimationRecord): void => {
+    if (nodes.backend !== rec.backend) {
+      nodes.bar.className = backendClass(rec.backend)
+      nodes.backend = rec.backend
+    }
+    const left = `${Math.round(rec.progress * 100)}%`
+    if (nodes.progress.style.left !== left) {
+      nodes.progress.style.left = left
+    }
   }
 
   const positionPlayhead = (ratio: number): void => {

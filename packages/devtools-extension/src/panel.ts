@@ -132,6 +132,25 @@ function formatTarget(targets: AnimationSnapshot["targets"]): string {
   return `${tag}${id}${cls}${more}`
 }
 
+function isAmbientBackend(backend: string): boolean {
+  return (
+    backend === "follow" ||
+    backend === "scroll" ||
+    backend === "scrub" ||
+    backend === "ambient"
+  )
+}
+
+interface RowNodes {
+  readonly row: HTMLElement
+  readonly meta: HTMLElement
+  readonly bar: HTMLElement
+  ambient: boolean
+  state: string
+}
+const rowNodes = new Map<number, RowNodes>()
+let emptyEl: HTMLElement | null = null
+
 function render(): void {
   root.dataset["connected"] = state.connected ? "yes" : "no"
   statusEl.textContent = state.connected
@@ -144,21 +163,51 @@ function render(): void {
   exportBtn.disabled = state.log.length === 0
   clearLogBtn.disabled = state.log.length === 0
 
-  rowsEl.textContent = ""
   const rows = Array.from(state.animations.values()).sort((a, b) => a.id - b.id)
+
+  // Drop rows that are no longer active so the in-place updates below
+  // don't reuse stale handles.
+  const liveIds = new Set(rows.map((a) => a.id))
+  for (const [id, nodes] of rowNodes) {
+    if (!liveIds.has(id)) {
+      nodes.row.remove()
+      rowNodes.delete(id)
+    }
+  }
+
   if (rows.length === 0) {
-    const empty = document.createElement("div")
-    empty.className = "empty"
-    empty.textContent = state.connected
+    if (!emptyEl) {
+      emptyEl = document.createElement("div")
+      emptyEl.className = "empty"
+      rowsEl.appendChild(emptyEl)
+    }
+    emptyEl.textContent = state.connected
       ? "No active animations"
       : "Importing @kinem/devtools or calling enableTracker() in the page surfaces animations here."
-    rowsEl.appendChild(empty)
     return
   }
-  for (const a of rows) rowsEl.appendChild(renderRow(a))
+
+  if (emptyEl) {
+    emptyEl.remove()
+    emptyEl = null
+  }
+
+  // Add or update rows in id order so the layout matches the sorted
+  // active list. Updating in place (rather than rebuilding) preserves
+  // CSS animation state, which the ambient stripe relies on.
+  for (const a of rows) {
+    const existing = rowNodes.get(a.id)
+    if (existing) {
+      updateRow(existing, a)
+    } else {
+      const created = renderRow(a)
+      rowNodes.set(a.id, created)
+      rowsEl.appendChild(created.row)
+    }
+  }
 }
 
-function renderRow(a: AnimationSnapshot): HTMLElement {
+function renderRow(a: AnimationSnapshot): RowNodes {
   const row = document.createElement("div")
   row.className = `row state-${a.state}`
 
@@ -172,14 +221,12 @@ function renderRow(a: AnimationSnapshot): HTMLElement {
   target.textContent = formatTarget(a.targets)
   const meta = document.createElement("span")
   meta.className = "row-meta"
-  meta.textContent = `${a.backend} · ${a.state} · ${Math.round(a.progress * 100)}%`
   header.append(id, target, meta)
 
   const track = document.createElement("div")
   track.className = "row-track"
   const bar = document.createElement("div")
   bar.className = "row-bar"
-  bar.style.width = `${Math.round(a.progress * 100)}%`
   track.appendChild(bar)
 
   const controls = document.createElement("div")
@@ -194,7 +241,29 @@ function renderRow(a: AnimationSnapshot): HTMLElement {
   )
 
   row.append(header, track, controls)
-  return row
+  const nodes: RowNodes = { row, meta, bar, ambient: false, state: a.state }
+  updateRow(nodes, a)
+  return nodes
+}
+
+function updateRow(nodes: RowNodes, a: AnimationSnapshot): void {
+  if (nodes.state !== a.state) {
+    nodes.row.className = `row state-${a.state}`
+    nodes.state = a.state
+  }
+  nodes.meta.textContent = `${a.backend} · ${a.state} · ${Math.round(a.progress * 100)}%`
+
+  const ambient = isAmbientBackend(a.backend)
+  if (ambient !== nodes.ambient) {
+    nodes.bar.classList.toggle("ambient", ambient)
+    nodes.ambient = ambient
+  }
+  if (ambient) {
+    if (nodes.bar.style.width !== "100%") nodes.bar.style.width = "100%"
+  } else {
+    const w = `${Math.round(a.progress * 100)}%`
+    if (nodes.bar.style.width !== w) nodes.bar.style.width = w
+  }
 }
 
 function btn(label: string, onClick: () => void, variant = ""): HTMLButtonElement {
