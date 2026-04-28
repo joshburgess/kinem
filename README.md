@@ -150,14 +150,18 @@ ad-hoc checks.
 ### React
 
 ```tsx
-import { useTween } from "@kinem/react"
+import { Motion } from "@kinem/react"
 
 function Card() {
-  const ref = useTween<HTMLDivElement>(
-    { opacity: [0, 1], y: [20, 0] },
-    { duration: 400 },
+  return (
+    <Motion
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 400 }}
+    >
+      hello
+    </Motion>
   )
-  return <div ref={ref} className="card">hello</div>
 }
 ```
 
@@ -165,29 +169,44 @@ function Card() {
 
 ```vue
 <script setup lang="ts">
-import { useTween } from "@kinem/vue"
-const card = useTween({ opacity: [0, 1] }, { duration: 400 })
+import { Motion } from "@kinem/vue"
 </script>
 
-<template><div :ref="card" class="card">hello</div></template>
+<template>
+  <Motion
+    :initial="{ opacity: 0, y: 20 }"
+    :animate="{ opacity: 1, y: 0 }"
+    :transition="{ duration: 400 }"
+  >
+    hello
+  </Motion>
+</template>
 ```
 
 ### Svelte
 
 ```svelte
 <script lang="ts">
-  import { tween } from "@kinem/svelte"
+  import { motion } from "@kinem/svelte"
 </script>
 
-<div use:tween={{ opacity: [0, 1], duration: 400 }} class="card">hello</div>
+<div
+  use:motion={{
+    initial: { opacity: 0, transform: "translateY(20px)" },
+    animate: { opacity: 1, transform: "translateY(0px)" },
+    transition: { duration: 400 },
+  }}
+  class="card"
+>
+  hello
+</div>
 ```
 
 ## Status
 
 This is a work-in-progress library. Public versions are `0.x` and minor
-versions may make breaking changes. See
-[CHANGELOG](https://github.com/joshburgess/kinem/releases) for per-release
-notes.
+versions may make breaking changes. See [CHANGELOG.md](CHANGELOG.md) for
+per-release notes.
 
 ## License
 
