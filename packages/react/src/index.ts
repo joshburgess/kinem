@@ -25,4 +25,6 @@ export {
   type MotionProps,
   type MotionTransition,
   type MotionValues,
+  type VariantTarget,
+  type Variants,
 } from "./components/Motion"

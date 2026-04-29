@@ -22,6 +22,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
+      { text: "Recipes", link: "/recipes/" },
       { text: "API", link: "/api/" },
       { text: "Migrations", link: "/migrations/gsap" },
       {
@@ -44,11 +45,26 @@ export default defineConfig({
             { text: "React", link: "/guide/react" },
             { text: "Vue", link: "/guide/vue" },
             { text: "Svelte", link: "/guide/svelte" },
+            { text: "Solid", link: "/guide/solid" },
           ],
         },
         {
           text: "Tooling",
           items: [{ text: "Devtools", link: "/guide/devtools" }],
+        },
+      ],
+      "/recipes/": [
+        {
+          text: "Recipes",
+          items: [
+            { text: "Overview", link: "/recipes/" },
+            { text: "Drawer / sheet", link: "/recipes/drawer" },
+            { text: "Modal with backdrop", link: "/recipes/modal" },
+            { text: "List reorder", link: "/recipes/list-reorder" },
+            { text: "Page transitions", link: "/recipes/page-transition" },
+            { text: "Scroll-driven hero", link: "/recipes/scroll-hero" },
+            { text: "Shared element", link: "/recipes/shared-element" },
+          ],
         },
       ],
       "/api/": typedocSidebar as never,

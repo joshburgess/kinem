@@ -30,6 +30,61 @@ import { Motion } from "@kinem/vue"
 </template>
 ```
 
+### Variants
+
+`<Motion>` accepts a `variants` map of named `MotionValues`. When set,
+`initial`, `animate`, `exit`, `whileHover`, and `whileTap` can each be a
+string key (or array of keys, merged left-to-right) instead of an inline
+values object.
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue"
+import { Motion, type Variants } from "@kinem/vue"
+
+const drawer: Variants = {
+  closed: { x: -240, opacity: 0 },
+  open:   { x:    0, opacity: 1 },
+}
+const open = ref(false)
+</script>
+
+<template>
+  <Motion
+    :variants="drawer"
+    initial="closed"
+    :animate="open ? 'open' : 'closed'"
+    :transition="{ duration: 280 }"
+  />
+</template>
+```
+
+A parent `<Motion>` whose `animate` is a key propagates that key to
+descendants that have their own `variants` map but no explicit `animate`.
+Each descendant resolves the inherited key against its own variants.
+
+### whileHover / whileTap
+
+`whileHover` and `whileTap` give a temporary state override while the
+pointer is over (hover) or pressed (tap). Tap takes precedence over hover.
+
+```vue
+<template>
+  <Motion
+    :variants="{
+      rest:  { scale: 1 },
+      hover: { scale: 1.05 },
+      press: { scale: 0.95 },
+    }"
+    initial="rest"
+    animate="rest"
+    whileHover="hover"
+    whileTap="press"
+    :transition="{ duration: 120 }"
+  />
+</template>
+```
+
 ## `useAnimation`
 
 ```vue

@@ -33,6 +33,67 @@ function Card() {
 }
 ```
 
+### Variants
+
+`<Motion>` accepts a `variants` map of named `MotionValues`. When set, the
+`initial`, `animate`, `exit`, `whileHover`, and `whileTap` props can each
+be a string key (or array of keys, merged left-to-right) instead of an
+inline values object.
+
+```tsx
+import { Motion, type Variants } from "@kinem/react"
+
+const drawer: Variants = {
+  closed: { x: -240, opacity: 0 },
+  open:   { x:    0, opacity: 1 },
+}
+
+function Drawer({ open }: { open: boolean }) {
+  return (
+    <Motion
+      variants={drawer}
+      initial="closed"
+      animate={open ? "open" : "closed"}
+      transition={{ duration: 280 }}
+    />
+  )
+}
+```
+
+A parent `<Motion>` whose `animate` is a key propagates that key to
+descendant `<Motion>` components that have their own `variants` map but
+no explicit `animate`. Each descendant resolves the inherited key against
+its own variants, so a single parent flip can drive a whole subtree:
+
+```tsx
+const card = { closed: { rotate: 0 }, open: { rotate: 8 } }
+const dot  = { closed: { scale: 1 }, open: { scale: 1.4 } }
+
+<Motion variants={card} initial="closed" animate={open ? "open" : "closed"}>
+  <Motion variants={dot} initial="closed" />
+</Motion>
+```
+
+### whileHover / whileTap
+
+`whileHover` and `whileTap` give a temporary state override while the
+pointer is over (hover) or pressed (tap). Tap takes precedence over hover.
+
+```tsx
+<Motion
+  variants={{
+    rest: { scale: 1 },
+    hover: { scale: 1.05 },
+    press: { scale: 0.95 },
+  }}
+  initial="rest"
+  animate="rest"
+  whileHover="hover"
+  whileTap="press"
+  transition={{ duration: 120 }}
+/>
+```
+
 ## `useAnimation`
 
 Imperative control. Attach `ref`, then call `play(def)` from any handler.

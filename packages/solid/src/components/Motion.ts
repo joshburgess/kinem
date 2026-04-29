@@ -11,15 +11,25 @@
  *     content
  *   </Motion>
  *
- * The component is built with Solid's hyperscript (`solid-js/h`) so the
- * Solid package can keep its no-JSX build pipeline. JSX usage in
- * consumer code Just Works because Solid components are functions.
+ * Variants. `variants` is a named map of `MotionValues`. When set, the
+ * `initial`, `animate`, `exit`, `whileHover`, and `whileTap` props may
+ * each be inline values, a single variant key, or an array of keys
+ * merged left-to-right (later wins):
  *
- * The `initial` object is applied as inline styles before the first
- * animation frame so the element paints at the starting state. On
- * mount, a tween from `initial` to `animate` plays. When the `animate`
- * prop changes, a new tween from the previous `animate` to the new one
- * replaces any in-flight animation.
+ *   const v = { closed: { x: -100, opacity: 0 }, open: { x: 0, opacity: 1 } }
+ *   <Motion variants={v} initial="closed" animate={open() ? "open" : "closed"} />
+ *
+ * Parent-child propagation. A `<Motion>` whose `animate` is a key
+ * propagates that key (via context) to descendants that have their own
+ * `variants` map but no explicit `animate`. The descendant resolves the
+ * inherited key against its own map.
+ *
+ * whileHover / whileTap. Resolved values from these props temporarily
+ * override `animate` while the pointer is over (hover) or pressed
+ * (tap). Tap takes precedence over hover.
+ *
+ * The component is built with Solid's hyperscript (`solid-js/h`) so the
+ * Solid package can keep its no-JSX build pipeline.
  *
  * Solid signals are never written during playback; mutation happens
  * directly on the DOM node.
@@ -32,14 +42,28 @@
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
 import { omitUndefined, play, tween } from "@kinem/core"
-import { type JSX, createEffect, on, onCleanup, onMount } from "solid-js"
+import {
+  type JSX,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  useContext,
+} from "solid-js"
 // `solid-js/h` is the hyperscript helper. It returns a Solid JSX node.
 // Using it lets this file stay as plain `.ts` so the package's existing
 // (no-JSX) build pipeline doesn't need to change.
 import h from "solid-js/h"
 import type { CreatePresenceResult } from "../primitives/createPresence"
+import { MotionAnimateContext } from "./motion-context"
 
 export type MotionValues = Readonly<Record<string, string | number>>
+
+export type Variants = Readonly<Record<string, MotionValues>>
+
+export type VariantTarget = MotionValues | string | readonly string[]
 
 export interface MotionTransition {
   readonly duration?: number
@@ -49,9 +73,12 @@ export interface MotionTransition {
 
 export interface MotionProps {
   readonly as?: string
-  readonly initial?: MotionValues
-  readonly animate?: MotionValues
-  readonly exit?: MotionValues
+  readonly variants?: Variants
+  readonly initial?: VariantTarget
+  readonly animate?: VariantTarget
+  readonly exit?: VariantTarget
+  readonly whileHover?: VariantTarget
+  readonly whileTap?: VariantTarget
   readonly transition?: MotionTransition
   /**
    * Optional presence controller from `createPresence(...)`. When
@@ -65,6 +92,28 @@ export interface MotionProps {
   readonly children?: JSX.Element
   readonly ref?: (el: Element) => void
   readonly [attr: string]: unknown
+}
+
+function isVariantKey(t: VariantTarget): t is string | readonly string[] {
+  return typeof t === "string" || Array.isArray(t)
+}
+
+function resolveTarget(
+  target: VariantTarget | undefined,
+  variants: Variants | undefined,
+): MotionValues | undefined {
+  if (target === undefined) return undefined
+  if (typeof target === "string") return variants?.[target]
+  if (Array.isArray(target)) {
+    if (!variants) return undefined
+    const merged: Record<string, string | number> = {}
+    for (const k of target) {
+      const v = variants[k]
+      if (v) Object.assign(merged, v)
+    }
+    return merged
+  }
+  return target as MotionValues
 }
 
 function shallowEqualValues(a: MotionValues | undefined, b: MotionValues | undefined): boolean {
@@ -96,8 +145,35 @@ function buildTweenProps(
 export function Motion(props: MotionProps): JSX.Element {
   let el: Element | null = null
   let controls: Controls | null = null
-  let prevAnimate: MotionValues | undefined = props.initial ?? props.animate
   let mounted = false
+
+  const parentAnimateKey = useContext(MotionAnimateContext)
+
+  // A child inherits the parent's animate key only when it has its own
+  // variants map and didn't pass an explicit animate of its own.
+  const effectiveAnimate = createMemo<VariantTarget | undefined>(() => {
+    if (props.animate !== undefined) return props.animate
+    if (props.variants && parentAnimateKey() != null) return parentAnimateKey() ?? undefined
+    return undefined
+  })
+
+  const [hovering, setHovering] = createSignal(false)
+  const [tapping, setTapping] = createSignal(false)
+
+  const resolvedInitial = createMemo(() => resolveTarget(props.initial, props.variants))
+  const resolvedAnimate = createMemo(() => resolveTarget(effectiveAnimate(), props.variants))
+  const resolvedExit = createMemo(() => resolveTarget(props.exit, props.variants))
+  const resolvedHover = createMemo(() => resolveTarget(props.whileHover, props.variants))
+  const resolvedTap = createMemo(() => resolveTarget(props.whileTap, props.variants))
+
+  // Tap > hover > animate.
+  const targetValues = createMemo<MotionValues | undefined>(() => {
+    if (tapping() && resolvedTap()) return resolvedTap()
+    if (hovering() && resolvedHover()) return resolvedHover()
+    return resolvedAnimate()
+  })
+
+  let currentValues: MotionValues | undefined = resolvedInitial() ?? resolvedAnimate()
 
   const cancelCurrent = (): void => {
     if (controls && controls.state !== "cancelled" && controls.state !== "finished") {
@@ -123,31 +199,32 @@ export function Motion(props: MotionProps): JSX.Element {
 
   onMount(() => {
     mounted = true
-    const animate = props.animate
-    if (!animate) return
-    const from = prevAnimate ?? props.initial ?? animate
-    runTween(from, animate)
-    prevAnimate = animate
+    const target = targetValues()
+    if (!target) return
+    const from = currentValues ?? resolvedInitial() ?? target
+    runTween(from, target)
+    currentValues = target
   })
 
-  // Re-tween whenever `animate` changes after mount.
+  // Re-tween whenever the resolved target changes after mount.
   createEffect(
     on(
-      () => props.animate,
-      (next) => {
+      targetValues,
+      (next, prev) => {
         if (!mounted) return
         if (!next) return
-        const from = prevAnimate ?? props.initial ?? next
-        if (shallowEqualValues(next, from)) return
+        if (shallowEqualValues(next, prev)) return
+        const from = currentValues ?? resolvedInitial() ?? next
+        if (shallowEqualValues(from, next)) return
         runTween(from, next)
-        prevAnimate = next
+        currentValues = next
       },
       { defer: true },
     ),
   )
 
-  // Presence: when isPresent flips false, run the exit tween and
-  // notify the controller once it settles.
+  // Presence: when isPresent flips false, run the exit tween and notify
+  // the controller once it settles.
   if (props.presence) {
     const presence = props.presence
     let exitStarted = false
@@ -157,12 +234,13 @@ export function Motion(props: MotionProps): JSX.Element {
         (isPresent) => {
           if (isPresent || exitStarted) return
           exitStarted = true
-          const from = prevAnimate ?? props.animate ?? props.initial
-          if (!props.exit || !from) {
+          const from = currentValues ?? resolvedAnimate() ?? resolvedInitial()
+          const exitVals = resolvedExit()
+          if (!exitVals || !from) {
             presence.safeToRemove()
             return
           }
-          const c = runTween(from, props.exit)
+          const c = runTween(from, exitVals)
           if (!c) {
             presence.safeToRemove()
             return
@@ -191,18 +269,29 @@ export function Motion(props: MotionProps): JSX.Element {
 
   const tag = props.as ?? "div"
   const mergedStyle: JSX.CSSProperties = {
-    ...((props.initial ?? {}) as JSX.CSSProperties),
+    ...((resolvedInitial() ?? {}) as JSX.CSSProperties),
     ...(props.style ?? {}),
   }
+
   // Forward unknown props as DOM attributes / event handlers, but strip
-  // the motion-specific keys we already consumed.
+  // the motion-specific keys we already consumed and the pointer
+  // handlers we wrap below.
   const passThrough: Record<string, unknown> = {}
+  let userOnPointerEnter: ((e: PointerEvent) => void) | undefined
+  let userOnPointerLeave: ((e: PointerEvent) => void) | undefined
+  let userOnPointerDown: ((e: PointerEvent) => void) | undefined
+  let userOnPointerUp: ((e: PointerEvent) => void) | undefined
+  let userOnPointerCancel: ((e: PointerEvent) => void) | undefined
+
   for (const key of Object.keys(props)) {
     if (
       key === "as" ||
+      key === "variants" ||
       key === "initial" ||
       key === "animate" ||
       key === "exit" ||
+      key === "whileHover" ||
+      key === "whileTap" ||
       key === "transition" ||
       key === "presence" ||
       key === "style" ||
@@ -211,11 +300,76 @@ export function Motion(props: MotionProps): JSX.Element {
     ) {
       continue
     }
+    if (key === "onPointerEnter" || key === "onpointerenter") {
+      userOnPointerEnter = props[key] as (e: PointerEvent) => void
+      continue
+    }
+    if (key === "onPointerLeave" || key === "onpointerleave") {
+      userOnPointerLeave = props[key] as (e: PointerEvent) => void
+      continue
+    }
+    if (key === "onPointerDown" || key === "onpointerdown") {
+      userOnPointerDown = props[key] as (e: PointerEvent) => void
+      continue
+    }
+    if (key === "onPointerUp" || key === "onpointerup") {
+      userOnPointerUp = props[key] as (e: PointerEvent) => void
+      continue
+    }
+    if (key === "onPointerCancel" || key === "onpointercancel") {
+      userOnPointerCancel = props[key] as (e: PointerEvent) => void
+      continue
+    }
     passThrough[key] = props[key]
   }
-  return h(
+
+  if (props.whileHover !== undefined) {
+    passThrough["onPointerEnter"] = (e: PointerEvent): void => {
+      setHovering(true)
+      userOnPointerEnter?.(e)
+    }
+    passThrough["onPointerLeave"] = (e: PointerEvent): void => {
+      setHovering(false)
+      setTapping(false)
+      userOnPointerLeave?.(e)
+    }
+  } else {
+    if (userOnPointerEnter) passThrough["onPointerEnter"] = userOnPointerEnter
+    if (userOnPointerLeave) passThrough["onPointerLeave"] = userOnPointerLeave
+  }
+  if (props.whileTap !== undefined) {
+    passThrough["onPointerDown"] = (e: PointerEvent): void => {
+      setTapping(true)
+      userOnPointerDown?.(e)
+    }
+    passThrough["onPointerUp"] = (e: PointerEvent): void => {
+      setTapping(false)
+      userOnPointerUp?.(e)
+    }
+    passThrough["onPointerCancel"] = (e: PointerEvent): void => {
+      setTapping(false)
+      userOnPointerCancel?.(e)
+    }
+  } else {
+    if (userOnPointerDown) passThrough["onPointerDown"] = userOnPointerDown
+    if (userOnPointerUp) passThrough["onPointerUp"] = userOnPointerUp
+    if (userOnPointerCancel) passThrough["onPointerCancel"] = userOnPointerCancel
+  }
+
+  // Provide the parent animate key only when our own animate is a key,
+  // so descendants can opt into inheritance via their own variants map.
+  const provideKey = createMemo<MotionAnimateContextValue>(() => {
+    const a = effectiveAnimate()
+    return a !== undefined && isVariantKey(a) ? a : null
+  })
+
+  const node = h(
     tag,
     { ...passThrough, ref: setRef, style: mergedStyle },
     props.children,
   ) as unknown as JSX.Element
+
+  return h(MotionAnimateContext.Provider, { value: provideKey }, node) as unknown as JSX.Element
 }
+
+type MotionAnimateContextValue = string | readonly string[] | null

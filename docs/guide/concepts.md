@@ -103,11 +103,35 @@ When you need positional control (overlapping offsets, labels, gaps),
 ```ts
 import { easeOut, timeline, tween } from "@kinem/core"
 
-const tl = timeline()
-  .add(tween({ opacity: [0, 1] }, { duration: 300 }), 0)
-  .add(tween({ y: [20, 0] }, { duration: 300, easing: easeOut }), "-=100")
-  .label("midpoint")
-  .add(tween({ scale: [1, 1.05] }, { duration: 200 }), "midpoint")
+const card = document.querySelector(".card") as HTMLElement
 
-play(tl.def, ".card")
+const controls = timeline()
+  .add(tween({ opacity: [0, 1] }, { duration: 300 }), card)
+  .add(tween({ y: [20, 0] }, { duration: 300, easing: easeOut }), card, {
+    at: "<", offset: 100, // start 100ms after the previous animation began
+  })
+  .addLabel("midpoint")
+  .add(tween({ scale: [1, 1.05] }, { duration: 200 }), card, { at: "midpoint" })
+  .play()
 ```
+
+`add(def, target, opts?)` appends. `at` accepts an absolute ms number,
+`"<"` (start of previous), `">"` (end of previous, default), or any
+previously registered label name. `offset` shifts the resolved position
+by a signed millisecond delta.
+
+### Seeking by label
+
+Labels carried into `controls` from `timeline().play()` survive on
+`Controls.labels` (a `ReadonlyMap<string, number>` of normalized
+progress values). Use `seekLabel(name)` to jump and `playLabel(name)` to
+jump and start (or resume) playback in one call:
+
+```ts
+controls.pause()
+controls.seekLabel("midpoint")  // jump, stay paused
+controls.playLabel("midpoint")  // jump and resume
+```
+
+`playLabel` re-arms a finished timeline and flips reversed playback back
+to forward, mirroring `restart()`'s recovery semantics.

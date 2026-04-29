@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { Motion, type MotionProps } from "./Motion"
+import { Motion, type MotionProps, type Variants } from "./Motion"
 
 // The Solid `Motion` component is a Solid component (a function that
 // returns a `JSX.Element`). Full DOM-rendering tests require Solid's
@@ -27,5 +27,25 @@ describe("Motion (solid)", () => {
       "data-testid": "m",
     }
     expect(typeof props.as).toBe("string")
+  })
+
+  it("accepts a variants map and string-keyed targets", () => {
+    // Type-level check that the variants API typechecks. Runtime
+    // resolution / inheritance behavior is exercised by the React and
+    // Vue adapter tests against the same shared core registry.
+    const v: Variants = {
+      closed: { opacity: 0, x: -100 },
+      open: { opacity: 1, x: 0 },
+    }
+    const props: MotionProps = {
+      variants: v,
+      initial: "closed",
+      animate: "open",
+      exit: "closed",
+      whileHover: "open",
+      whileTap: ["open", "closed"],
+    }
+    expect(props.variants).toBe(v)
+    expect(props.animate).toBe("open")
   })
 })

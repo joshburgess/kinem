@@ -6,14 +6,25 @@
  *   <Motion as="div" :initial="{ opacity: 0 }" :animate="{ opacity: 1 }"
  *           :transition="{ duration: 400 }" />
  *
- * The `initial` object is applied as inline styles on first render so
- * the element paints at the starting state before any animation frame
- * runs. On mount, a tween from `initial` to `animate` plays. When the
- * `animate` prop changes, a new tween from the previous `animate` to
- * the new one replaces any in-flight animation.
+ * Variants. Pass a `variants` map of named `MotionValues` and use a
+ * string key for `initial`, `animate`, `exit`, `whileHover`, or
+ * `whileTap` to drive a declarative state machine:
  *
- * Vue's reactivity is not used to drive per-frame state; mutation
- * happens directly on the DOM node via refs.
+ *   const v = { closed: { opacity: 0 }, open: { opacity: 1 } }
+ *   <Motion :variants="v" initial="closed" :animate="isOpen ? 'open' : 'closed'" />
+ *
+ * Parent-child propagation. A `<Motion>` whose `animate` is a key
+ * provides that key (via `inject`) to descendants that have their own
+ * `variants` but no explicit `animate`. The descendants resolve the
+ * inherited key against their own map.
+ *
+ * whileHover / whileTap. Resolved values from these props temporarily
+ * override `animate` while the pointer is over (hover) or pressed
+ * (tap). Tap takes precedence over hover.
+ *
+ * The resolved `initial` object is applied as inline styles on first
+ * render so the element paints at the starting state before any animation
+ * frame runs.
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
@@ -21,22 +32,59 @@ import { omitUndefined, play, tween } from "@kinem/core"
 import {
   type CSSProperties,
   type PropType,
+  type Ref,
+  computed,
   defineComponent,
   h,
   inject,
   onBeforeUnmount,
   onMounted,
+  provide,
+  ref,
   shallowRef,
   watch,
 } from "vue"
+import { MotionAnimateKey } from "./motion-context"
 import { PresenceKey } from "./presence"
 
 export type MotionValues = Readonly<Record<string, string | number>>
+
+export type Variants = Readonly<Record<string, MotionValues>>
+
+/**
+ * What `initial`, `animate`, `exit`, `whileHover`, and `whileTap` accept:
+ * inline values, a single variant key, or an array of keys merged in
+ * order (later wins). String / array forms require a `variants` map;
+ * otherwise they resolve to `undefined` and the prop is ignored.
+ */
+export type VariantTarget = MotionValues | string | readonly string[]
 
 export interface MotionTransition {
   readonly duration?: number
   readonly easing?: EasingFn
   readonly backend?: PlayOpts["backend"]
+}
+
+function isVariantKey(t: VariantTarget): t is string | readonly string[] {
+  return typeof t === "string" || Array.isArray(t)
+}
+
+function resolveTarget(
+  target: VariantTarget | undefined,
+  variants: Variants | undefined,
+): MotionValues | undefined {
+  if (target === undefined) return undefined
+  if (typeof target === "string") return variants?.[target]
+  if (Array.isArray(target)) {
+    if (!variants) return undefined
+    const merged: Record<string, string | number> = {}
+    for (const k of target) {
+      const v = variants[k]
+      if (v) Object.assign(merged, v)
+    }
+    return merged
+  }
+  return target as MotionValues
 }
 
 function shallowEqualValues(a: MotionValues | undefined, b: MotionValues | undefined): boolean {
@@ -67,18 +115,63 @@ function buildTweenProps(
 
 export const Motion = defineComponent({
   name: "Motion",
+  // We bind attrs explicitly in render. Disabling auto-inheritance is
+  // load-bearing: when we extract pointer handlers out of attrs (so we
+  // can wrap them), the default auto-merge would re-attach the original
+  // user handler on top of ours, double-firing whileHover / whileTap.
+  inheritAttrs: false,
   props: {
     as: { type: String, default: "div" },
-    initial: { type: Object as PropType<MotionValues>, default: undefined },
-    animate: { type: Object as PropType<MotionValues>, default: undefined },
-    exit: { type: Object as PropType<MotionValues>, default: undefined },
+    variants: { type: Object as PropType<Variants>, default: undefined },
+    initial: { type: [Object, String, Array] as PropType<VariantTarget>, default: undefined },
+    animate: { type: [Object, String, Array] as PropType<VariantTarget>, default: undefined },
+    exit: { type: [Object, String, Array] as PropType<VariantTarget>, default: undefined },
+    whileHover: {
+      type: [Object, String, Array] as PropType<VariantTarget>,
+      default: undefined,
+    },
+    whileTap: { type: [Object, String, Array] as PropType<VariantTarget>, default: undefined },
     transition: { type: Object as PropType<MotionTransition>, default: undefined },
   },
   setup(props, { slots, attrs }) {
     const elRef = shallowRef<Element | null>(null)
     let controls: Controls | null = null
-    let prevAnimate: MotionValues | undefined = props.initial ?? props.animate
     const presence = inject(PresenceKey, null)
+    const parentAnimateKey = inject(MotionAnimateKey, null)
+
+    const effectiveAnimate = computed<VariantTarget | undefined>(() => {
+      if (props.animate !== undefined) return props.animate
+      if (props.variants && parentAnimateKey?.value != null) return parentAnimateKey.value
+      return undefined
+    })
+
+    const hovering = ref(false)
+    const tapping = ref(false)
+
+    const resolvedInitial = computed(() => resolveTarget(props.initial, props.variants))
+    const resolvedAnimate = computed(() => resolveTarget(effectiveAnimate.value, props.variants))
+    const resolvedExit = computed(() => resolveTarget(props.exit, props.variants))
+    const resolvedHover = computed(() => resolveTarget(props.whileHover, props.variants))
+    const resolvedTap = computed(() => resolveTarget(props.whileTap, props.variants))
+
+    // Tap > hover > animate.
+    const targetValues = computed<MotionValues | undefined>(() => {
+      if (tapping.value && resolvedTap.value) return resolvedTap.value
+      if (hovering.value && resolvedHover.value) return resolvedHover.value
+      return resolvedAnimate.value
+    })
+
+    let currentValues: MotionValues | undefined = resolvedInitial.value ?? resolvedAnimate.value
+
+    const provideKey = computed<MotionAnimateKey>(() =>
+      effectiveAnimate.value !== undefined && isVariantKey(effectiveAnimate.value)
+        ? effectiveAnimate.value
+        : null,
+    )
+
+    // Provide as a ref so descendants reactively re-resolve when our
+    // animate key changes.
+    provide(MotionAnimateKey, provideKey as unknown as Ref<MotionAnimateKey>)
 
     const runTween = (from: MotionValues, to: MotionValues): Controls | null => {
       const el = elRef.value
@@ -99,23 +192,21 @@ export const Motion = defineComponent({
     }
 
     onMounted(() => {
-      const animate = props.animate
-      if (!animate) return
-      const from = prevAnimate ?? props.initial ?? animate
-      runTween(from, animate)
-      prevAnimate = animate
+      const target = targetValues.value
+      if (!target) return
+      const from = currentValues ?? resolvedInitial.value ?? target
+      runTween(from, target)
+      currentValues = target
     })
 
-    watch(
-      () => props.animate,
-      (next, prev) => {
-        if (!next) return
-        if (shallowEqualValues(next, prev)) return
-        const from = prevAnimate ?? prev ?? props.initial ?? next
-        runTween(from, next)
-        prevAnimate = next
-      },
-    )
+    watch(targetValues, (next, prev) => {
+      if (!next) return
+      if (shallowEqualValues(next, prev)) return
+      const from = currentValues ?? resolvedInitial.value ?? next
+      if (shallowEqualValues(from, next)) return
+      runTween(from, next)
+      currentValues = next
+    })
 
     if (presence) {
       let exitStarted = false
@@ -125,12 +216,13 @@ export const Motion = defineComponent({
           if (isPresent || exitStarted) return
           exitStarted = true
           const el = elRef.value
-          const from = prevAnimate ?? props.animate ?? props.initial
-          if (!el || !props.exit || !from) {
+          const from = currentValues ?? resolvedAnimate.value ?? resolvedInitial.value
+          const exitVals = resolvedExit.value
+          if (!el || !exitVals || !from) {
             presence.safeToRemove()
             return
           }
-          const c = runTween(from, props.exit)
+          const c = runTween(from, exitVals)
           if (!c) {
             presence.safeToRemove()
             return
@@ -157,13 +249,69 @@ export const Motion = defineComponent({
     return () => {
       const userStyle = (attrs.style as CSSProperties | undefined) ?? {}
       const mergedStyle: CSSProperties = {
-        ...(props.initial as CSSProperties | undefined),
+        ...((resolvedInitial.value ?? {}) as CSSProperties),
         ...userStyle,
       }
+
+      // Strip pointer attrs out of the spread so we don't end up with
+      // both Vue's auto-merged listener-array and our own handler firing
+      // the user's callback. We chain into the user's handler manually
+      // when our while* prop is set, otherwise we forward it as-is.
+      const {
+        style: _style,
+        onPointerenter: userOnPointerEnter,
+        onPointerleave: userOnPointerLeave,
+        onPointerdown: userOnPointerDown,
+        onPointerup: userOnPointerUp,
+        onPointercancel: userOnPointerCancel,
+        ...restAttrs
+      } = attrs as Record<string, unknown>
+
+      const handlers: Record<string, (e: PointerEvent) => void> = {}
+      const userEnter = userOnPointerEnter as ((e: PointerEvent) => void) | undefined
+      const userLeave = userOnPointerLeave as ((e: PointerEvent) => void) | undefined
+      const userDown = userOnPointerDown as ((e: PointerEvent) => void) | undefined
+      const userUp = userOnPointerUp as ((e: PointerEvent) => void) | undefined
+      const userCancel = userOnPointerCancel as ((e: PointerEvent) => void) | undefined
+
+      if (props.whileHover !== undefined) {
+        handlers["onPointerenter"] = (e) => {
+          hovering.value = true
+          userEnter?.(e)
+        }
+        handlers["onPointerleave"] = (e) => {
+          hovering.value = false
+          tapping.value = false
+          userLeave?.(e)
+        }
+      } else {
+        if (userEnter) handlers["onPointerenter"] = userEnter
+        if (userLeave) handlers["onPointerleave"] = userLeave
+      }
+      if (props.whileTap !== undefined) {
+        handlers["onPointerdown"] = (e) => {
+          tapping.value = true
+          userDown?.(e)
+        }
+        handlers["onPointerup"] = (e) => {
+          tapping.value = false
+          userUp?.(e)
+        }
+        handlers["onPointercancel"] = (e) => {
+          tapping.value = false
+          userCancel?.(e)
+        }
+      } else {
+        if (userDown) handlers["onPointerdown"] = userDown
+        if (userUp) handlers["onPointerup"] = userUp
+        if (userCancel) handlers["onPointercancel"] = userCancel
+      }
+
       return h(
         props.as,
         {
-          ...attrs,
+          ...restAttrs,
+          ...handlers,
           ref: (el: unknown) => {
             elRef.value = (el as Element | null) ?? null
           },

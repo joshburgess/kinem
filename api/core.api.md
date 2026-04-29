@@ -179,6 +179,7 @@ export interface Controls extends PromiseLike<void> {
     resume(): Controls;
     seek(progress: number): Controls;
     seekLabel(label: string): Controls;
+    playLabel(label: string): Controls;
     reverse(): Controls;
     restart(): Controls;
     cancel(): Controls;

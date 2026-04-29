@@ -9,6 +9,8 @@ export { AnimatePresence } from "./components/AnimatePresence"
 export {
   type MotionTransition,
   type MotionValues,
+  type VariantTarget,
+  type Variants,
   Motion,
 } from "./components/Motion"
 export { PresenceKey, type PresenceValue } from "./components/presence"

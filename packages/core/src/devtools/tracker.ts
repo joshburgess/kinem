@@ -271,6 +271,7 @@ function ambientControls(handle: AmbientHandle): Controls {
     resume: noop as Controls["resume"],
     seek: noop as Controls["seek"],
     seekLabel: noop as Controls["seekLabel"],
+    playLabel: noop as Controls["playLabel"],
     reverse: noop as Controls["reverse"],
     restart: noop as Controls["restart"],
     cancel(): Controls {

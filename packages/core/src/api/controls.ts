@@ -34,6 +34,13 @@ export interface Controls extends PromiseLike<void> {
   seek(progress: number): Controls
   /** Seek to a named label previously registered (e.g. on a timeline). */
   seekLabel(label: string): Controls
+  /**
+   * Seek to a named label and start playing forward from there. Sugar
+   * for `seekLabel(label)` followed by the equivalent of `restart()`'s
+   * unpause / reverse-flip handling: paused animations resume, reversed
+   * playback flips forward, and finished playback re-arms.
+   */
+  playLabel(label: string): Controls
   reverse(): Controls
   /**
    * Play from the beginning, forward. No-op if the animation was
@@ -95,6 +102,25 @@ class ControlsImpl implements Controls {
       )
     }
     this.#handle.seek(offset)
+    return this
+  }
+  playLabel(label: string): Controls {
+    const offset = this.#labels.get(label)
+    if (offset === undefined) {
+      throw new KinemError(
+        `playLabel(): unknown label "${label}"`,
+        "add a label first via timeline.label(name) before playing from it",
+      )
+    }
+    const h = this.#handle
+    // Cancel is terminal and sticky; replaying from a label after cancel
+    // would silently no-op, so surface the misuse.
+    if (h.state === "cancelled") return this
+    // Mirror restart()'s reverse-flip / re-arm dance so playLabel on a
+    // reversed or finished animation resumes forward from the label.
+    if (h.direction === -1) h.reverse()
+    h.seek(offset)
+    if (h.state === "paused") h.resume()
     return this
   }
   reverse(): Controls {

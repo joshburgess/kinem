@@ -168,6 +168,55 @@ describe("timeline", () => {
     expect(b.styles.get("opacity")).toBe("0")
   })
 
+  it("playLabel seeks to the label and resumes if paused", () => {
+    const a = makeTarget()
+    const b = makeTarget()
+    const env = setup()
+    const controls = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .addLabel("mid")
+      .add(tween({ opacity: [0, 1] }, { duration: 100 }), b)
+      .play({ waapiSupported: false, scheduler: env.scheduler, clock: env.clock })
+
+    env.tick()
+    controls.pause()
+    controls.playLabel("mid")
+    expect(controls.state).toBe("playing")
+    // Tick a frame so the seek lands and a is at its endpoint.
+    env.tick()
+    expect(a.styles.get("width")).toBe("100px")
+    expect(b.styles.get("opacity")).toBe("0")
+  })
+
+  it("playLabel throws on unknown labels", () => {
+    const a = makeTarget()
+    const env = setup()
+    const controls = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .play({ waapiSupported: false, scheduler: env.scheduler, clock: env.clock })
+
+    expect(() => controls.playLabel("missing")).toThrow(/unknown label/)
+  })
+
+  it("playLabel on a finished timeline re-arms it from the label", async () => {
+    const a = makeTarget()
+    const env = setup()
+    const controls = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .addLabel("end", 50)
+      .play({ waapiSupported: false, scheduler: env.scheduler, clock: env.clock })
+
+    env.tick()
+    env.advance(120)
+    env.tick()
+    await controls
+    expect(controls.state).toBe("finished")
+
+    controls.playLabel("end")
+    env.tick()
+    expect(controls.state).toBe("playing")
+  })
+
   it("addLabel throws on unknown reference", () => {
     expect(() => timeline().addLabel("x", "missing")).toThrow(/unknown label/)
   })

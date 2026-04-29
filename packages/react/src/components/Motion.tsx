@@ -7,14 +7,29 @@
  *     content
  *   </Motion>
  *
- * The `initial` object is applied as inline styles on first render so the
- * element paints at the starting state before any animation frame runs.
- * On mount, a tween from `initial` to `animate` is played. When the
- * `animate` object changes (by shallow-equal check) a new tween from the
- * previous `animate` to the new one replaces any in-flight animation.
+ * Variants. `variants` is a named map of `MotionValues`. When `variants`
+ * is set, `initial`, `animate`, `exit`, `whileHover`, and `whileTap` may
+ * each be either an inline `MotionValues` object, a string key into the
+ * variants map, or an array of keys whose values are merged left-to-right
+ * (later keys win):
  *
- * React state is never updated during playback; all mutation happens on
- * the DOM node via refs.
+ *   const v = { closed: { x: -100, opacity: 0 }, open: { x: 0, opacity: 1 } }
+ *   <Motion variants={v} initial="closed" animate={isOpen ? "open" : "closed"} />
+ *
+ * Parent-child propagation. A `<Motion>` whose `animate` is a string key
+ * propagates that key down to descendant `<Motion>` components that have
+ * their own `variants` map but no explicit `animate`. Each descendant
+ * resolves the inherited key against its own variants, so a parent flip
+ * from "closed" → "open" can drive children with the same vocabulary.
+ *
+ * whileHover / whileTap. When set, the resolved values from these props
+ * temporarily override `animate` while the pointer is over the element
+ * (hover) or pressed on it (tap). Tap takes precedence over hover.
+ *
+ * The resolved `initial` object is applied as inline styles on first
+ * render so the element paints at the starting state before any animation
+ * frame runs. React state is never updated during playback; all mutation
+ * happens on the DOM node via refs.
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
@@ -24,15 +39,29 @@ import {
   type ComponentPropsWithoutRef,
   type ElementType,
   type ReactElement,
+  type PointerEvent as ReactPointerEvent,
   type Ref,
   createElement,
   useContext,
   useEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react"
+import { MotionAnimateContext } from "./motion-context"
 import { PresenceContext } from "./presence"
 
 export type MotionValues = Readonly<Record<string, string | number>>
+
+export type Variants = Readonly<Record<string, MotionValues>>
+
+/**
+ * What `initial`, `animate`, `exit`, `whileHover`, and `whileTap` accept:
+ * inline values, a single variant key, or a list of keys merged in order
+ * (later wins). String / array forms require a `variants` map; otherwise
+ * they resolve to `undefined` and the prop is ignored.
+ */
+export type VariantTarget = MotionValues | string | readonly string[]
 
 export interface MotionTransition {
   readonly duration?: number
@@ -42,9 +71,12 @@ export interface MotionTransition {
 
 type MotionOwnProps<E extends ElementType> = {
   readonly as?: E
-  readonly initial?: MotionValues
-  readonly animate?: MotionValues
-  readonly exit?: MotionValues
+  readonly variants?: Variants
+  readonly initial?: VariantTarget
+  readonly animate?: VariantTarget
+  readonly exit?: VariantTarget
+  readonly whileHover?: VariantTarget
+  readonly whileTap?: VariantTarget
   readonly transition?: MotionTransition
   readonly motionRef?: Ref<Element>
 }
@@ -64,6 +96,30 @@ function shallowEqualValues(a: MotionValues | undefined, b: MotionValues | undef
   return true
 }
 
+function isVariantKey(t: VariantTarget): t is string | readonly string[] {
+  return typeof t === "string" || Array.isArray(t)
+}
+
+function resolveTarget(
+  target: VariantTarget | undefined,
+  variants: Variants | undefined,
+): MotionValues | undefined {
+  if (target === undefined) return undefined
+  if (typeof target === "string") {
+    return variants?.[target]
+  }
+  if (Array.isArray(target)) {
+    if (!variants) return undefined
+    const merged: Record<string, string | number> = {}
+    for (const k of target) {
+      const v = variants[k]
+      if (v) Object.assign(merged, v)
+    }
+    return merged
+  }
+  return target as MotionValues
+}
+
 function buildTweenProps(
   from: MotionValues,
   to: MotionValues,
@@ -81,19 +137,66 @@ function buildTweenProps(
 export function Motion<E extends ElementType = "div">(props: MotionProps<E>): ReactElement {
   const {
     as,
+    variants,
     initial,
     animate,
     exit,
+    whileHover,
+    whileTap,
     transition,
     motionRef,
     style: userStyle,
+    children,
+    onPointerEnter: userOnPointerEnter,
+    onPointerLeave: userOnPointerLeave,
+    onPointerDown: userOnPointerDown,
+    onPointerUp: userOnPointerUp,
+    onPointerCancel: userOnPointerCancel,
     ...rest
-  } = props as MotionOwnProps<E> & { style?: CSSProperties }
+  } = props as MotionOwnProps<E> & {
+    style?: CSSProperties
+    children?: import("react").ReactNode
+    onPointerEnter?: (e: ReactPointerEvent<Element>) => void
+    onPointerLeave?: (e: ReactPointerEvent<Element>) => void
+    onPointerDown?: (e: ReactPointerEvent<Element>) => void
+    onPointerUp?: (e: ReactPointerEvent<Element>) => void
+    onPointerCancel?: (e: ReactPointerEvent<Element>) => void
+  }
 
   const presence = useContext(PresenceContext)
+  const parentAnimateKey = useContext(MotionAnimateContext)
+
+  // A child inherits the parent's animate key only when it has its own
+  // variants map and didn't pass an explicit animate of its own. This
+  // keeps inheritance opt-in and avoids surprising children that don't
+  // share the parent's variant vocabulary.
+  const effectiveAnimate: VariantTarget | undefined =
+    animate ?? (variants && parentAnimateKey != null ? parentAnimateKey : undefined)
+
+  const [hovering, setHovering] = useState(false)
+  const [tapping, setTapping] = useState(false)
+
+  // Resolve each target against the variants map. We memo on identity of
+  // each input so changing one doesn't churn unrelated work.
+  const resolvedInitial = useMemo(() => resolveTarget(initial, variants), [initial, variants])
+  const resolvedAnimate = useMemo(
+    () => resolveTarget(effectiveAnimate, variants),
+    [effectiveAnimate, variants],
+  )
+  const resolvedExit = useMemo(() => resolveTarget(exit, variants), [exit, variants])
+  const resolvedHover = useMemo(() => resolveTarget(whileHover, variants), [whileHover, variants])
+  const resolvedTap = useMemo(() => resolveTarget(whileTap, variants), [whileTap, variants])
+
+  // Precedence: tap > hover > animate.
+  const targetValues: MotionValues | undefined = tapping
+    ? (resolvedTap ?? resolvedAnimate)
+    : hovering
+      ? (resolvedHover ?? resolvedAnimate)
+      : resolvedAnimate
+
   const elRef = useRef<Element | null>(null)
   const controlsRef = useRef<Controls | null>(null)
-  const prevAnimateRef = useRef<MotionValues | undefined>(initial ?? animate)
+  const currentValuesRef = useRef<MotionValues | undefined>(resolvedInitial ?? resolvedAnimate)
   const mountedRef = useRef(false)
 
   const setRef = (el: Element | null): void => {
@@ -106,9 +209,9 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
 
   useEffect(() => {
     const el = elRef.current
-    if (!el || !animate) return
-    const from = prevAnimateRef.current ?? initial ?? animate
-    const unchanged = mountedRef.current && shallowEqualValues(from, animate)
+    if (!el || !targetValues) return
+    const from = currentValuesRef.current ?? resolvedInitial ?? targetValues
+    const unchanged = mountedRef.current && shallowEqualValues(from, targetValues)
     mountedRef.current = true
     if (unchanged) return
 
@@ -117,9 +220,9 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
       existing.cancel()
     }
 
-    const tweenProps = buildTweenProps(from, animate)
+    const tweenProps = buildTweenProps(from, targetValues)
     if (Object.keys(tweenProps).length === 0) {
-      prevAnimateRef.current = animate
+      currentValuesRef.current = targetValues
       return
     }
 
@@ -129,8 +232,8 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     })
     const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
-    prevAnimateRef.current = animate
-  }, [animate, initial, transition])
+    currentValuesRef.current = targetValues
+  }, [targetValues, transition, resolvedInitial])
 
   useEffect(() => {
     if (!presence || presence.isPresent) return
@@ -143,12 +246,12 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     if (existing && existing.state !== "cancelled" && existing.state !== "finished") {
       existing.cancel()
     }
-    const from = prevAnimateRef.current ?? animate ?? initial
-    if (!exit || !from) {
+    const from = currentValuesRef.current ?? resolvedAnimate ?? resolvedInitial
+    if (!resolvedExit || !from) {
       presence.safeToRemove()
       return
     }
-    const tweenProps = buildTweenProps(from, exit)
+    const tweenProps = buildTweenProps(from, resolvedExit)
     if (Object.keys(tweenProps).length === 0) {
       presence.safeToRemove()
       return
@@ -167,7 +270,7 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
       presence.safeToRemove()
     }
     controls.finished.then(done, done)
-  }, [presence, exit, animate, initial, transition])
+  }, [presence, resolvedExit, resolvedAnimate, resolvedInitial, transition])
 
   useEffect(() => {
     return () => {
@@ -177,12 +280,72 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     }
   }, [])
 
-  const Tag = (as ?? "div") as ElementType
-  const mergedStyle: CSSProperties = { ...(initial as CSSProperties | undefined), ...userStyle }
+  // Pointer handlers. We attach our own handler when the corresponding
+  // while* prop is set, then call through to any user handler so `onClick`
+  // / `onPointerDown` etc. continue to work.
+  const onPointerEnter = whileHover
+    ? (e: ReactPointerEvent<Element>): void => {
+        setHovering(true)
+        userOnPointerEnter?.(e)
+      }
+    : userOnPointerEnter
+  const onPointerLeave = whileHover
+    ? (e: ReactPointerEvent<Element>): void => {
+        setHovering(false)
+        // A drag/tap that escapes the element should not stay "tapping"
+        // forever; pointerleave clears it too so visual state matches
+        // pointer reality even when pointerup never fires.
+        setTapping(false)
+        userOnPointerLeave?.(e)
+      }
+    : userOnPointerLeave
+  const onPointerDown = whileTap
+    ? (e: ReactPointerEvent<Element>): void => {
+        setTapping(true)
+        userOnPointerDown?.(e)
+      }
+    : userOnPointerDown
+  const onPointerUp = whileTap
+    ? (e: ReactPointerEvent<Element>): void => {
+        setTapping(false)
+        userOnPointerUp?.(e)
+      }
+    : userOnPointerUp
+  const onPointerCancel = whileTap
+    ? (e: ReactPointerEvent<Element>): void => {
+        setTapping(false)
+        userOnPointerCancel?.(e)
+      }
+    : userOnPointerCancel
 
-  return createElement(Tag, {
-    ...(rest as Record<string, unknown>),
-    ref: setRef,
-    style: mergedStyle,
-  })
+  const Tag = (as ?? "div") as ElementType
+  const mergedStyle: CSSProperties = {
+    ...(resolvedInitial as CSSProperties | undefined),
+    ...userStyle,
+  }
+
+  // Provide the parent animate key only when our own animate is a key,
+  // so descendants can opt into inheritance via their own variants map.
+  const provided: string | readonly string[] | null =
+    effectiveAnimate !== undefined && isVariantKey(effectiveAnimate) ? effectiveAnimate : null
+
+  const wrappedChildren =
+    provided !== null
+      ? createElement(MotionAnimateContext.Provider, { value: provided }, children)
+      : children
+
+  return createElement(
+    Tag,
+    {
+      ...(rest as Record<string, unknown>),
+      ref: setRef,
+      style: mergedStyle,
+      onPointerEnter,
+      onPointerLeave,
+      onPointerDown,
+      onPointerUp,
+      onPointerCancel,
+    },
+    wrappedChildren,
+  )
 }

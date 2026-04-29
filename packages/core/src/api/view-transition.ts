@@ -116,6 +116,7 @@ function resolvedControls(duration = 0): Controls {
     resume: noop as Controls["resume"],
     seek: noop as Controls["seek"],
     seekLabel: noop as Controls["seekLabel"],
+    playLabel: noop as Controls["playLabel"],
     reverse: noop as Controls["reverse"],
     restart: noop as Controls["restart"],
     cancel: noop as Controls["cancel"],
@@ -168,6 +169,7 @@ function viewTransitionControls(vt: ViewTransitionLike, duration = 0): Controls 
     resume: noop as Controls["resume"],
     seek: noop as Controls["seek"],
     seekLabel: noop as Controls["seekLabel"],
+    playLabel: noop as Controls["playLabel"],
     reverse: noop as Controls["reverse"],
     restart: noop as Controls["restart"],
     cancel(): Controls {
