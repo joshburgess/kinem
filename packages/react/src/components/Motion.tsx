@@ -48,7 +48,11 @@ import {
   useRef,
   useState,
 } from "react"
-import { MotionAnimateContext } from "./motion-context"
+import {
+  MotionAnimateContext,
+  type MotionAnimateContextValue,
+  type MotionAnimateKey,
+} from "./motion-context"
 import { PresenceContext } from "./presence"
 
 export type MotionValues = Readonly<Record<string, string | number>>
@@ -67,6 +71,20 @@ export interface MotionTransition {
   readonly duration?: number
   readonly easing?: EasingFn
   readonly backend?: PlayOpts["backend"]
+  /**
+   * Per-element delay in ms before the tween starts. Composes with any
+   * stagger delay inherited from a parent.
+   */
+  readonly delay?: number
+  /**
+   * When set on a parent `<Motion>`, descendants that inherit the
+   * parent's animate key are staggered by `staggerChildren` ms in
+   * mount order: the first child has zero delay, the second
+   * `staggerChildren` ms, the third `2 * staggerChildren`, and so on.
+   * Applies only to animate-key-driven changes; whileHover and
+   * whileTap never stagger.
+   */
+  readonly staggerChildren?: number
 }
 
 type MotionOwnProps<E extends ElementType> = {
@@ -164,14 +182,24 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
   }
 
   const presence = useContext(PresenceContext)
-  const parentAnimateKey = useContext(MotionAnimateContext)
+  const parentCtx = useContext(MotionAnimateContext)
+  const parentAnimateKey = parentCtx?.key ?? null
 
   // A child inherits the parent's animate key only when it has its own
   // variants map and didn't pass an explicit animate of its own. This
   // keeps inheritance opt-in and avoids surprising children that don't
   // share the parent's variant vocabulary.
+  const inheritingFromParent = animate === undefined && variants != null && parentAnimateKey != null
   const effectiveAnimate: VariantTarget | undefined =
-    animate ?? (variants && parentAnimateKey != null ? parentAnimateKey : undefined)
+    animate ?? (inheritingFromParent ? parentAnimateKey : undefined)
+
+  // Claim a stagger index from the parent at first render only when we
+  // are actually inheriting the parent's key (otherwise stagger is
+  // meaningless). useState's lazy init runs once per logical mount even
+  // under StrictMode's double-invoke.
+  const [staggerIndex] = useState<number | null>(() =>
+    inheritingFromParent && parentCtx?.stagger ? parentCtx.stagger.counter.current++ : null,
+  )
 
   const [hovering, setHovering] = useState(false)
   const [tapping, setTapping] = useState(false)
@@ -188,16 +216,23 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
   const resolvedTap = useMemo(() => resolveTarget(whileTap, variants), [whileTap, variants])
 
   // Precedence: tap > hover > animate.
-  const targetValues: MotionValues | undefined = tapping
-    ? (resolvedTap ?? resolvedAnimate)
-    : hovering
-      ? (resolvedHover ?? resolvedAnimate)
-      : resolvedAnimate
+  type TargetSource = "tap" | "hover" | "animate"
+  const targetSource: TargetSource =
+    tapping && resolvedTap ? "tap" : hovering && resolvedHover ? "hover" : "animate"
+  const targetValues: MotionValues | undefined =
+    targetSource === "tap"
+      ? resolvedTap
+      : targetSource === "hover"
+        ? resolvedHover
+        : resolvedAnimate
 
   const elRef = useRef<Element | null>(null)
   const controlsRef = useRef<Controls | null>(null)
   const currentValuesRef = useRef<MotionValues | undefined>(resolvedInitial ?? resolvedAnimate)
   const mountedRef = useRef(false)
+  // Tracks a setTimeout that defers play() while waiting out a stagger
+  // or per-element delay. Cleared on supersede or unmount.
+  const startTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const setRef = (el: Element | null): void => {
     elRef.current = el
@@ -219,6 +254,10 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     if (existing && existing.state !== "cancelled" && existing.state !== "finished") {
       existing.cancel()
     }
+    if (startTimerRef.current !== null) {
+      clearTimeout(startTimerRef.current)
+      startTimerRef.current = null
+    }
 
     const tweenProps = buildTweenProps(from, targetValues)
     if (Object.keys(tweenProps).length === 0) {
@@ -226,14 +265,45 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
       return
     }
 
-    const def = tween(tweenProps, {
-      duration: transition?.duration ?? 400,
-      ...omitUndefined({ easing: transition?.easing }),
-    })
-    const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
-    controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
+    // Hover/tap never stagger; only animate-key-driven changes do, and
+    // only when the parent has set staggerChildren.
+    const inheritedStagger =
+      targetSource === "animate" &&
+      inheritingFromParent &&
+      parentCtx?.stagger &&
+      staggerIndex != null
+        ? staggerIndex * parentCtx.stagger.staggerMs
+        : 0
+    const totalDelay = inheritedStagger + (transition?.delay ?? 0)
+
+    // Commit the new target eagerly so dependent computations see we're
+    // already heading there even while the stagger timer is pending.
     currentValuesRef.current = targetValues
-  }, [targetValues, transition, resolvedInitial])
+    const start = (): void => {
+      const def = tween(tweenProps, {
+        duration: transition?.duration ?? 400,
+        ...omitUndefined({ easing: transition?.easing }),
+      })
+      const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
+      controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
+    }
+    if (totalDelay > 0) {
+      startTimerRef.current = setTimeout(() => {
+        startTimerRef.current = null
+        start()
+      }, totalDelay)
+    } else {
+      start()
+    }
+  }, [
+    targetValues,
+    transition,
+    resolvedInitial,
+    targetSource,
+    inheritingFromParent,
+    parentCtx,
+    staggerIndex,
+  ])
 
   useEffect(() => {
     if (!presence || presence.isPresent) return
@@ -274,6 +344,10 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
 
   useEffect(() => {
     return () => {
+      if (startTimerRef.current !== null) {
+        clearTimeout(startTimerRef.current)
+        startTimerRef.current = null
+      }
       const c = controlsRef.current
       if (c && c.state !== "cancelled" && c.state !== "finished") c.cancel()
       controlsRef.current = null
@@ -326,8 +400,20 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
 
   // Provide the parent animate key only when our own animate is a key,
   // so descendants can opt into inheritance via their own variants map.
-  const provided: string | readonly string[] | null =
+  // The stagger counter is held in a ref so it survives re-renders (so
+  // already-mounted children keep their indices when the key flips).
+  const staggerCounterRef = useRef<{ current: number }>({ current: 0 })
+  const providedKey: MotionAnimateKey =
     effectiveAnimate !== undefined && isVariantKey(effectiveAnimate) ? effectiveAnimate : null
+  const provided: MotionAnimateContextValue | null = useMemo(() => {
+    if (providedKey === null) return null
+    const staggerMs = transition?.staggerChildren
+    return {
+      key: providedKey,
+      stagger:
+        staggerMs && staggerMs > 0 ? { staggerMs, counter: staggerCounterRef.current } : null,
+    }
+  }, [providedKey, transition?.staggerChildren])
 
   const wrappedChildren =
     provided !== null

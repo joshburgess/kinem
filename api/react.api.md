@@ -38,6 +38,8 @@ export interface MotionTransition {
     readonly duration?: number;
     readonly easing?: EasingFn;
     readonly backend?: PlayOpts["backend"];
+    readonly delay?: number;
+    readonly staggerChildren?: number;
 }
 ```
 

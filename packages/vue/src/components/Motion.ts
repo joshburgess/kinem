@@ -44,7 +44,11 @@ import {
   shallowRef,
   watch,
 } from "vue"
-import { MotionAnimateKey } from "./motion-context"
+import {
+  type MotionAnimateContextValue,
+  MotionAnimateKey,
+  type MotionAnimateKey as MotionAnimateKeyType,
+} from "./motion-context"
 import { PresenceKey } from "./presence"
 
 export type MotionValues = Readonly<Record<string, string | number>>
@@ -63,6 +67,20 @@ export interface MotionTransition {
   readonly duration?: number
   readonly easing?: EasingFn
   readonly backend?: PlayOpts["backend"]
+  /**
+   * Per-element delay in ms before the tween starts. Composes with any
+   * stagger delay inherited from a parent.
+   */
+  readonly delay?: number
+  /**
+   * When set on a parent `<Motion>`, descendants that inherit the
+   * parent's animate key are staggered by `staggerChildren` ms in
+   * mount order: the first child has zero delay, the second
+   * `staggerChildren` ms, the third `2 * staggerChildren`, and so on.
+   * Applies only to animate-key-driven changes; whileHover and
+   * whileTap never stagger.
+   */
+  readonly staggerChildren?: number
 }
 
 function isVariantKey(t: VariantTarget): t is string | readonly string[] {
@@ -136,14 +154,32 @@ export const Motion = defineComponent({
   setup(props, { slots, attrs }) {
     const elRef = shallowRef<Element | null>(null)
     let controls: Controls | null = null
+    let startTimer: ReturnType<typeof setTimeout> | null = null
     const presence = inject(PresenceKey, null)
-    const parentAnimateKey = inject(MotionAnimateKey, null)
+    const parentCtx = inject(MotionAnimateKey, null)
+
+    const parentAnimateKey = computed<MotionAnimateKeyType>(() => parentCtx?.value?.key ?? null)
+    const inheritingFromParent = computed<boolean>(
+      () =>
+        props.animate === undefined &&
+        props.variants !== undefined &&
+        parentAnimateKey.value != null,
+    )
 
     const effectiveAnimate = computed<VariantTarget | undefined>(() => {
       if (props.animate !== undefined) return props.animate
-      if (props.variants && parentAnimateKey?.value != null) return parentAnimateKey.value
+      if (inheritingFromParent.value) return parentAnimateKey.value as VariantTarget
       return undefined
     })
+
+    // Allocate a stagger index lazily on first setup if we are
+    // inheriting the parent's key and the parent has set a stagger
+    // schedule. The index is captured once and stable for the lifetime
+    // of this component.
+    const staggerIndex: number | null =
+      inheritingFromParent.value && parentCtx?.value?.stagger
+        ? parentCtx.value.stagger.counter.current++
+        : null
 
     const hovering = ref(false)
     const tapping = ref(false)
@@ -154,48 +190,101 @@ export const Motion = defineComponent({
     const resolvedHover = computed(() => resolveTarget(props.whileHover, props.variants))
     const resolvedTap = computed(() => resolveTarget(props.whileTap, props.variants))
 
-    // Tap > hover > animate.
+    // Tap > hover > animate. Track the source so we can decide whether
+    // to apply parent stagger (stagger only fires for animate-key-driven
+    // changes, never for pointer-driven hover/tap).
+    type TargetSource = "tap" | "hover" | "animate"
+    const targetSource = computed<TargetSource>(() => {
+      if (tapping.value && resolvedTap.value) return "tap"
+      if (hovering.value && resolvedHover.value) return "hover"
+      return "animate"
+    })
     const targetValues = computed<MotionValues | undefined>(() => {
-      if (tapping.value && resolvedTap.value) return resolvedTap.value
-      if (hovering.value && resolvedHover.value) return resolvedHover.value
+      const src = targetSource.value
+      if (src === "tap") return resolvedTap.value
+      if (src === "hover") return resolvedHover.value
       return resolvedAnimate.value
     })
 
     let currentValues: MotionValues | undefined = resolvedInitial.value ?? resolvedAnimate.value
 
-    const provideKey = computed<MotionAnimateKey>(() =>
-      effectiveAnimate.value !== undefined && isVariantKey(effectiveAnimate.value)
-        ? effectiveAnimate.value
-        : null,
-    )
+    // Stagger counter is held outside the computed so it survives re-runs
+    // when only effectiveAnimate changes; existing children keep their
+    // mount-order indices when the key flips.
+    const staggerCounter = { current: 0 }
+
+    const provideValue = computed<MotionAnimateContextValue | null>(() => {
+      const key =
+        effectiveAnimate.value !== undefined && isVariantKey(effectiveAnimate.value)
+          ? effectiveAnimate.value
+          : null
+      if (key === null) return null
+      const staggerMs = props.transition?.staggerChildren
+      return {
+        key,
+        stagger: staggerMs && staggerMs > 0 ? { staggerMs, counter: staggerCounter } : null,
+      }
+    })
 
     // Provide as a ref so descendants reactively re-resolve when our
     // animate key changes.
-    provide(MotionAnimateKey, provideKey as unknown as Ref<MotionAnimateKey>)
+    provide(MotionAnimateKey, provideValue as unknown as Ref<MotionAnimateContextValue | null>)
 
-    const runTween = (from: MotionValues, to: MotionValues): Controls | null => {
+    const cancelStartTimer = (): void => {
+      if (startTimer !== null) {
+        clearTimeout(startTimer)
+        startTimer = null
+      }
+    }
+
+    const runTween = (
+      from: MotionValues,
+      to: MotionValues,
+      source: TargetSource,
+    ): Controls | null => {
       const el = elRef.value
       if (!el) return null
       const tweenProps = buildTweenProps(from, to)
       if (Object.keys(tweenProps).length === 0) return null
       const transition = props.transition
-      const def = tween(tweenProps, {
-        duration: transition?.duration ?? 400,
-        ...omitUndefined({ easing: transition?.easing }),
-      })
-      const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
       if (controls && controls.state !== "cancelled" && controls.state !== "finished") {
         controls.cancel()
       }
-      controls = play(def, [el as unknown as StrategyTarget], playOpts)
-      return controls
+      cancelStartTimer()
+
+      const inheritedStagger =
+        source === "animate" &&
+        inheritingFromParent.value &&
+        parentCtx?.value?.stagger &&
+        staggerIndex !== null
+          ? staggerIndex * parentCtx.value.stagger.staggerMs
+          : 0
+      const totalDelay = inheritedStagger + (transition?.delay ?? 0)
+
+      const start = (): Controls => {
+        const def = tween(tweenProps, {
+          duration: transition?.duration ?? 400,
+          ...omitUndefined({ easing: transition?.easing }),
+        })
+        const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
+        controls = play(def, [el as unknown as StrategyTarget], playOpts)
+        return controls
+      }
+      if (totalDelay > 0) {
+        startTimer = setTimeout(() => {
+          startTimer = null
+          start()
+        }, totalDelay)
+        return null
+      }
+      return start()
     }
 
     onMounted(() => {
       const target = targetValues.value
       if (!target) return
       const from = currentValues ?? resolvedInitial.value ?? target
-      runTween(from, target)
+      runTween(from, target, targetSource.value)
       currentValues = target
     })
 
@@ -204,7 +293,7 @@ export const Motion = defineComponent({
       if (shallowEqualValues(next, prev)) return
       const from = currentValues ?? resolvedInitial.value ?? next
       if (shallowEqualValues(from, next)) return
-      runTween(from, next)
+      runTween(from, next, targetSource.value)
       currentValues = next
     })
 
@@ -222,7 +311,7 @@ export const Motion = defineComponent({
             presence.safeToRemove()
             return
           }
-          const c = runTween(from, exitVals)
+          const c = runTween(from, exitVals, "animate")
           if (!c) {
             presence.safeToRemove()
             return
@@ -240,6 +329,7 @@ export const Motion = defineComponent({
     }
 
     onBeforeUnmount(() => {
+      cancelStartTimer()
       if (controls && controls.state !== "cancelled" && controls.state !== "finished") {
         controls.cancel()
       }

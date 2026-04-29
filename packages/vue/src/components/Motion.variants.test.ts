@@ -181,3 +181,76 @@ describe("Motion variants (vue)", () => {
     wrapper.unmount()
   })
 })
+
+describe("Motion stagger and delay (vue)", () => {
+  const v: Variants = {
+    closed: { opacity: 0 },
+    open: { opacity: 1 },
+  }
+
+  it("staggers descendants in mount order via parent transition.staggerChildren", async () => {
+    const start = performance.now()
+    const starts: number[] = []
+    const Spy = defineComponent({
+      props: { id: { type: Number, required: true } },
+      setup(p) {
+        return () =>
+          h(Motion, {
+            variants: v,
+            "data-testid": `child-${p.id}`,
+            transition: { duration: 30, backend: "raf" },
+            ref: (el: unknown) => {
+              const node = (el as { $el?: Element } | null)?.$el ?? (el as Element | null)
+              if (node && starts[p.id] === undefined) {
+                const tick = (): void => {
+                  const op = Number.parseFloat((node as HTMLElement).style.opacity || "0")
+                  if (op > 0) {
+                    starts[p.id] = performance.now() - start
+                    return
+                  }
+                  requestAnimationFrame(tick)
+                }
+                requestAnimationFrame(tick)
+              }
+            },
+          })
+      },
+    })
+    const Parent = defineComponent({
+      setup() {
+        return () =>
+          h(
+            Motion,
+            { variants: v, animate: "open", transition: { staggerChildren: 60 } },
+            {
+              default: () => [h(Spy, { id: 0 }), h(Spy, { id: 1 }), h(Spy, { id: 2 })],
+            },
+          )
+      },
+    })
+    const wrapper = mount(Parent)
+    await new Promise<void>((r) => setTimeout(r, 250))
+    expect(starts[0]).toBeLessThan(40)
+    expect(starts[1]).toBeGreaterThan(starts[0]!)
+    expect(starts[2]).toBeGreaterThan(starts[1]!)
+    wrapper.unmount()
+  })
+
+  it("applies transition.delay on a top-level Motion", async () => {
+    const wrapper = mount(Motion, {
+      props: {
+        variants: v,
+        initial: "closed",
+        animate: "open",
+        transition: { duration: 20, delay: 80, backend: "raf" },
+      },
+    })
+    const el = wrapper.element as HTMLElement
+    expect(el.style.opacity).toBe("0")
+    await new Promise<void>((r) => setTimeout(r, 20))
+    expect(Number.parseFloat(el.style.opacity || "0")).toBe(0)
+    await new Promise<void>((r) => setTimeout(r, 200))
+    expect(Number.parseFloat(el.style.opacity || "0")).toBeGreaterThan(0)
+    wrapper.unmount()
+  })
+})

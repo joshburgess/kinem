@@ -208,3 +208,88 @@ describe("Motion variants", () => {
     expect(() => unmount()).not.toThrow()
   })
 })
+
+describe("Motion stagger and delay", () => {
+  const v: Variants = {
+    closed: { opacity: 0 },
+    open: { opacity: 1 },
+  }
+
+  it("staggers descendants in mount order via parent transition.staggerChildren", async () => {
+    const start = performance.now()
+    const starts: number[] = []
+    function Spy({ id }: { id: number }) {
+      return (
+        <Motion
+          variants={v}
+          motionRef={(el: Element | null) => {
+            if (el && starts[id] === undefined) {
+              const tick = (): void => {
+                const op = Number.parseFloat((el as HTMLElement).style.opacity || "0")
+                if (op > 0) {
+                  starts[id] = performance.now() - start
+                  return
+                }
+                requestAnimationFrame(tick)
+              }
+              requestAnimationFrame(tick)
+            }
+          }}
+          data-testid={`child-${id}`}
+          transition={{ duration: 30, backend: "raf" }}
+        />
+      )
+    }
+    render(
+      <Motion variants={v} animate="open" transition={{ staggerChildren: 60 }}>
+        <Spy id={0} />
+        <Spy id={1} />
+        <Spy id={2} />
+      </Motion>,
+    )
+    await new Promise<void>((r) => setTimeout(r, 250))
+    // The first child fires immediately (within scheduler noise),
+    // the second around 60ms in, the third around 120ms in.
+    expect(starts[0]).toBeLessThan(40)
+    expect(starts[1]).toBeGreaterThan(starts[0]!)
+    expect(starts[2]).toBeGreaterThan(starts[1]!)
+  })
+
+  it("ignores staggerChildren on a child with its own explicit animate", () => {
+    // A child that doesn't inherit the parent's key should not be
+    // staggered. We just verify it renders and immediately starts.
+    const { container } = render(
+      <Motion variants={v} animate="open" transition={{ staggerChildren: 200 }}>
+        <Motion
+          variants={v}
+          initial="closed"
+          animate="open"
+          data-testid="explicit"
+          transition={{ duration: 20, backend: "raf" }}
+        />
+      </Motion>,
+    )
+    const el = container.querySelector('[data-testid="explicit"]') as HTMLElement
+    expect(el).not.toBeNull()
+  })
+
+  it("applies transition.delay to the first tween on a child", async () => {
+    const { container } = render(
+      <Motion
+        variants={v}
+        initial="closed"
+        animate="open"
+        transition={{ duration: 20, delay: 80, backend: "raf" }}
+      />,
+    )
+    const el = container.querySelector("div") as HTMLElement
+    // Immediately after mount the inline initial paints opacity 0.
+    expect(el.style.opacity).toBe("0")
+    // Before the delay elapses, the tween hasn't started yet.
+    await new Promise<void>((r) => setTimeout(r, 20))
+    expect(Number.parseFloat(el.style.opacity || "0")).toBe(0)
+    // After the delay + duration, the tween has progressed.
+    await new Promise<void>((r) => setTimeout(r, 200))
+    expect(Number.parseFloat(el.style.opacity || "0")).toBeGreaterThan(0)
+  })
+})

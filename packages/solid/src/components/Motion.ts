@@ -57,7 +57,7 @@ import {
 // (no-JSX) build pipeline doesn't need to change.
 import h from "solid-js/h"
 import type { CreatePresenceResult } from "../primitives/createPresence"
-import { MotionAnimateContext } from "./motion-context"
+import { MotionAnimateContext, type MotionAnimateContextValue } from "./motion-context"
 
 export type MotionValues = Readonly<Record<string, string | number>>
 
@@ -69,6 +69,17 @@ export interface MotionTransition {
   readonly duration?: number
   readonly easing?: EasingFn
   readonly backend?: PlayOpts["backend"]
+  /**
+   * Per-element delay in ms before the tween starts. Composes with any
+   * stagger delay inherited from a parent.
+   */
+  readonly delay?: number
+  /**
+   * When set on a parent `<Motion>`, descendants that inherit the
+   * parent's animate key are staggered by `staggerChildren` ms in
+   * mount order.
+   */
+  readonly staggerChildren?: number
 }
 
 export interface MotionProps {
@@ -146,16 +157,30 @@ export function Motion(props: MotionProps): JSX.Element {
   let el: Element | null = null
   let controls: Controls | null = null
   let mounted = false
+  let startTimer: ReturnType<typeof setTimeout> | null = null
 
-  const parentAnimateKey = useContext(MotionAnimateContext)
+  const parentCtx = useContext(MotionAnimateContext)
+
+  const inheritingFromParent = createMemo<boolean>(
+    () =>
+      props.animate === undefined &&
+      props.variants !== undefined &&
+      (parentCtx()?.key ?? null) != null,
+  )
 
   // A child inherits the parent's animate key only when it has its own
   // variants map and didn't pass an explicit animate of its own.
   const effectiveAnimate = createMemo<VariantTarget | undefined>(() => {
     if (props.animate !== undefined) return props.animate
-    if (props.variants && parentAnimateKey() != null) return parentAnimateKey() ?? undefined
+    if (inheritingFromParent()) return parentCtx()?.key as VariantTarget
     return undefined
   })
+
+  // Allocate a stagger index lazily on first setup if we are inheriting
+  // and the parent has a stagger schedule. The index is captured once.
+  const initialCtx = parentCtx()
+  const staggerIndex: number | null =
+    inheritingFromParent() && initialCtx?.stagger ? initialCtx.stagger.counter.current++ : null
 
   const [hovering, setHovering] = createSignal(false)
   const [tapping, setTapping] = createSignal(false)
@@ -166,10 +191,18 @@ export function Motion(props: MotionProps): JSX.Element {
   const resolvedHover = createMemo(() => resolveTarget(props.whileHover, props.variants))
   const resolvedTap = createMemo(() => resolveTarget(props.whileTap, props.variants))
 
-  // Tap > hover > animate.
+  // Tap > hover > animate. Track the source so stagger applies only to
+  // animate-key-driven changes.
+  type TargetSource = "tap" | "hover" | "animate"
+  const targetSource = createMemo<TargetSource>(() => {
+    if (tapping() && resolvedTap()) return "tap"
+    if (hovering() && resolvedHover()) return "hover"
+    return "animate"
+  })
   const targetValues = createMemo<MotionValues | undefined>(() => {
-    if (tapping() && resolvedTap()) return resolvedTap()
-    if (hovering() && resolvedHover()) return resolvedHover()
+    const src = targetSource()
+    if (src === "tap") return resolvedTap()
+    if (src === "hover") return resolvedHover()
     return resolvedAnimate()
   })
 
@@ -181,20 +214,49 @@ export function Motion(props: MotionProps): JSX.Element {
     }
     controls = null
   }
+  const cancelStartTimer = (): void => {
+    if (startTimer !== null) {
+      clearTimeout(startTimer)
+      startTimer = null
+    }
+  }
 
-  const runTween = (from: MotionValues, to: MotionValues): Controls | null => {
+  const runTween = (
+    from: MotionValues,
+    to: MotionValues,
+    source: TargetSource,
+  ): Controls | null => {
     if (!el) return null
     const tweenProps = buildTweenProps(from, to)
     if (Object.keys(tweenProps).length === 0) return null
     const transition = props.transition
-    const def = tween(tweenProps, {
-      duration: transition?.duration ?? 400,
-      ...omitUndefined({ easing: transition?.easing }),
-    })
-    const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     cancelCurrent()
-    controls = play(def, [el as unknown as StrategyTarget], playOpts)
-    return controls
+    cancelStartTimer()
+
+    const ctx = parentCtx()
+    const inheritedStagger =
+      source === "animate" && inheritingFromParent() && ctx?.stagger && staggerIndex !== null
+        ? staggerIndex * ctx.stagger.staggerMs
+        : 0
+    const totalDelay = inheritedStagger + (transition?.delay ?? 0)
+
+    const start = (): Controls => {
+      const def = tween(tweenProps, {
+        duration: transition?.duration ?? 400,
+        ...omitUndefined({ easing: transition?.easing }),
+      })
+      const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
+      controls = play(def, [el as unknown as StrategyTarget], playOpts)
+      return controls
+    }
+    if (totalDelay > 0) {
+      startTimer = setTimeout(() => {
+        startTimer = null
+        start()
+      }, totalDelay)
+      return null
+    }
+    return start()
   }
 
   onMount(() => {
@@ -202,7 +264,7 @@ export function Motion(props: MotionProps): JSX.Element {
     const target = targetValues()
     if (!target) return
     const from = currentValues ?? resolvedInitial() ?? target
-    runTween(from, target)
+    runTween(from, target, targetSource())
     currentValues = target
   })
 
@@ -216,7 +278,7 @@ export function Motion(props: MotionProps): JSX.Element {
         if (shallowEqualValues(next, prev)) return
         const from = currentValues ?? resolvedInitial() ?? next
         if (shallowEqualValues(from, next)) return
-        runTween(from, next)
+        runTween(from, next, targetSource())
         currentValues = next
       },
       { defer: true },
@@ -240,7 +302,7 @@ export function Motion(props: MotionProps): JSX.Element {
             presence.safeToRemove()
             return
           }
-          const c = runTween(from, exitVals)
+          const c = runTween(from, exitVals, "animate")
           if (!c) {
             presence.safeToRemove()
             return
@@ -259,6 +321,7 @@ export function Motion(props: MotionProps): JSX.Element {
   }
 
   onCleanup(() => {
+    cancelStartTimer()
     cancelCurrent()
   })
 
@@ -358,9 +421,18 @@ export function Motion(props: MotionProps): JSX.Element {
 
   // Provide the parent animate key only when our own animate is a key,
   // so descendants can opt into inheritance via their own variants map.
-  const provideKey = createMemo<MotionAnimateContextValue>(() => {
+  // The stagger counter is held outside the memo so it survives re-runs
+  // when only effectiveAnimate changes.
+  const staggerCounter = { current: 0 }
+  const provideValue = createMemo<MotionAnimateContextValue | null>(() => {
     const a = effectiveAnimate()
-    return a !== undefined && isVariantKey(a) ? a : null
+    const key = a !== undefined && isVariantKey(a) ? a : null
+    if (key === null) return null
+    const staggerMs = props.transition?.staggerChildren
+    return {
+      key,
+      stagger: staggerMs && staggerMs > 0 ? { staggerMs, counter: staggerCounter } : null,
+    }
   })
 
   const node = h(
@@ -369,7 +441,5 @@ export function Motion(props: MotionProps): JSX.Element {
     props.children,
   ) as unknown as JSX.Element
 
-  return h(MotionAnimateContext.Provider, { value: provideKey }, node) as unknown as JSX.Element
+  return h(MotionAnimateContext.Provider, { value: provideValue }, node) as unknown as JSX.Element
 }
-
-type MotionAnimateContextValue = string | readonly string[] | null
