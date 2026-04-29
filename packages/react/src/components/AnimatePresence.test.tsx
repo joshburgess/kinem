@@ -110,4 +110,31 @@ describe("AnimatePresence", () => {
     })
     expect(queryByTestId("box")).toBeNull()
   })
+
+  it("resolves a variant-key exit through <Motion> and unmounts", async () => {
+    const variants = {
+      open: { width: "100px" },
+      closed: { width: "0px" },
+    } as const
+    const { queryByTestId, rerender } = render(
+      <AnimatePresence>
+        <Motion
+          key="box"
+          data-testid="box"
+          variants={variants}
+          initial="closed"
+          animate="open"
+          exit="closed"
+          transition={{ duration: 20, backend: "raf" }}
+        />
+      </AnimatePresence>,
+    )
+    expect(queryByTestId("box")).not.toBeNull()
+
+    rerender(<AnimatePresence>{null as ReactNode}</AnimatePresence>)
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+    })
+    expect(queryByTestId("box")).toBeNull()
+  })
 })

@@ -217,6 +217,42 @@ describe("timeline", () => {
     expect(controls.state).toBe("playing")
   })
 
+  it("playLabel flips a reversed timeline forward from the label", () => {
+    const a = makeTarget()
+    const env = setup()
+    const controls = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .addLabel("mid")
+      .add(tween({ opacity: [0, 1] }, { duration: 100 }), a)
+      .play({ waapiSupported: false, scheduler: env.scheduler, clock: env.clock })
+
+    env.tick()
+    env.advance(120)
+    env.tick()
+    controls.reverse()
+    expect(controls.direction).toBe(-1)
+
+    controls.playLabel("mid")
+    expect(controls.direction).toBe(1)
+    expect(controls.state).toBe("playing")
+  })
+
+  it("playLabel is a no-op on a cancelled timeline", () => {
+    const a = makeTarget()
+    const env = setup()
+    const controls = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .addLabel("mid", 50)
+      .play({ waapiSupported: false, scheduler: env.scheduler, clock: env.clock })
+
+    env.tick()
+    controls.cancel()
+    expect(controls.state).toBe("cancelled")
+
+    controls.playLabel("mid")
+    expect(controls.state).toBe("cancelled")
+  })
+
   it("addLabel throws on unknown reference", () => {
     expect(() => timeline().addLabel("x", "missing")).toThrow(/unknown label/)
   })
