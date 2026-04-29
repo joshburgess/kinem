@@ -15,7 +15,7 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { play, tween } from "@kinem/core"
+import { omitUndefined, play, tween } from "@kinem/core"
 
 export type MotionValues = Readonly<Record<string, string | number>>
 
@@ -90,12 +90,9 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
     const transition = currentOpts.transition
     const def = tween(tweenProps, {
       duration: transition?.duration ?? 400,
-      ...(transition?.easing !== undefined ? { easing: transition.easing } : {}),
+      ...omitUndefined({ easing: transition?.easing }),
     })
-    const playOpts: PlayOpts = {}
-    if (transition?.backend !== undefined) {
-      ;(playOpts as { backend?: PlayOpts["backend"] }).backend = transition.backend
-    }
+    const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     cancelCurrent()
     controls = play(def, [node as unknown as StrategyTarget], playOpts)
   }

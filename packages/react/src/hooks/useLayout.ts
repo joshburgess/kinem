@@ -20,16 +20,25 @@ import {
   type Controls,
   type EasingFn,
   type PlayOpts,
+  type SpringOpts,
   type StrategyTarget,
+  omitUndefined,
   play,
+  springEasing,
   tween,
 } from "@kinem/core"
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react"
 
 export interface UseLayoutOpts {
-  /** Tween duration in ms. Default 300. */
+  /** Tween duration in ms. Default 300. Ignored when `spring` is set. */
   readonly duration?: number
   readonly easing?: EasingFn
+  /**
+   * Use spring physics instead of a fixed-duration tween. The spring's
+   * settling time becomes the animation duration, and `duration` /
+   * `easing` are ignored.
+   */
+  readonly spring?: SpringOpts
   readonly backend?: PlayOpts["backend"]
   /**
    * Whether to animate scale as well as position. Default true. Set to
@@ -108,14 +117,12 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
     }
 
     const currentOpts = optsRef.current
+    const spring = currentOpts.spring ? springEasing(currentOpts.spring) : null
     const def = tween(tweenProps, {
-      duration: currentOpts.duration ?? 300,
-      ...(currentOpts.easing !== undefined ? { easing: currentOpts.easing } : {}),
+      duration: spring ? spring.duration : (currentOpts.duration ?? 300),
+      ...omitUndefined({ easing: spring ?? currentOpts.easing }),
     })
-    const playOpts: PlayOpts = {}
-    if (currentOpts.backend !== undefined) {
-      ;(playOpts as { backend?: PlayOpts["backend"] }).backend = currentOpts.backend
-    }
+    const playOpts: PlayOpts = omitUndefined({ backend: currentOpts.backend })
     controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
   })
 

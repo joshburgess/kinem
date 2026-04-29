@@ -1,3 +1,4 @@
+import { omitUndefined } from "../core/omit-undefined"
 import type { AnimationDef } from "../core/types"
 
 export interface JitterOpts {
@@ -66,7 +67,7 @@ export function jitter<T>(def: AnimationDef<T>, opts: JitterOpts = {}): Animatio
 
   const out: AnimationDef<T> = {
     duration: def.duration,
-    ...(def.easing !== undefined ? { easing: def.easing } : {}),
+    ...omitUndefined({ easing: def.easing }),
     interpolate: (p) => {
       const base = def.interpolate(p)
       if (base === null || base === undefined) return base

@@ -18,11 +18,18 @@
  *    finishes the DOM mutation but skips the animated swap.
  *  - `pause` / `resume` / `seek` / `seekLabel` / `reverse` / `restart`
  *    are no-ops: the browser owns the timeline and exposes no hooks.
- *  - `duration` is `0` (unknown). The devtools panel treats this as the
- *    ambient sentinel.
+ *  - `duration` is `0` (unknown) by default. When `spring` is set the
+ *    spring's settling time is reported. The devtools panel treats `0`
+ *    as the ambient sentinel.
  *  - `progress` is `0` until the transition resolves, then `1`.
+ *  - When `spring` is set, kinem injects a transient stylesheet that
+ *    overrides `animation-duration` and `animation-timing-function` for
+ *    the view-transition pseudo-elements with a CSS `linear(...)`
+ *    sampling of the spring trajectory. The stylesheet is removed once
+ *    the transition resolves.
  */
 
+import { type SpringEasingFn, type SpringOpts, springEasing } from "../core/easing"
 import { type StrategyState, type StrategyTarget } from "../render/strategy"
 import { type Controls } from "./controls"
 import { isTrackerEnabled, trackAnimation } from "../devtools/tracker"
@@ -47,11 +54,61 @@ export interface PlayViewTransitionOpts {
    * iframe document.
    */
   readonly document?: ViewTransitionDocumentLike
+  /**
+   * Use spring physics for the view-transition timing. When set, kinem
+   * samples the spring into a CSS `linear(...)` timing function and
+   * injects a stylesheet that overrides
+   * `animation-duration` / `animation-timing-function` on the
+   * view-transition pseudo-elements (`::view-transition-group(*)`,
+   * `::view-transition-old(*)`, `::view-transition-new(*)`). The
+   * stylesheet is removed when the transition resolves.
+   */
+  readonly spring?: SpringOpts
+  /**
+   * Number of samples used to convert the spring trajectory into a CSS
+   * `linear(...)` stop list. Higher is smoother but produces a longer
+   * style string. Default 32. Ignored when `spring` is unset.
+   */
+  readonly springSamples?: number
 }
 
 const EMPTY_LABELS: ReadonlyMap<string, number> = new Map()
 
-function resolvedControls(): Controls {
+const SPRING_STYLE_ATTR = "data-kinem-view-transition"
+
+function springLinear(spring: SpringEasingFn, samples: number): string {
+  const n = Math.max(2, Math.floor(samples))
+  const stops: string[] = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const p = i / (n - 1)
+    stops[i] = spring(p).toFixed(5)
+  }
+  return `linear(${stops.join(", ")})`
+}
+
+function injectSpringStyle(
+  doc: Document,
+  spring: SpringEasingFn,
+  samples: number,
+): () => void {
+  const style = doc.createElement("style")
+  style.setAttribute(SPRING_STYLE_ATTR, "")
+  const linear = springLinear(spring, samples)
+  const duration = `${spring.duration.toFixed(2)}ms`
+  style.textContent =
+    `::view-transition-group(*),` +
+    `::view-transition-old(*),` +
+    `::view-transition-new(*){` +
+    `animation-duration:${duration};` +
+    `animation-timing-function:${linear};` +
+    `}`
+  doc.head.appendChild(style)
+  return () => {
+    if (style.parentNode) style.parentNode.removeChild(style)
+  }
+}
+
+function resolvedControls(duration = 0): Controls {
   const finished = Promise.resolve()
   const noop = (): Controls => controls
   const controls: Controls = {
@@ -62,7 +119,7 @@ function resolvedControls(): Controls {
     reverse: noop as Controls["reverse"],
     restart: noop as Controls["restart"],
     cancel: noop as Controls["cancel"],
-    duration: 0,
+    duration,
     state: "finished" as StrategyState,
     progress: 1,
     direction: 1,
@@ -86,7 +143,7 @@ function resolvedControls(): Controls {
   return controls
 }
 
-function viewTransitionControls(vt: ViewTransitionLike): Controls {
+function viewTransitionControls(vt: ViewTransitionLike, duration = 0): Controls {
   let state: StrategyState = "playing"
   let progress = 0
   // Listen for natural completion so consumers reading `.state` after
@@ -120,7 +177,7 @@ function viewTransitionControls(vt: ViewTransitionLike): Controls {
       }
       return controls
     },
-    duration: 0,
+    duration,
     get state(): StrategyState {
       return state
     },
@@ -158,6 +215,9 @@ export function playViewTransition(
     opts.document ??
     (typeof document !== "undefined" ? (document as unknown as ViewTransitionDocumentLike) : undefined)
 
+  const spring = opts.spring ? springEasing(opts.spring) : null
+  const duration = spring ? spring.duration : 0
+
   if (!doc || typeof doc.startViewTransition !== "function") {
     // Fallback path: run the mutation eagerly and resolve immediately.
     // Errors thrown synchronously bubble; async errors surface on the
@@ -168,15 +228,35 @@ export function playViewTransition(
         () => undefined,
         () => undefined,
       )
-      const fallback = resolvedControls()
+      const fallback = resolvedControls(duration)
       Object.defineProperty(fallback, "finished", { value: finished })
       return fallback
     }
-    return resolvedControls()
+    return resolvedControls(duration)
+  }
+
+  // Inject spring stylesheet before starting the transition so the
+  // browser picks it up on the first paint of the cross-fade. We only
+  // do this when the host document exposes a real `head` (i.e. an
+  // actual DOM Document, not the lightweight test fake).
+  let removeSpringStyle: (() => void) | null = null
+  if (spring) {
+    const realDoc = doc as unknown as Partial<Document>
+    if (realDoc.createElement && realDoc.head && typeof realDoc.head.appendChild === "function") {
+      removeSpringStyle = injectSpringStyle(
+        doc as unknown as Document,
+        spring,
+        opts.springSamples ?? 32,
+      )
+    }
   }
 
   const vt = doc.startViewTransition(mutate)
-  const controls = viewTransitionControls(vt)
+  if (removeSpringStyle) {
+    const cleanup = removeSpringStyle
+    vt.finished.then(cleanup, cleanup)
+  }
+  const controls = viewTransitionControls(vt, duration)
   if (isTrackerEnabled()) {
     const targets: readonly StrategyTarget[] = []
     trackAnimation(controls, targets, "view-transition")

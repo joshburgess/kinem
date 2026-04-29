@@ -1,11 +1,18 @@
 /**
  * Solid bindings for kinem. The public surface is a thin set of
  * primitives (`create*`) that wrap the vanilla `play()` / gesture /
- * scroll APIs. Animations run against DOM refs via WAAPI or rAF; Solid
- * signals are never written during playback, so animations do not
- * trigger reactivity churn.
+ * scroll APIs, plus a `<Motion>` component for declarative usage.
+ * Animations run against DOM refs via WAAPI or rAF; Solid signals are
+ * never written during playback, so animations do not trigger
+ * reactivity churn.
  */
 
+export {
+  type MotionProps,
+  type MotionTransition,
+  type MotionValues,
+  Motion,
+} from "./components/Motion"
 export {
   type CreateAnimationResult,
   createAnimation,
@@ -20,6 +27,10 @@ export {
   type CreateLayoutResult,
   createLayout,
 } from "./primitives/createLayout"
+export {
+  type CreatePresenceResult,
+  createPresence,
+} from "./primitives/createPresence"
 export {
   createReducedMotion,
   prefersReducedMotion,

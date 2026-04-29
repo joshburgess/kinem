@@ -15,6 +15,7 @@
  */
 
 import { createLazyPromise } from "../core/lazy-promise"
+import { omitUndefined } from "../core/omit-undefined"
 import { type ReducedMotion, shouldReduceMotion } from "../core/reduced-motion"
 import type { AnimationDef } from "../core/types"
 import { type FrameScheduler, frame as defaultFrame } from "../scheduler/frame"
@@ -122,7 +123,7 @@ function project(
   // never change how the remaining ones interpolate.
   const projected: AnimationDef<AnimationProps> = {
     duration: def.duration,
-    ...(def.easing !== undefined ? { easing: def.easing } : {}),
+    ...omitUndefined({ easing: def.easing }),
     interpolate: (p) => {
       const v = def.interpolate(p)
       const out: Record<string, PropertyValue> = {}

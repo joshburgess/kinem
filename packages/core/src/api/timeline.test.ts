@@ -193,4 +193,27 @@ describe("timeline", () => {
     expect(controls.state).toBe("finished")
     await controls
   })
+
+  it("at(position, def, target) is sugar for add(def, target, { at })", () => {
+    const a = makeTarget()
+    const b = makeTarget()
+    const tl = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a, { label: "intro" })
+      .at("intro", tween({ opacity: [0, 1] }, { duration: 100 }), b, { offset: 50 })
+
+    expect(tl.duration).toBe(150)
+    expect(tl.labels.get("intro")).toBe(0)
+  })
+
+  it("at() supports numeric positions and < / > shorthands", () => {
+    const a = makeTarget()
+    const b = makeTarget()
+    const c = makeTarget()
+    const tl = timeline()
+      .add(tween({ width: ["0px", "100px"] }, { duration: 100 }), a)
+      .at(200, tween({ opacity: [0, 1] }, { duration: 50 }), b)
+      .at("<", tween({ scale: [0, 1] }, { duration: 50 }), c)
+
+    expect(tl.duration).toBe(250)
+  })
 })

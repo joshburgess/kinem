@@ -1,5 +1,6 @@
 import { linear } from "./easing"
 import { KinemError } from "./errors"
+import { omitUndefined } from "./omit-undefined"
 import type {
   AnimationDef,
   EasingFn,
@@ -276,7 +277,7 @@ export function reverse<T>(anim: AnimationDef<T>): AnimationDef<T> {
 export function map<A, B>(anim: AnimationDef<A>, fn: (a: A) => B): AnimationDef<B> {
   return {
     duration: anim.duration,
-    ...(anim.easing !== undefined ? { easing: anim.easing } : {}),
+    ...omitUndefined({ easing: anim.easing }),
     interpolate: (p) => fn(anim.interpolate(p)),
   }
 }

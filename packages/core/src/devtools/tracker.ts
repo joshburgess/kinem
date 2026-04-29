@@ -17,6 +17,7 @@
 
 import type { Controls } from "../api/controls"
 import { getCssEasing } from "../core/easing"
+import { omitUndefined } from "../core/omit-undefined"
 import type { EasingFn } from "../core/types"
 import type { StrategyBackend, StrategyState, StrategyTarget } from "../render/strategy"
 
@@ -34,6 +35,7 @@ export type TrackerBackend =
   | "scrub"
   | "ambient"
   | "view-transition"
+  | "timeline"
 
 export interface AnimationRecord {
   readonly id: number
@@ -75,12 +77,20 @@ export interface AnimationRecord {
    * devtools panel when summarizing what an animation is doing.
    */
   readonly properties?: readonly string[]
+  /**
+   * Named labels surfaced from the underlying handle (currently only
+   * timelines populate this). Devtools can render these inline on the
+   * progress bar; programmatic callers can use `controls.seekLabel(name)`
+   * to jump to them.
+   */
+  readonly labels?: ReadonlyMap<string, number>
 }
 
 /** Optional metadata attached at registration time. */
 export interface TrackerMeta {
   readonly easing?: string
   readonly properties?: readonly string[]
+  readonly labels?: ReadonlyMap<string, number>
 }
 
 /**
@@ -199,8 +209,7 @@ export function trackAnimation(
     startedAt,
     backend,
     controls,
-    ...(meta.easing !== undefined ? { easing: meta.easing } : {}),
-    ...(meta.properties !== undefined ? { properties: meta.properties } : {}),
+    ...omitUndefined({ easing: meta.easing, properties: meta.properties, labels: meta.labels }),
     get state() {
       return controls.state
     },

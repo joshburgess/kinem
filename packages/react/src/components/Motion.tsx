@@ -18,7 +18,7 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { play, tween } from "@kinem/core"
+import { omitUndefined, play, tween } from "@kinem/core"
 import {
   type CSSProperties,
   type ComponentPropsWithoutRef,
@@ -125,12 +125,9 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
 
     const def = tween(tweenProps, {
       duration: transition?.duration ?? 400,
-      ...(transition?.easing !== undefined ? { easing: transition.easing } : {}),
+      ...omitUndefined({ easing: transition?.easing }),
     })
-    const playOpts: PlayOpts = {}
-    if (transition?.backend !== undefined) {
-      ;(playOpts as { backend?: PlayOpts["backend"] }).backend = transition.backend
-    }
+    const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
     prevAnimateRef.current = animate
   }, [animate, initial, transition])
@@ -158,12 +155,9 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     }
     const def = tween(tweenProps, {
       duration: transition?.duration ?? 400,
-      ...(transition?.easing !== undefined ? { easing: transition.easing } : {}),
+      ...omitUndefined({ easing: transition?.easing }),
     })
-    const playOpts: PlayOpts = {}
-    if (transition?.backend !== undefined) {
-      ;(playOpts as { backend?: PlayOpts["backend"] }).backend = transition.backend
-    }
+    const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     const controls = play(def, [el as unknown as StrategyTarget], playOpts)
     controlsRef.current = controls
     let removed = false

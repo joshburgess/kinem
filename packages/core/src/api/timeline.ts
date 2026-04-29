@@ -24,6 +24,7 @@
 import { linear } from "../core/easing"
 import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
+import { trackAnimation } from "../devtools/tracker"
 import {
   type AnimationProps,
   type StrategyHandle,
@@ -55,6 +56,20 @@ export interface Timeline {
    * reference `"<"` or `">"` resolve relative to this entry.
    */
   add(def: AnimationDef<AnimationProps>, target: Target, opts?: TimelineAddOpts): Timeline
+  /**
+   * Sugar for `add(def, target, { ...opts, at: position })`. Useful when
+   * you want the position front-and-center in the call rather than
+   * tucked into an options bag, especially with named labels:
+   *
+   *   tl.at("intro", tween(...), el)
+   *      .at(800, tween(...), el)
+   */
+  at(
+    position: TimelinePosition,
+    def: AnimationDef<AnimationProps>,
+    target: Target,
+    opts?: Omit<TimelineAddOpts, "at">,
+  ): Timeline
   /** Register a named label at the given position (defaults to `">"`). */
   addLabel(name: string, at?: TimelinePosition, offset?: number): Timeline
   /** Resolve targets and begin playing. */
@@ -162,24 +177,34 @@ export function timeline(): Timeline {
       if (opts.label !== undefined) labels.set(opts.label, startMs)
       return tl
     },
+    at(position, def, target, opts = {}) {
+      return tl.add(def, target, { ...opts, at: position })
+    },
     addLabel(name, at, offset = 0) {
       labels.set(name, resolve(at, offset))
       return tl
     },
     play(opts = {}) {
+      const progressLabels = msLabelsToProgress(labels, totalMs)
       if (entries.length === 0 || totalMs === 0) {
-        return createControls(emptyHandle(), totalMs, msLabelsToProgress(labels, totalMs))
+        const controls = createControls(emptyHandle(), totalMs, progressLabels)
+        trackAnimation(controls, [], "timeline", { labels: progressLabels })
+        return controls
       }
 
       const strategyOpts = resolveStrategyOpts(opts)
       const handles: StrategyHandle[] = []
+      const allTargets: StrategyTarget[] = []
       for (const e of entries) {
         const targets = resolveTargets(e.target, opts)
         if (targets.length === 0) continue
+        for (const t of targets) allTargets.push(t)
         handles.push(playStrategy(slotted(e.def, e.startMs, totalMs), targets, strategyOpts))
       }
 
-      return createControls(combineHandles(handles), totalMs, msLabelsToProgress(labels, totalMs))
+      const controls = createControls(combineHandles(handles), totalMs, progressLabels)
+      trackAnimation(controls, allTargets, "timeline", { labels: progressLabels })
+      return controls
     },
     get duration() {
       return totalMs

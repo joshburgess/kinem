@@ -5,11 +5,13 @@
  * drive per-frame state updates.
  */
 
+export { AnimatePresence } from "./components/AnimatePresence"
 export {
   type MotionTransition,
   type MotionValues,
   Motion,
 } from "./components/Motion"
+export { PresenceKey, type PresenceValue } from "./components/presence"
 export {
   type UseAnimationResult,
   useAnimation,

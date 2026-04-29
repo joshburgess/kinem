@@ -17,17 +17,19 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { play, tween } from "@kinem/core"
+import { omitUndefined, play, tween } from "@kinem/core"
 import {
   type CSSProperties,
   type PropType,
   defineComponent,
   h,
+  inject,
   onBeforeUnmount,
   onMounted,
   shallowRef,
   watch,
 } from "vue"
+import { PresenceKey } from "./presence"
 
 export type MotionValues = Readonly<Record<string, string | number>>
 
@@ -69,31 +71,31 @@ export const Motion = defineComponent({
     as: { type: String, default: "div" },
     initial: { type: Object as PropType<MotionValues>, default: undefined },
     animate: { type: Object as PropType<MotionValues>, default: undefined },
+    exit: { type: Object as PropType<MotionValues>, default: undefined },
     transition: { type: Object as PropType<MotionTransition>, default: undefined },
   },
   setup(props, { slots, attrs }) {
     const elRef = shallowRef<Element | null>(null)
     let controls: Controls | null = null
     let prevAnimate: MotionValues | undefined = props.initial ?? props.animate
+    const presence = inject(PresenceKey, null)
 
-    const runTween = (from: MotionValues, to: MotionValues): void => {
+    const runTween = (from: MotionValues, to: MotionValues): Controls | null => {
       const el = elRef.value
-      if (!el) return
+      if (!el) return null
       const tweenProps = buildTweenProps(from, to)
-      if (Object.keys(tweenProps).length === 0) return
+      if (Object.keys(tweenProps).length === 0) return null
       const transition = props.transition
       const def = tween(tweenProps, {
         duration: transition?.duration ?? 400,
-        ...(transition?.easing !== undefined ? { easing: transition.easing } : {}),
+        ...omitUndefined({ easing: transition?.easing }),
       })
-      const playOpts: PlayOpts = {}
-      if (transition?.backend !== undefined) {
-        ;(playOpts as { backend?: PlayOpts["backend"] }).backend = transition.backend
-      }
+      const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
       if (controls && controls.state !== "cancelled" && controls.state !== "finished") {
         controls.cancel()
       }
       controls = play(def, [el as unknown as StrategyTarget], playOpts)
+      return controls
     }
 
     onMounted(() => {
@@ -114,6 +116,36 @@ export const Motion = defineComponent({
         prevAnimate = next
       },
     )
+
+    if (presence) {
+      let exitStarted = false
+      watch(
+        () => presence.isPresent,
+        (isPresent) => {
+          if (isPresent || exitStarted) return
+          exitStarted = true
+          const el = elRef.value
+          const from = prevAnimate ?? props.animate ?? props.initial
+          if (!el || !props.exit || !from) {
+            presence.safeToRemove()
+            return
+          }
+          const c = runTween(from, props.exit)
+          if (!c) {
+            presence.safeToRemove()
+            return
+          }
+          let removed = false
+          const done = (): void => {
+            if (removed) return
+            removed = true
+            presence.safeToRemove()
+          }
+          c.finished.then(done, done)
+        },
+        { immediate: true },
+      )
+    }
 
     onBeforeUnmount(() => {
       if (controls && controls.state !== "cancelled" && controls.state !== "finished") {

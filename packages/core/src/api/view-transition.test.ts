@@ -125,4 +125,81 @@ describe("playViewTransition", () => {
     expect(ctl.state).toBe("playing")
     ctl.cancel()
   })
+
+  it("reports the spring duration when spring is set (no real document)", () => {
+    const vt = fakeViewTransition()
+    const ctl = playViewTransition(() => {}, {
+      document: fakeDocument(vt),
+      spring: { stiffness: 200, damping: 20 },
+    })
+    expect(ctl.duration).toBeGreaterThan(0)
+    ctl.cancel()
+  })
+
+  function fakeDomDocument(vt: FakeViewTransition): {
+    doc: ViewTransitionDocumentLike
+    styles: Array<{ textContent: string }>
+  } {
+    const styles: Array<{ textContent: string }> = []
+    const parent = {
+      removeChild(node: { textContent: string }) {
+        const idx = styles.indexOf(node)
+        if (idx >= 0) styles.splice(idx, 1)
+      },
+    }
+    const doc = {
+      createElement: () =>
+        ({
+          setAttribute() {},
+          textContent: "",
+          parentNode: parent,
+        }) as unknown as { textContent: string },
+      head: {
+        appendChild(node: { textContent: string }) {
+          styles.push(node)
+          return node
+        },
+      },
+      startViewTransition(callback: () => void) {
+        void Promise.resolve().then(callback)
+        return vt
+      },
+    }
+    return { doc: doc as unknown as ViewTransitionDocumentLike, styles }
+  }
+
+  it("injects a stylesheet with linear() timing when spring is set on a real document", async () => {
+    const vt = fakeViewTransition()
+    const { doc, styles } = fakeDomDocument(vt)
+    const ctl = playViewTransition(() => {}, {
+      document: doc,
+      spring: { stiffness: 200, damping: 20 },
+      springSamples: 8,
+    })
+    expect(styles).toHaveLength(1)
+    expect(styles[0]?.textContent).toContain("linear(")
+    expect(styles[0]?.textContent).toContain("animation-duration:")
+    expect(styles[0]?.textContent).toContain("::view-transition-group(*)")
+    vt.resolveFinished()
+    await ctl
+    // microtask for the .then() cleanup
+    await Promise.resolve()
+    expect(styles).toHaveLength(0)
+  })
+
+  it("removes the spring stylesheet on cancel", async () => {
+    const vt = fakeViewTransition()
+    const { doc, styles } = fakeDomDocument(vt)
+    const ctl = playViewTransition(() => {}, {
+      document: doc,
+      spring: { stiffness: 200, damping: 20 },
+      springSamples: 6,
+    })
+    expect(styles).toHaveLength(1)
+    ctl.cancel()
+    // skipTransition rejects vt.finished; cleanup runs in the rejection handler
+    await ctl.catch(() => {})
+    await Promise.resolve()
+    expect(styles).toHaveLength(0)
+  })
 })

@@ -6,6 +6,7 @@
  */
 
 import { KinemError } from "../core/errors"
+import { omitUndefined } from "../core/omit-undefined"
 import type { AnimationDef } from "../core/types"
 import { easingLabel, trackAnimation } from "../devtools/tracker"
 import {
@@ -131,9 +132,6 @@ export function play(
   // silences its own unhandled-rejection warning (see `lazy-promise`).
   const controls = createControls(handle, def.duration)
   const easing = easingLabel(def.easing)
-  trackAnimation(controls, targets, backend, {
-    ...(easing !== undefined ? { easing } : {}),
-    ...(def.properties !== undefined ? { properties: def.properties } : {}),
-  })
+  trackAnimation(controls, targets, backend, omitUndefined({ easing, properties: def.properties }))
   return controls
 }

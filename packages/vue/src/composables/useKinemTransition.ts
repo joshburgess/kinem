@@ -20,7 +20,7 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { play, tween } from "@kinem/core"
+import { omitUndefined, play, tween } from "@kinem/core"
 
 export type TransitionValues = Readonly<Record<string, string | number>>
 
@@ -77,12 +77,9 @@ function runPhase(el: Element, phase: KinemTransitionPhase, done: () => void): C
   }
   const def = tween(tweenProps, {
     duration: phase.duration ?? 400,
-    ...(phase.easing !== undefined ? { easing: phase.easing } : {}),
+    ...omitUndefined({ easing: phase.easing }),
   })
-  const playOpts: PlayOpts = {}
-  if (phase.backend !== undefined) {
-    ;(playOpts as { backend?: PlayOpts["backend"] }).backend = phase.backend
-  }
+  const playOpts: PlayOpts = omitUndefined({ backend: phase.backend })
   const controls = play(def, [el as unknown as StrategyTarget], playOpts)
   controls.finished.then(done, done)
   return controls

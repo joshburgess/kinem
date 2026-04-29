@@ -10,6 +10,12 @@ export { type GestureActionOpts, type GestureActionReturn, gesture } from "./ges
 export { type LayoutActionOpts, type LayoutActionReturn, layout } from "./layout"
 export { type MotionActionOpts, type MotionValues, motion } from "./motion"
 export {
+  type CreatePresenceOpts,
+  type PresenceController,
+  type PresenceReadable,
+  createPresence,
+} from "./presence"
+export {
   type ReducedMotionStore,
   createReducedMotionStore,
   prefersReducedMotion,

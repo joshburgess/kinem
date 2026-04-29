@@ -32,6 +32,8 @@ export {
 
 export { KinemError } from "./core/errors"
 
+export { omitUndefined } from "./core/omit-undefined"
+
 export {
   type ReducedMotion,
   getReducedMotionDefault,

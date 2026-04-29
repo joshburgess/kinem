@@ -18,16 +18,25 @@ import {
   type Controls,
   type EasingFn,
   type PlayOpts,
+  type SpringOpts,
   type StrategyTarget,
+  omitUndefined,
   play,
+  springEasing,
   tween,
 } from "@kinem/core"
 import { type ShallowRef, onBeforeUnmount, onMounted, onUpdated, shallowRef } from "vue"
 
 export interface UseLayoutOpts {
-  /** Tween duration in ms. Default 300. */
+  /** Tween duration in ms. Default 300. Ignored when `spring` is set. */
   readonly duration?: number
   readonly easing?: EasingFn
+  /**
+   * Use spring physics instead of a fixed-duration tween. The spring's
+   * settling time becomes the animation duration, and `duration` /
+   * `easing` are ignored.
+   */
+  readonly spring?: SpringOpts
   readonly backend?: PlayOpts["backend"]
   /**
    * Whether to animate scale as well as position. Default true. Set to
@@ -93,14 +102,12 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
       controls.cancel()
     }
 
+    const spring = opts.spring ? springEasing(opts.spring) : null
     const def = tween(tweenProps, {
-      duration: opts.duration ?? 300,
-      ...(opts.easing !== undefined ? { easing: opts.easing } : {}),
+      duration: spring ? spring.duration : (opts.duration ?? 300),
+      ...omitUndefined({ easing: spring ?? opts.easing }),
     })
-    const playOpts: PlayOpts = {}
-    if (opts.backend !== undefined) {
-      ;(playOpts as { backend?: PlayOpts["backend"] }).backend = opts.backend
-    }
+    const playOpts: PlayOpts = omitUndefined({ backend: opts.backend })
     controls = play(def, [el as unknown as StrategyTarget], playOpts)
   }
 

@@ -234,6 +234,23 @@ describe("tracker", () => {
     expect(() => untrackAmbient(9999)).not.toThrow()
   })
 
+  it("trackAnimation forwards labels meta onto the record", () => {
+    const labels = new Map<string, number>([
+      ["intro", 0],
+      ["mid", 0.5],
+    ])
+    const controls = {
+      state: "playing" as const,
+      duration: 200,
+      finished: new Promise<void>(() => {}),
+    }
+    trackAnimation(controls as never, [fakeTarget()], "timeline", { labels })
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(record.backend).toBe("timeline")
+    expect(record.labels).toBe(labels)
+  })
+
   it("ambient subscribers see start then cancel events", async () => {
     const events: string[] = []
     const off = subscribe((e) => events.push(e.type))

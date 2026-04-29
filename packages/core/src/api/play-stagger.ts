@@ -11,6 +11,7 @@
  */
 
 import { delay as delayDef } from "../core/animation"
+import { omitUndefined } from "../core/omit-undefined"
 import type { AnimationDef, StaggerFrom } from "../core/types"
 import { easingLabel, trackAnimation } from "../devtools/tracker"
 import {
@@ -112,9 +113,6 @@ export function playStagger(
 
   const controls = createControls(combineHandles(handles), totalDuration)
   const easing = easingLabel(def.easing)
-  trackAnimation(controls, targets, backend, {
-    ...(easing !== undefined ? { easing } : {}),
-    ...(def.properties !== undefined ? { properties: def.properties } : {}),
-  })
+  trackAnimation(controls, targets, backend, omitUndefined({ easing, properties: def.properties }))
   return controls
 }

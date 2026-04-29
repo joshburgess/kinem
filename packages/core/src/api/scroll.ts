@@ -8,6 +8,7 @@
  *                      transitions according to `toggleActions`)
  */
 
+import { omitUndefined } from "../core/omit-undefined"
 import type { AnimationDef } from "../core/types"
 import type { AnimationProps, StrategyTarget } from "../render/strategy"
 import { createDomScrollSource } from "../scroll/source"
@@ -76,6 +77,6 @@ export function scroll(
     source,
     start,
     end,
-    ...(opts.toggleActions !== undefined ? { toggleActions: opts.toggleActions } : {}),
+    ...omitUndefined({ toggleActions: opts.toggleActions }),
   })
 }
