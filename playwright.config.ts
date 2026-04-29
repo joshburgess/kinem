@@ -38,6 +38,23 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testIgnore: /devtools-extension\.spec\.ts$/,
     },
+    // Firefox and WebKit run the cross-browser gesture / scroll spec
+    // against the same playground build. Their pointer-events and
+    // scroll models differ enough from Chromium to catch real
+    // regressions (different pointer capture rules, different scroll
+    // event ordering, different WAAPI coverage). The smoke and
+    // tween-animates specs stay chromium-pinned because they are not
+    // browser-sensitive.
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+      testMatch: /cross-browser\.spec\.ts$/,
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      testMatch: /cross-browser\.spec\.ts$/,
+    },
     {
       // Loads the built devtools extension into a persistent Chromium
       // context. Requires `pnpm --filter @kinem/devtools-extension build`

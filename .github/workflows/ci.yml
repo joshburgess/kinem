@@ -116,10 +116,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          # Bump the cache key when the browser set changes so a stale
+          # chromium-only cache does not satisfy a hit and skip the
+          # firefox / webkit installs.
+          key: playwright-${{ runner.os }}-cfw-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Run Playwright tests
         run: pnpm e2e
