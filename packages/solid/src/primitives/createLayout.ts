@@ -20,9 +20,11 @@
 import {
   type Controls,
   type EasingFn,
+  type LayoutGroup,
   type PlayOpts,
   type SpringOpts,
   type StrategyTarget,
+  defaultLayoutGroup,
   omitUndefined,
   play,
   springEasing,
@@ -47,6 +49,18 @@ export interface CreateLayoutOpts {
    * size shouldn't visually stretch during re-layout).
    */
   readonly animateScale?: boolean
+  /**
+   * Shared-element layout id. When set, the primitive consumes any rect
+   * captured under this id from `layoutGroup` on mount and uses it as
+   * the FLIP "previous" rect. On cleanup the primitive captures its
+   * current rect under the same id.
+   */
+  readonly layoutId?: string
+  /**
+   * Registry to use for shared-element captures. Defaults to the
+   * process-wide `defaultLayoutGroup`.
+   */
+  readonly layoutGroup?: LayoutGroup
 }
 
 export interface CreateLayoutResult<T extends HTMLElement = HTMLElement> {
@@ -120,7 +134,22 @@ export function createLayout<T extends HTMLElement = HTMLElement>(
   }
 
   onMount(() => {
-    if (el) prevRect = readRect(el)
+    if (!el) return
+    // Pick up any captured rect from a sibling that just unmounted
+    // under the same layoutId; that rect becomes our FLIP "previous"
+    // so the next measure animates from where the old element was.
+    if (opts.layoutId) {
+      const group = opts.layoutGroup ?? defaultLayoutGroup
+      const snap = group.consume(opts.layoutId)
+      if (snap) {
+        prevRect = snap.rect
+        // Trigger the shared-element animation on the next microtask so
+        // any caller-driven measure() effects run after.
+        queueMicrotask(measureAndPlay)
+        return
+      }
+    }
+    prevRect = readRect(el)
   })
 
   onCleanup(() => {
@@ -128,6 +157,10 @@ export function createLayout<T extends HTMLElement = HTMLElement>(
       controls.cancel()
     }
     controls = null
+    if (opts.layoutId && el && prevRect && prevRect.width > 0 && prevRect.height > 0) {
+      const group = opts.layoutGroup ?? defaultLayoutGroup
+      group.capture(opts.layoutId, prevRect)
+    }
     el = null
   })
 

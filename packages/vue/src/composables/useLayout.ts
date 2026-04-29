@@ -17,9 +17,11 @@
 import {
   type Controls,
   type EasingFn,
+  type LayoutGroup,
   type PlayOpts,
   type SpringOpts,
   type StrategyTarget,
+  defaultLayoutGroup,
   omitUndefined,
   play,
   springEasing,
@@ -44,6 +46,18 @@ export interface UseLayoutOpts {
    * size shouldn't visually stretch during re-layout).
    */
   readonly animateScale?: boolean
+  /**
+   * Shared-element layout id. When set, the composable consumes any
+   * rect captured under this id from `layoutGroup` on mount and uses it
+   * as the FLIP "previous" rect. On unmount the composable captures its
+   * current rect under the same id.
+   */
+  readonly layoutId?: string
+  /**
+   * Registry to use for shared-element captures. Defaults to the
+   * process-wide `defaultLayoutGroup`.
+   */
+  readonly layoutGroup?: LayoutGroup
 }
 
 export interface UseLayoutResult<T extends HTMLElement = HTMLElement> {
@@ -77,7 +91,12 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
     const el = elRef.value
     if (!el) return
     const next = readRect(el)
-    const prev = prevRect
+    let prev = prevRect
+    if (!prev && opts.layoutId) {
+      const group = opts.layoutGroup ?? defaultLayoutGroup
+      const snap = group.consume(opts.layoutId)
+      if (snap) prev = snap.rect
+    }
     prevRect = next
     if (!prev) return
     if (!rectsDiffer(prev, next)) return
@@ -118,6 +137,10 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
       controls.cancel()
     }
     controls = null
+    if (opts.layoutId && prevRect && prevRect.width > 0 && prevRect.height > 0) {
+      const group = opts.layoutGroup ?? defaultLayoutGroup
+      group.capture(opts.layoutId, prevRect)
+    }
   })
 
   return { ref: elRef }

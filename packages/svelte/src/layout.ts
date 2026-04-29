@@ -16,9 +16,11 @@
 import {
   type Controls,
   type EasingFn,
+  type LayoutGroup,
   type PlayOpts,
   type SpringOpts,
   type StrategyTarget,
+  defaultLayoutGroup,
   omitUndefined,
   play,
   springEasing,
@@ -42,6 +44,19 @@ export interface LayoutActionOpts {
    * size shouldn't visually stretch during re-layout).
    */
   readonly animateScale?: boolean
+  /**
+   * Shared-element layout id. When set, the action consumes any rect
+   * captured under this id from `layoutGroup` on bind and uses it as
+   * the FLIP "previous" rect (so the element animates from where the
+   * old element was). On destroy the action captures its current rect
+   * under the same id.
+   */
+  readonly layoutId?: string
+  /**
+   * Registry to use for shared-element captures. Defaults to the
+   * process-wide `defaultLayoutGroup`.
+   */
+  readonly layoutGroup?: LayoutGroup
 }
 
 export interface LayoutActionReturn {
@@ -66,9 +81,29 @@ function rectsDiffer(a: Rect, b: Rect): boolean {
 }
 
 export function layout(node: HTMLElement, params: LayoutActionOpts = {}): LayoutActionReturn {
-  let prevRect: Rect | null = readRect(node)
-  let controls: Controls | null = null
   let opts: LayoutActionOpts = params
+  // If a layoutId is set and a sibling captured a rect for it, use that
+  // captured rect as the FLIP "previous" so the element animates from
+  // the old element's position on the next layout pass.
+  let prevRect: Rect | null = null
+  if (opts.layoutId) {
+    const group = opts.layoutGroup ?? defaultLayoutGroup
+    const snap = group.consume(opts.layoutId)
+    if (snap) prevRect = snap.rect
+  }
+  if (!prevRect) prevRect = readRect(node)
+  let controls: Controls | null = null
+  // Trigger an initial measure-and-play if we picked up a captured rect
+  // (so the shared-element transition fires without waiting for the
+  // first svelte-driven update).
+  // We have to defer one microtask so the binding completes first.
+  if (opts.layoutId) {
+    queueMicrotask(() => {
+      // measureAndPlay is defined below; this closure runs after the
+      // function declaration is evaluated.
+      measureAndPlay()
+    })
+  }
 
   const measureAndPlay = (): void => {
     const next = readRect(node)
@@ -116,6 +151,10 @@ export function layout(node: HTMLElement, params: LayoutActionOpts = {}): Layout
         controls.cancel()
       }
       controls = null
+      if (opts.layoutId && prevRect && prevRect.width > 0 && prevRect.height > 0) {
+        const group = opts.layoutGroup ?? defaultLayoutGroup
+        group.capture(opts.layoutId, prevRect)
+      }
     },
   }
 }

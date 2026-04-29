@@ -19,9 +19,11 @@
 import {
   type Controls,
   type EasingFn,
+  type LayoutGroup,
   type PlayOpts,
   type SpringOpts,
   type StrategyTarget,
+  defaultLayoutGroup,
   omitUndefined,
   play,
   springEasing,
@@ -46,6 +48,19 @@ export interface UseLayoutOpts {
    * size shouldn't visually stretch during re-layout).
    */
   readonly animateScale?: boolean
+  /**
+   * Shared-element layout id. When set, the hook consumes any rect
+   * captured under this id from `layoutGroup` on mount and uses it as
+   * the FLIP "previous" rect (so the element animates from the old
+   * element's position). On unmount the hook captures its current rect
+   * under the same id so a subsequent mount can pick it up.
+   */
+  readonly layoutId?: string
+  /**
+   * Registry to use for shared-element captures. Defaults to the
+   * process-wide `defaultLayoutGroup`.
+   */
+  readonly layoutGroup?: LayoutGroup
 }
 
 export interface UseLayoutResult<T extends HTMLElement = HTMLElement> {
@@ -90,7 +105,15 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
     const el = elRef.current
     if (!el) return
     const next = readRect(el)
-    const prev = prevRectRef.current
+    const currentOpts0 = optsRef.current
+    const group = currentOpts0.layoutGroup ?? defaultLayoutGroup
+    // On first measurement, see if a shared-element rect was captured
+    // for our layoutId; if so, treat that as the previous rect.
+    let prev = prevRectRef.current
+    if (!prev && currentOpts0.layoutId) {
+      const snap = group.consume(currentOpts0.layoutId)
+      if (snap) prev = snap.rect
+    }
     prevRectRef.current = next
     if (!prev) return
     if (!rectsDiffer(prev, next)) return
@@ -116,7 +139,7 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
       existing.cancel()
     }
 
-    const currentOpts = optsRef.current
+    const currentOpts = currentOpts0
     const spring = currentOpts.spring ? springEasing(currentOpts.spring) : null
     const def = tween(tweenProps, {
       duration: spring ? spring.duration : (currentOpts.duration ?? 300),
@@ -131,6 +154,16 @@ export function useLayout<T extends HTMLElement = HTMLElement>(
       const c = controlsRef.current
       if (c && c.state !== "cancelled" && c.state !== "finished") c.cancel()
       controlsRef.current = null
+      // Capture our last rect under layoutId so a sibling that mounts
+      // with the same id can animate from where we were.
+      const opts = optsRef.current
+      if (opts.layoutId) {
+        const last = prevRectRef.current
+        if (last && last.width > 0 && last.height > 0) {
+          const group = opts.layoutGroup ?? defaultLayoutGroup
+          group.capture(opts.layoutId, last)
+        }
+      }
     }
   }, [])
 

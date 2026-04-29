@@ -102,8 +102,11 @@ export interface UseGestureResult<T extends Element = Element> {
 export interface UseLayoutOpts {
     readonly duration?: number;
     readonly easing?: EasingFn;
+    readonly spring?: SpringOpts;
     readonly backend?: PlayOpts["backend"];
     readonly animateScale?: boolean;
+    readonly layoutId?: string;
+    readonly layoutGroup?: LayoutGroup;
 }
 ```
 

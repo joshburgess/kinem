@@ -1,3 +1,4 @@
+import { createLayoutGroup } from "@kinem/core"
 import { mount } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 import { defineComponent, h, nextTick, onMounted, ref } from "vue"
@@ -63,5 +64,34 @@ describe("useLayout (vue)", () => {
       }),
     )
     expect(() => wrapper.unmount()).not.toThrow()
+  })
+
+  it("captures rect on unmount under layoutId", () => {
+    const group = createLayoutGroup({ ttl: Number.POSITIVE_INFINITY })
+    const fakeRect = { left: 7, top: 8, width: 9, height: 10 } as DOMRect
+    const original = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = () => fakeRect
+    const wrapper = mount(
+      harness({ layoutId: "shared-vue", layoutGroup: group }, () => {
+        // no-op
+      }),
+    )
+    wrapper.unmount()
+    Element.prototype.getBoundingClientRect = original
+    const snap = group.consume("shared-vue")
+    expect(snap?.rect.left).toBe(7)
+    expect(snap?.rect.top).toBe(8)
+  })
+
+  it("consumes a captured rect on mount under matching layoutId", () => {
+    const group = createLayoutGroup({ ttl: Number.POSITIVE_INFINITY })
+    group.capture("shared-vue-2", { left: 0, top: 0, width: 5, height: 5 })
+    const wrapper = mount(
+      harness({ layoutId: "shared-vue-2", layoutGroup: group }, () => {
+        // no-op
+      }),
+    )
+    expect(group.consume("shared-vue-2")).toBeUndefined()
+    wrapper.unmount()
   })
 })

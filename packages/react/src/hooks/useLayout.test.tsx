@@ -1,3 +1,4 @@
+import { createLayoutGroup } from "@kinem/core"
 import { render } from "@testing-library/react"
 import { useEffect, useState } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -94,5 +95,60 @@ describe("useLayout", () => {
     expect(call).toBeGreaterThanOrEqual(2)
     unmount()
     Element.prototype.getBoundingClientRect = original
+  })
+
+  it("captures rect on unmount under layoutId so a sibling can consume it", () => {
+    const group = createLayoutGroup({ ttl: Number.POSITIVE_INFINITY })
+    const rect = {
+      left: 50,
+      top: 60,
+      width: 100,
+      height: 80,
+      right: 150,
+      bottom: 140,
+      x: 50,
+      y: 60,
+    } as DOMRect
+    const original = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = vi.fn(() => rect)
+
+    function A() {
+      const l = useLayout<HTMLDivElement>({
+        duration: 20,
+        backend: "raf",
+        layoutId: "shared-x",
+        layoutGroup: group,
+      })
+      return <div ref={l.ref} />
+    }
+
+    const { unmount } = render(<A />)
+    unmount()
+    Element.prototype.getBoundingClientRect = original
+
+    const snap = group.consume("shared-x")
+    expect(snap?.rect.left).toBe(50)
+    expect(snap?.rect.top).toBe(60)
+    expect(snap?.rect.width).toBe(100)
+    expect(snap?.rect.height).toBe(80)
+  })
+
+  it("consumes a captured rect on mount under matching layoutId", () => {
+    const group = createLayoutGroup({ ttl: Number.POSITIVE_INFINITY })
+    group.capture("shared-y", { left: 0, top: 0, width: 10, height: 10 })
+
+    function B() {
+      const l = useLayout<HTMLDivElement>({
+        duration: 20,
+        backend: "raf",
+        layoutId: "shared-y",
+        layoutGroup: group,
+      })
+      return <div ref={l.ref} />
+    }
+
+    render(<B />)
+    // The capture should be consumed exactly once on mount.
+    expect(group.consume("shared-y")).toBeUndefined()
   })
 })

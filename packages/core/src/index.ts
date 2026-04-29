@@ -109,6 +109,14 @@ export {
   type ViewTransitionLike,
   playViewTransition,
 } from "./api/view-transition"
+export {
+  type CreateLayoutGroupOpts,
+  type LayoutGroup,
+  type LayoutGroupRect,
+  type LayoutGroupSnapshot,
+  createLayoutGroup,
+  defaultLayoutGroup,
+} from "./api/layout-group"
 
 export {
   type Clock,
