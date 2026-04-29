@@ -37,6 +37,7 @@ const targets = [
   { name: "react", entry: "packages/react/dist/index.d.ts", outFile: "react.api.md" },
   { name: "vue", entry: "packages/vue/dist/index.d.ts", outFile: "vue.api.md" },
   { name: "svelte", entry: "packages/svelte/dist/index.d.ts", outFile: "svelte.api.md" },
+  { name: "solid", entry: "packages/solid/dist/index.d.ts", outFile: "solid.api.md" },
 ]
 
 /**

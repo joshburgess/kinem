@@ -1,0 +1,52 @@
+{
+  "name": "@kinem/solid",
+  "version": "0.3.0",
+  "description": "Solid bindings for kinem",
+  "license": "(Apache-2.0 OR MIT)",
+  "author": "Josh Burgess",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshburgess/kinem.git",
+    "directory": "packages/solid"
+  },
+  "homepage": "https://github.com/joshburgess/kinem#readme",
+  "bugs": "https://github.com/joshburgess/kinem/issues",
+  "keywords": ["animation", "solid", "solid-js", "motion", "spring"],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": ["dist", "LICENSE-APACHE", "LICENSE-MIT"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && rollup -c rollup.config.mjs && tsc -p tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@kinem/core": "workspace:^",
+    "solid-js": ">=1.8"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.9.0",
+    "@kinem/core": "workspace:*",
+    "solid-js": "^1.9.5",
+    "typescript": "^5.9.3"
+  }
+}

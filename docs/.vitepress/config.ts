@@ -38,6 +38,18 @@ export default defineConfig({
             { text: "Core concepts", link: "/guide/concepts" },
           ],
         },
+        {
+          text: "Framework adapters",
+          items: [
+            { text: "React", link: "/guide/react" },
+            { text: "Vue", link: "/guide/vue" },
+            { text: "Svelte", link: "/guide/svelte" },
+          ],
+        },
+        {
+          text: "Tooling",
+          items: [{ text: "Devtools", link: "/guide/devtools" }],
+        },
       ],
       "/api/": typedocSidebar as never,
       "/migrations/": [

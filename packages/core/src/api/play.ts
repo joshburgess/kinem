@@ -7,7 +7,7 @@
 
 import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
-import { trackAnimation } from "../devtools/tracker"
+import { easingLabel, trackAnimation } from "../devtools/tracker"
 import {
   type AnimationProps,
   type StrategyBackend,
@@ -130,6 +130,10 @@ export function play(
   // `.finished` on a rejected handle get a pre-settled promise that
   // silences its own unhandled-rejection warning (see `lazy-promise`).
   const controls = createControls(handle, def.duration)
-  trackAnimation(controls, targets, backend)
+  const easing = easingLabel(def.easing)
+  trackAnimation(controls, targets, backend, {
+    ...(easing !== undefined ? { easing } : {}),
+    ...(def.properties !== undefined ? { properties: def.properties } : {}),
+  })
   return controls
 }

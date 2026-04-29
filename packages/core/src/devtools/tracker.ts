@@ -16,6 +16,8 @@
  */
 
 import type { Controls } from "../api/controls"
+import { getCssEasing } from "../core/easing"
+import type { EasingFn } from "../core/types"
 import type { StrategyBackend, StrategyState, StrategyTarget } from "../render/strategy"
 
 /**
@@ -25,7 +27,13 @@ import type { StrategyBackend, StrategyState, StrategyTarget } from "../render/s
  * have `duration === 0` and a Controls façade whose only working method
  * is `cancel()`.
  */
-export type TrackerBackend = StrategyBackend | "follow" | "scroll" | "scrub" | "ambient"
+export type TrackerBackend =
+  | StrategyBackend
+  | "follow"
+  | "scroll"
+  | "scrub"
+  | "ambient"
+  | "view-transition"
 
 export interface AnimationRecord {
   readonly id: number
@@ -53,6 +61,44 @@ export interface AnimationRecord {
    * seek / reverse / restart are no-ops.
    */
   readonly controls: Controls
+  /**
+   * Optional descriptive label for the animation's easing. Surfaced via
+   * the registration meta bag from `play()` / `playStagger()`. Built-in
+   * CSS-tagged easings report `"linear"` / `"cubic-bezier(...)"`; named
+   * easeIn / easeOut / easeInOut report their function name when not
+   * minified; otherwise reports `"(custom)"`.
+   */
+  readonly easing?: string
+  /**
+   * Optional list of property names the animation drives. Populated
+   * when the leaf def carries a `properties` cache. Useful for the
+   * devtools panel when summarizing what an animation is doing.
+   */
+  readonly properties?: readonly string[]
+}
+
+/** Optional metadata attached at registration time. */
+export interface TrackerMeta {
+  readonly easing?: string
+  readonly properties?: readonly string[]
+}
+
+/**
+ * Best-effort string label for an `EasingFn`. Tagged CSS easings (the
+ * built-in `linear` and `cubicBezier(...)` results) are recognized
+ * exactly. Named easings (`easeIn`, `easeOut`, `easeInOut`) report
+ * their function name. Unrecognized easings report `"(custom)"`.
+ *
+ * The result is for human display only — do not use it to reconstruct
+ * an easing function.
+ */
+export function easingLabel(fn: EasingFn | undefined): string | undefined {
+  if (!fn) return undefined
+  const css = getCssEasing(fn)
+  if (css) return css
+  const name = fn.name
+  if (name && name !== "" && name !== "fn") return name
+  return "(custom)"
 }
 
 export type TrackerEvent =
@@ -141,6 +187,7 @@ export function trackAnimation(
   controls: Controls,
   targets: readonly StrategyTarget[],
   backend: TrackerBackend = "auto",
+  meta: TrackerMeta = {},
 ): number {
   if (!enabled) return -1
   const id = nextId++
@@ -152,6 +199,8 @@ export function trackAnimation(
     startedAt,
     backend,
     controls,
+    ...(meta.easing !== undefined ? { easing: meta.easing } : {}),
+    ...(meta.properties !== undefined ? { properties: meta.properties } : {}),
     get state() {
       return controls.state
     },

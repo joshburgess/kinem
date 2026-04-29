@@ -18,6 +18,7 @@ export default defineConfig({
         "packages/react/src/**/*.{ts,tsx}",
         "packages/vue/src/**/*.ts",
         "packages/svelte/src/**/*.ts",
+        "packages/solid/src/**/*.ts",
         "packages/devtools/src/**/*.ts",
       ],
       exclude: [
@@ -79,6 +80,16 @@ export default defineConfig({
         test: {
           name: "svelte",
           include: ["packages/svelte/src/**/*.test.ts"],
+          environment: "happy-dom",
+          setupFiles: ["packages/core/test-setup.ts"],
+          benchmark: { include: [] },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "solid",
+          include: ["packages/solid/src/**/*.test.ts"],
           environment: "happy-dom",
           setupFiles: ["packages/core/test-setup.ts"],
           benchmark: { include: [] },

@@ -37,11 +37,16 @@ export interface AnimationRecordLike {
   readonly startedAt: number
   readonly backend: string
   readonly targets: ReadonlyArray<unknown>
+  readonly easing?: string
+  readonly properties?: ReadonlyArray<string>
   readonly controls: {
     pause(): void
     resume(): void
     cancel(): void
     seek(progress: number): void
+    seekLabel?(label: string): void
+    speed?: number
+    readonly labels?: ReadonlyMap<string, number>
   }
 }
 
@@ -81,7 +86,19 @@ export function describeTarget(target: unknown): TargetDescriptor {
 }
 
 export function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
-  return {
+  const out: {
+    id: number
+    duration: number
+    state: string
+    progress: number
+    startedAt: number
+    backend: string
+    targets: readonly TargetDescriptor[]
+    easing?: string
+    properties?: readonly string[]
+    labels?: readonly { readonly name: string; readonly offset: number }[]
+    speed?: number
+  } = {
     id: rec.id,
     duration: rec.duration,
     state: rec.state,
@@ -90,6 +107,16 @@ export function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
     backend: rec.backend,
     targets: rec.targets.map(describeTarget),
   }
+  if (rec.easing !== undefined) out.easing = rec.easing
+  if (rec.properties && rec.properties.length > 0) {
+    out.properties = Array.from(rec.properties)
+  }
+  const labels = rec.controls.labels
+  if (labels && labels.size > 0) {
+    out.labels = Array.from(labels, ([name, offset]) => ({ name, offset }))
+  }
+  if (typeof rec.controls.speed === "number") out.speed = rec.controls.speed
+  return out
 }
 
 function post(event: AgentEvent): void {
@@ -168,6 +195,18 @@ export function handleCommand(
       byId.get(command.id)?.controls.seek(command.progress)
       sync()
       return
+    case "seek-label":
+      byId.get(command.id)?.controls.seekLabel?.(command.label)
+      sync()
+      return
+    case "set-speed": {
+      const rec = byId.get(command.id)
+      if (rec && typeof command.speed === "number" && command.speed > 0) {
+        rec.controls.speed = command.speed
+      }
+      sync()
+      return
+    }
     case "cancel":
       byId.get(command.id)?.controls.cancel()
       sync()

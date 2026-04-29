@@ -30,6 +30,8 @@ const root = resolve(__dirname, "..")
 const corePkg = resolve(root, "packages/core")
 const coreEntry = resolve(corePkg, "src/index.ts")
 const slimEntry = resolve(corePkg, "src/slim.ts")
+const devtoolsPkg = resolve(root, "packages/devtools")
+const devtoolsEntry = resolve(devtoolsPkg, "src/index.ts")
 
 /**
  * Each scenario gets a tiny inline ES module that imports only the named
@@ -50,7 +52,7 @@ const scenarios = [
   },
   {
     name: "tween + play (slim)",
-    targetKb: 6.7,
+    targetKb: 7.1,
     entry: slimEntry,
     imports: ["tween", "play", "linear", "easeInOut"],
   },
@@ -63,6 +65,17 @@ const scenarios = [
     name: "tween + gesture",
     targetKb: 13.8,
     imports: ["tween", "play", "gesture", "linear", "easeInOut"],
+  },
+  {
+    // Sized to catch accidental devtools imports in a production bundle.
+    // The tracker side effect on import is what makes this scenario useful:
+    // a full devtools import is ~2x the core surface, so this guards against
+    // an inadvertent `import "@kinem/devtools"` slipping into prod.
+    name: "devtools (full import)",
+    targetKb: 8.5,
+    pkg: "@kinem/devtools",
+    entry: devtoolsEntry,
+    imports: ["snapshot", "createRecorder", "mountInspector", "mountTimeline"],
   },
   {
     name: "full library",
@@ -97,8 +110,9 @@ const scenarios = [
 
 function buildScenario(scenario) {
   const namedImports = scenario.imports.join(", ")
+  const pkg = scenario.pkg ?? "@kinem/core"
   const entryContent = `
-import { ${namedImports} } from "@kinem/core"
+import { ${namedImports} } from "${pkg}"
 // Keep each import alive so esbuild won't prune it.
 const sink = [${namedImports}]
 if (typeof window !== "undefined") {
@@ -120,7 +134,10 @@ export default sink
       resolveDir: corePkg,
       loader: "ts",
     },
-    alias: { "@kinem/core": scenario.entry ?? coreEntry },
+    alias: {
+      "@kinem/core": scenario.pkg === "@kinem/devtools" ? coreEntry : (scenario.entry ?? coreEntry),
+      "@kinem/devtools": devtoolsEntry,
+    },
     logLevel: "silent",
   })
 }

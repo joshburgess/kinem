@@ -27,6 +27,11 @@ export {
   useKinemTransition,
 } from "./composables/useKinemTransition"
 export {
+  type UseLayoutOpts,
+  type UseLayoutResult,
+  useLayout,
+} from "./composables/useLayout"
+export {
   prefersReducedMotion,
   useReducedMotion,
 } from "./composables/useReducedMotion"

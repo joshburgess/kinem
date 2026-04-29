@@ -52,6 +52,7 @@ export {
 } from "./core/animation"
 
 export { interpolateNumber } from "./interpolate/number"
+export { interpolateNumbers } from "./interpolate/numbers"
 export { type UnitValue, UnitMismatchError, interpolateUnit, parseUnit } from "./interpolate/units"
 export { type ColorFormat, interpolateColor, isColor } from "./interpolate/color"
 export { interpolateTransform, parseTransform } from "./interpolate/transform"
@@ -100,6 +101,12 @@ export {
   inertia,
 } from "./api/inertia"
 export { type PlayStaggerOpts, playStagger } from "./api/play-stagger"
+export {
+  type PlayViewTransitionOpts,
+  type ViewTransitionDocumentLike,
+  type ViewTransitionLike,
+  playViewTransition,
+} from "./api/view-transition"
 
 export {
   type Clock,
@@ -204,7 +211,9 @@ export {
   type TrackerBackend,
   type TrackerEvent,
   type TrackerListener,
+  type TrackerMeta,
   __resetTracker,
+  easingLabel,
   enableTracker,
   isTrackerEnabled,
   listActive as listActiveAnimations,

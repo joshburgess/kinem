@@ -181,8 +181,63 @@ button.danger:hover:not(:disabled) {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .row-controls button {
   font-size: 11px;
   padding: 3px 8px;
+}
+
+.row-detail {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #aaa;
+}
+.row-detail span {
+  white-space: nowrap;
+}
+.row-detail .label {
+  color: #777;
+  margin-right: 4px;
+}
+.row-detail code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #c9d1d9;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.row-labels {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.row-labels button {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-color: #4c4c4c;
+  background: rgba(138, 180, 255, 0.08);
+  color: #c5d8ff;
+}
+
+.speed-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: #aaa;
+  font-size: 11px;
+}
+.speed-control input {
+  width: 60px;
+  padding: 2px 4px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  color: #ddd;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
 }

@@ -35,6 +35,14 @@ export interface AnimationSnapshot {
   readonly startedAt: number
   readonly backend: string
   readonly targets: readonly TargetDescriptor[]
+  /** Human-readable easing label (e.g. `"linear"`, `"easeOut"`). */
+  readonly easing?: string
+  /** Property names the animation drives, when known. */
+  readonly properties?: readonly string[]
+  /** Named timeline labels with normalized [0, 1] offsets. */
+  readonly labels?: readonly { readonly name: string; readonly offset: number }[]
+  /** Current playback speed multiplier. */
+  readonly speed?: number
 }
 
 /** Events the agent pushes to the panel. */
@@ -59,6 +67,8 @@ export type PanelCommand =
   | { readonly kind: "pause"; readonly id: number }
   | { readonly kind: "resume"; readonly id: number }
   | { readonly kind: "seek"; readonly id: number; readonly progress: number }
+  | { readonly kind: "seek-label"; readonly id: number; readonly label: string }
+  | { readonly kind: "set-speed"; readonly id: number; readonly speed: number }
   | { readonly kind: "cancel"; readonly id: number }
   | { readonly kind: "set-polling"; readonly intervalMs: number }
 

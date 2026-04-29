@@ -114,6 +114,35 @@ describe("toSnapshot", () => {
     expect(snap.targets[0]?.kind).toBe("element")
     expect(snap.targets[0]?.tag).toBe("div")
   })
+
+  it("forwards easing, properties, labels, and speed when present", () => {
+    const { record, controls } = makeRecord(11, {
+      easing: "easeOut",
+      properties: ["x", "opacity"],
+    })
+    ;(controls as unknown as { speed: number; labels: Map<string, number> }).speed = 1.5
+    ;(controls as unknown as { speed: number; labels: Map<string, number> }).labels = new Map([
+      ["intro", 0],
+      ["mid", 0.5],
+    ])
+    const snap = toSnapshot(record)
+    expect(snap.easing).toBe("easeOut")
+    expect(snap.properties).toEqual(["x", "opacity"])
+    expect(snap.speed).toBe(1.5)
+    expect(snap.labels).toEqual([
+      { name: "intro", offset: 0 },
+      { name: "mid", offset: 0.5 },
+    ])
+  })
+
+  it("omits optional fields when missing", () => {
+    const { record } = makeRecord(12)
+    const snap = toSnapshot(record)
+    expect(snap.easing).toBeUndefined()
+    expect(snap.properties).toBeUndefined()
+    expect(snap.labels).toBeUndefined()
+    expect(snap.speed).toBeUndefined()
+  })
 })
 
 describe("connect", () => {
@@ -228,6 +257,28 @@ describe("handleCommand", () => {
     expect(target.controls.seek).toHaveBeenCalledWith(0.6)
     expect(target.controls.cancel).toHaveBeenCalledTimes(1)
     expect(stale.controls.pause).not.toHaveBeenCalled()
+  })
+
+  it("seek-label dispatches seekLabel against byId", () => {
+    const target = makeRecord(42)
+    const seekLabel = vi.fn()
+    ;(target.controls as unknown as { seekLabel: typeof seekLabel }).seekLabel = seekLabel
+    const byId = new Map<number, AnimationRecordLike>([[42, target.record]])
+    const { hook } = makeHook([])
+    handleCommand({ kind: "seek-label", id: 42, label: "intro" }, byId, hook)
+    expect(seekLabel).toHaveBeenCalledWith("intro")
+  })
+
+  it("set-speed assigns to controls.speed when valid", () => {
+    const target = makeRecord(42)
+    ;(target.controls as unknown as { speed: number }).speed = 1
+    const byId = new Map<number, AnimationRecordLike>([[42, target.record]])
+    const { hook } = makeHook([])
+    handleCommand({ kind: "set-speed", id: 42, speed: 2 }, byId, hook)
+    expect((target.controls as unknown as { speed: number }).speed).toBe(2)
+
+    handleCommand({ kind: "set-speed", id: 42, speed: 0 }, byId, hook)
+    expect((target.controls as unknown as { speed: number }).speed).toBe(2)
   })
 
   it("targeted commands no-op silently when the id is missing", () => {

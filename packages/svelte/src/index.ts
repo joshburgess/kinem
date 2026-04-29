@@ -7,6 +7,7 @@
  */
 
 export { type GestureActionOpts, type GestureActionReturn, gesture } from "./gesture"
+export { type LayoutActionOpts, type LayoutActionReturn, layout } from "./layout"
 export { type MotionActionOpts, type MotionValues, motion } from "./motion"
 export {
   type ReducedMotionStore,

@@ -142,8 +142,14 @@ interface RowNodes {
   readonly row: HTMLElement
   readonly meta: HTMLElement
   readonly bar: HTMLElement
+  readonly detail: HTMLElement
+  readonly labels: HTMLElement
+  readonly speedInput: HTMLInputElement | null
   ambient: boolean
   state: string
+  detailKey: string
+  labelsKey: string
+  speedShown: number | null
 }
 const rowNodes = new Map<number, RowNodes>()
 let emptyEl: HTMLElement | null = null
@@ -226,6 +232,12 @@ function renderRow(a: AnimationSnapshot): RowNodes {
   bar.className = "row-bar"
   track.appendChild(bar)
 
+  const detail = document.createElement("div")
+  detail.className = "row-detail"
+
+  const labels = document.createElement("div")
+  labels.className = "row-labels"
+
   const controls = document.createElement("div")
   controls.className = "row-controls"
   controls.append(
@@ -237,10 +249,93 @@ function renderRow(a: AnimationSnapshot): RowNodes {
     btn("Cancel", () => send({ kind: "cancel", id: a.id }), "danger"),
   )
 
-  row.append(header, track, controls)
-  const nodes: RowNodes = { row, meta, bar, ambient: false, state: a.state }
+  let speedInput: HTMLInputElement | null = null
+  if (typeof a.speed === "number") {
+    const wrap = document.createElement("label")
+    wrap.className = "speed-control"
+    const txt = document.createElement("span")
+    txt.textContent = "speed"
+    speedInput = document.createElement("input")
+    speedInput.type = "number"
+    speedInput.min = "0.1"
+    speedInput.max = "8"
+    speedInput.step = "0.1"
+    speedInput.value = String(a.speed)
+    speedInput.addEventListener("change", () => {
+      if (!speedInput) return
+      const v = Number.parseFloat(speedInput.value)
+      if (Number.isFinite(v) && v > 0) {
+        send({ kind: "set-speed", id: a.id, speed: v })
+      }
+    })
+    wrap.append(txt, speedInput)
+    controls.appendChild(wrap)
+  }
+
+  row.append(header, track, detail, labels, controls)
+  const nodes: RowNodes = {
+    row,
+    meta,
+    bar,
+    detail,
+    labels,
+    speedInput,
+    ambient: false,
+    state: a.state,
+    detailKey: "",
+    labelsKey: "",
+    speedShown: null,
+  }
   updateRow(nodes, a)
   return nodes
+}
+
+function detailFingerprint(a: AnimationSnapshot): string {
+  const props = a.properties && a.properties.length > 0 ? a.properties.join(",") : ""
+  return `${a.easing ?? ""}|${props}`
+}
+
+function labelsFingerprint(a: AnimationSnapshot): string {
+  if (!a.labels || a.labels.length === 0) return ""
+  return a.labels.map((l) => `${l.name}@${l.offset.toFixed(3)}`).join("|")
+}
+
+function renderDetail(host: HTMLElement, a: AnimationSnapshot): void {
+  host.replaceChildren()
+  if (a.easing) {
+    const span = document.createElement("span")
+    const lbl = document.createElement("span")
+    lbl.className = "label"
+    lbl.textContent = "easing"
+    const code = document.createElement("code")
+    code.textContent = a.easing
+    span.append(lbl, code)
+    host.appendChild(span)
+  }
+  if (a.properties && a.properties.length > 0) {
+    const span = document.createElement("span")
+    const lbl = document.createElement("span")
+    lbl.className = "label"
+    lbl.textContent = "props"
+    const code = document.createElement("code")
+    code.textContent = a.properties.join(", ")
+    span.append(lbl, code)
+    host.appendChild(span)
+  }
+}
+
+function renderLabels(host: HTMLElement, a: AnimationSnapshot): void {
+  host.replaceChildren()
+  if (!a.labels || a.labels.length === 0) return
+  const lead = document.createElement("span")
+  lead.className = "label"
+  lead.textContent = "labels"
+  host.appendChild(lead)
+  for (const l of a.labels) {
+    const b = btn(l.name, () => send({ kind: "seek-label", id: a.id, label: l.name }))
+    b.title = `seek to ${l.name} (${(l.offset * 100).toFixed(1)}%)`
+    host.appendChild(b)
+  }
 }
 
 function updateRow(nodes: RowNodes, a: AnimationSnapshot): void {
@@ -260,6 +355,27 @@ function updateRow(nodes: RowNodes, a: AnimationSnapshot): void {
   } else {
     const w = `${Math.round(a.progress * 100)}%`
     if (nodes.bar.style.width !== w) nodes.bar.style.width = w
+  }
+
+  const detailKey = detailFingerprint(a)
+  if (detailKey !== nodes.detailKey) {
+    renderDetail(nodes.detail, a)
+    nodes.detailKey = detailKey
+  }
+  const labelsKey = labelsFingerprint(a)
+  if (labelsKey !== nodes.labelsKey) {
+    renderLabels(nodes.labels, a)
+    nodes.labelsKey = labelsKey
+  }
+
+  // Reflect speed updates that originated outside the panel (e.g. an
+  // adapter changing speed at runtime). Skip when the input is focused
+  // so the user can edit without being clobbered mid-keystroke.
+  if (nodes.speedInput && typeof a.speed === "number" && a.speed !== nodes.speedShown) {
+    nodes.speedShown = a.speed
+    if (document.activeElement !== nodes.speedInput) {
+      nodes.speedInput.value = String(a.speed)
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import type { Example } from "./example"
 import { canvasDraw } from "./examples/canvas-draw"
 import { dragGesture } from "./examples/drag-gesture"
 import { easingShowcase } from "./examples/easing-showcase"
+import { flipReorder } from "./examples/flip-reorder"
 import { hoverGesture } from "./examples/hover-gesture"
 import { keyframesStops } from "./examples/keyframes-stops"
 import { parallelComposition } from "./examples/parallel-composition"
@@ -17,6 +18,7 @@ import { textReveal } from "./examples/text-reveal"
 import { timelineOrchestration } from "./examples/timeline-orchestration"
 import { tweenBasic } from "./examples/tween-basic"
 import { tweenMulti } from "./examples/tween-multi"
+import { viewTransition } from "./examples/view-transition"
 import { webglUniforms } from "./examples/webgl-uniforms"
 
 const examples: readonly Example[] = [
@@ -39,6 +41,8 @@ const examples: readonly Example[] = [
   textReveal,
   canvasDraw,
   webglUniforms,
+  flipReorder,
+  viewTransition,
 ]
 
 const grid = document.getElementById("grid") as HTMLElement
