@@ -119,6 +119,10 @@ Reproduce with `pnpm -C benchmarks/browser bench:compare --n 1000
 --samples 5`. Methodology, harness notes, and the full optimization
 log live in `benchmarks/browser/README.md`.
 
+Picking a mode? See the [renderer modes guide](docs/guide/renderer-modes.md)
+for the full breakdown of `"compositor"`, `"main"`, and `"auto"`,
+plus a decision table for when to reach for which.
+
 ## Bundle size
 
 About half the size of motion, ~40% the size of gsap. Same recipe

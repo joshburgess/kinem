@@ -40,6 +40,10 @@ export default defineConfig({
           ],
         },
         {
+          text: "Performance",
+          items: [{ text: "Renderer modes", link: "/guide/renderer-modes" }],
+        },
+        {
           text: "Framework adapters",
           items: [
             { text: "React", link: "/guide/react" },
