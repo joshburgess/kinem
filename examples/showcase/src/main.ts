@@ -23,6 +23,7 @@ import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
 import { pulseSpectrum } from "./demos/pulse-spectrum"
 import { ribbonTrail } from "./demos/ribbon-trail"
+import { rubiksCube } from "./demos/rubiks-cube"
 import { scrollHero } from "./demos/scroll-hero"
 import { scrollReveal } from "./demos/scroll-reveal"
 import { shaderReveal } from "./demos/shader-reveal"
@@ -58,6 +59,7 @@ const demos: readonly Demo[] = [
   confettiBurst,
   cascadeGrid,
   cubeWall,
+  rubiksCube,
   liquidMenu,
   // Paths & morphing
   pathFlight,

@@ -11,7 +11,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kinem/core": "workspace:*"
+    "@kinem/core": "workspace:*",
+    "cubejs": "^1.3.2"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
