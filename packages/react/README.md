@@ -32,8 +32,9 @@ pnpm add @kinem/react @kinem/core
 ## What's exported
 
 - `useAnimation`, `useGesture`, `useLayout`, `useScroll`, `useSpring` hooks
-- `useTime`, `useVelocity`, `useMotionValueEvent` for reactive value plumbing
+- `useTime`, `useVelocity`, `useTransform`, `useCombine`, `useMotionValueEvent` for reactive value plumbing
 - `useAnimate` for imperative `animate(target, props, opts)` calls scoped to a ref
+- `useInView` for IntersectionObserver-driven flags
 - `useReducedMotion`, `prefersReducedMotion`
 - `<Motion>` and `<AnimatePresence>` components
 - `Reorder.Group` and `Reorder.Item` for drag-to-sort lists

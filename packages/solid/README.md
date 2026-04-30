@@ -33,8 +33,9 @@ pnpm add @kinem/solid @kinem/core
 ## What's exported
 
 - `createAnimation`, `createGesture`, `createLayout`, `createScroll`, `createSpring` primitives
-- `createTime`, `createVelocity`, `createMotionValueEvent` for reactive value plumbing
+- `createTime`, `createVelocity`, `createTransform`, `createCombine`, `createMotionValueEvent` for reactive value plumbing
 - `createAnimate` for imperative `animate(target, props, opts)` calls scoped to a ref
+- `createInView` for IntersectionObserver-driven flags
 - `createReducedMotion`, `prefersReducedMotion`
 - `<Motion>` component
 - `<ReorderGroup>` and `<ReorderItem>` for drag-to-sort lists

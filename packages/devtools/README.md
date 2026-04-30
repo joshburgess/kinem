@@ -37,6 +37,11 @@ pnpm add @kinem/devtools @kinem/core
 - `mountTimeline()` scrubbable timeline strip
 - `createRecorder()` event log for replay
 
+`@kinem/core` exports `trackNamed(name)` for ambient features that don't
+go through `play()`. The returned function unregisters the entry. Use it
+to give a hand-rolled rAF loop or a gesture state machine a readable
+title in any of the panels above.
+
 For the standalone Chrome DevTools panel that consumes the same tracker,
 see [`packages/devtools-extension`](https://github.com/joshburgess/kinem/tree/main/packages/devtools-extension).
 

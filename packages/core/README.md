@@ -42,17 +42,27 @@ need via `registerInterpolator`.
 self-driving `MotionValue<number>` of milliseconds since creation; it
 auto-starts an rAF loop on the first listener and stops on the last.
 `velocity(source)` derives a per-second derivative of any source
-`MotionValue`. `motionValueEvent(mv, "change", listener)` is a small
+`MotionValue`. `combine(sources, fn)` folds N source cells into a derived
+cell that updates whenever any source updates and unsubscribes on
+`destroy`. `motionValueEvent(mv, "change", listener)` is a small
 subscription wrapper.
 
 ```ts
-import { motionValue, time, velocity, motionValueEvent } from "@kinem/core"
+import { combine, motionValue, time, velocity, motionValueEvent } from "@kinem/core"
 
 const t = time()
 const x = motionValue(0)
 const vx = velocity(x)
+const dist = combine([x], (a) => Math.abs(a))
 motionValueEvent(vx, "change", (v) => console.log("v", v))
 ```
+
+`trackNamed(name)` registers an ambient entry in the devtools tracker so
+features without their own animation handle (a hand-rolled rAF loop, a
+gesture state machine) still appear in the panel under a readable label.
+The returned function unregisters the entry. See
+[`docs/recipes/reactive-values.md`](https://github.com/joshburgess/kinem/blob/main/docs/recipes/reactive-values.md)
+for end-to-end patterns.
 
 ## Drag-to-sort
 

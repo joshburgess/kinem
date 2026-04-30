@@ -33,8 +33,9 @@ pnpm add @kinem/svelte @kinem/core
 
 ## What's exported
 
-- `motion`, `gesture`, `scroll` actions
+- `motion`, `gesture`, `scroll`, `inView` actions
 - `spring` store, `time()` and `velocity()` stores
+- `motionValue`, `transform`, `combine` Svelte-store wrappers
 - `motionValueEvent` (re-exported from core)
 - `kinemAnimate(node)` factory for imperative `animate(target, props, opts)` calls
 - `reorderGroup` and `reorderItem` actions for drag-to-sort lists

@@ -9,6 +9,33 @@ until 1.0.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-30
+
+### Added
+
+- `combine(sources, fn)` in `@kinem/core` folds N source `MotionValue`s
+  into a derived cell that updates whenever any source updates. Inherits
+  `motionValue`'s `Object.is` equality on writes and unsubscribes from
+  every source on `destroy`.
+- Adapter wrappers for `combine`: `useCombine` (React, Vue),
+  `createCombine` (Solid), and `combine` returning a
+  `CombinedMotionValueStore` (Svelte).
+- `trackNamed(name, backend?)` in `@kinem/core` for ambient features
+  that don't go through `play()`. The returned function unregisters the
+  entry, and the new optional `name` field on `AnimationRecord` /
+  `AnimationSnapshot` flows through to every panel: `@kinem/devtools`
+  inspector and timeline, plus the standalone DevTools extension.
+- `inView` showcase demo (`scroll-reveal`) and `scrub` showcase demo
+  (`frame-scrubber`) in `@kinem/examples-showcase`.
+- Reactive-values recipe in `docs/recipes/reactive-values.md` walking
+  through `motionValue`, `time`, `velocity`, `transform`, `combine`, and
+  `inView`.
+
+### Removed
+
+- Stale leftover `.changeset/` config and dependencies. Versions and
+  CHANGELOG are now maintained by hand again.
+
 ## [0.3.0] - 2026-04-28
 
 ### Added

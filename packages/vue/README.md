@@ -32,8 +32,9 @@ pnpm add @kinem/vue @kinem/core
 ## What's exported
 
 - `useAnimation`, `useGesture`, `useScroll`, `useSpring` composables
-- `useTime`, `useVelocity`, `useMotionValueEvent` for reactive value plumbing
+- `useTime`, `useVelocity`, `useTransform`, `useCombine`, `useMotionValueEvent` for reactive value plumbing
 - `useAnimate` for imperative `animate(target, props, opts)` calls scoped to a template ref
+- `useInView` for IntersectionObserver-driven flags
 - `useKinemTransition` for `<Transition>` integration
 - `useReducedMotion`, `prefersReducedMotion`
 - `<Motion>` component
