@@ -44,21 +44,21 @@ pnpm add @kinem/svelte
 
 ## What's in the box
 
-- **Primitives** — `tween`, `spring`, `keyframes`. Every value type (numbers,
+- **Primitives**: `tween`, `spring`, `keyframes`. Every value type (numbers,
   colors, CSS units, transforms, SVG paths, number arrays) is interpolated
   through a dispatch registry you can extend.
-- **Composition** — `parallel`, `sequence`, `stagger`, `map`, `loop`,
+- **Composition**: `parallel`, `sequence`, `stagger`, `map`, `loop`,
   `reverse`, `delay`, `timeline()`.
-- **Renderers** — `play()` auto-routes compositor-safe properties to WAAPI
+- **Renderers**: `play()` auto-routes compositor-safe properties to WAAPI
   and the rest to rAF. `playValues()`, `playUniforms()` (WebGL), and
   `strokeDraw` cover Canvas 2D, WebGL, and SVG paths.
-- **Interactions** — `scroll()` for scroll-linked and scroll-triggered
+- **Interactions**: `scroll()` for scroll-linked and scroll-triggered
   animations, `gesture()` for drag and hover, with the same handle API as
   time-based play.
-- **Text** — `splitText()` with optional grapheme-aware character splitting,
+- **Text**: `splitText()` with optional grapheme-aware character splitting,
   plus `fromGrid`, `shuffle`, and `wave` stagger patterns.
-- **Adapters** — First-party React, Vue, and Svelte bindings.
-- **DevTools** — A tracker channel every renderer reports to, consumable by
+- **Adapters**: First-party React, Vue, and Svelte bindings.
+- **DevTools**: A tracker channel every renderer reports to, consumable by
   a standalone panel or your own UI.
 
 ## A longer example
@@ -88,41 +88,56 @@ const controls = play(wipe, tiles)
 controls.finished.then(() => console.log("done"))
 ```
 
+## Performance
+
+Real-browser benchmarks against motion and gsap. Same scenarios, same
+machine (Chrome on an M-series Mac), n=1000 elements per scenario,
+median of 21 samples per (lib, scenario) pair, with the page reloaded
+between pairs to avoid composite-cache and ticker-list pollution.
+Wall time in milliseconds, lower is better:
+
+| scenario            | kinem (auto) | kinem (main) | motion |  gsap |
+|---------------------|-------------:|-------------:|-------:|------:|
+| startup-commit      |          8.6 |          2.0 |    9.1 |  10.8 |
+| startup-shared-def  |          8.6 |          1.7 |   11.8 |  11.3 |
+| cancel-before-first |          0.6 |          0.3 |    4.5 |   0.4 |
+| steady-state        |         79.5 |         70.0 |   86.4 |  79.0 |
+
+In `mode: "main"` (rAF, the same model GSAP uses) kinem is fastest on
+every scenario: roughly 5x faster startup than GSAP, ~7x faster on a
+shared `AnimationDef`, faster cancel-before-first, and faster
+steady-state than both gsap and motion.
+
+The default `mode: "auto"` routes compositor-safe properties through
+`Element.animate()` so the GPU drives ticking. That trades a small
+startup cost for animations that keep running smoothly even if the
+main thread is busy. Even in this mode kinem's cancel-before-first
+stays around 0.6 ms; motion is 4.5 ms in the same harness because it
+pays full WAAPI setup before it can tear down.
+
+Reproduce with `pnpm -C benchmarks/browser bench:compare --n 1000
+--samples 5`. Methodology, harness notes, and the full optimization
+log live in `benchmarks/browser/README.md`.
+
 ## Bundle size
 
-Measured at the main entry with all built-in interpolators (esbuild,
-ESM, minified + gzipped):
+About half the size of motion, ~40% the size of gsap. Same recipe
+(animate one element's `opacity` and `x`), bundled the same way
+(esbuild, ESM, minified + gzipped):
 
-| scenario | min + gzip |
-| --- | --- |
-| `tween + play` | 10.5 kB |
-| `tween + play` (slim entry) | 6.6 kB |
-| `tween + scroll` | 12.0 kB |
-| `tween + gesture` | 13.0 kB |
-| full library surface | 17.9 kB |
+| library | min + gzip |
+|---------|-----------:|
+| **kinem** (slim) | 6.6 kB |
+| **kinem** (default) | 10.5 kB |
+| anime.js | 11.4 kB |
+| motion | 22.1 kB |
+| gsap | 27.1 kB |
 
-The slim entry (`@kinem/core/slim`) skips the color, transform, path, and
-CSS-unit interpolator registrations. Use it when you only animate numbers,
-or when you want to register a custom subset via `registerInterpolator`.
-
-### Versus other libraries
-
-Same recipe (animate one element's `opacity` from 0 to 1 and `x` from 0 to
-100 over 800 ms), bundled the same way:
-
-| library | min + gzip | vs kinem |
-| --- | --- | --- |
-| **kinem** (default) | 10.49 kB | 1.00x |
-| **kinem** (slim) | 6.55 kB | 0.62x |
-| popmotion | 5.52 kB | 0.53x |
-| anime.js | 11.36 kB | 1.08x |
-| motion | 22.05 kB | 2.10x |
-| gsap | 27.05 kB | 2.58x |
-
-popmotion ships smaller because it's a primitive: the consumer writes the
-DOM commit themselves. kinem's `play()` does the write for you, so the
-fairer comparison is against motion or gsap, both of which have a
-compositor-routing renderer baked in. Reproduce with `pnpm size:compare`.
+The slim entry (`@kinem/core/slim`) skips the color, transform, path,
+and CSS-unit interpolator registrations. Use it when you only animate
+numbers, or want to register a custom subset via `registerInterpolator`.
+Per-entry breakdown via `pnpm size`; cross-library comparison via
+`pnpm size:compare`.
 
 ## Reduced motion
 
