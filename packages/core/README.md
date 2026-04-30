@@ -35,11 +35,38 @@ For a smaller bundle that skips the color, transform, path, and CSS-unit
 interpolators, import from `@kinem/core/slim` and register only what you
 need via `registerInterpolator`.
 
+## Reactive values
+
+`motionValue<T>(initial)` cells hold animatable state with `get` / `set`
+/ `on` plus a 30 ms `getVelocity()` window. `time()` returns a
+self-driving `MotionValue<number>` of milliseconds since creation; it
+auto-starts an rAF loop on the first listener and stops on the last.
+`velocity(source)` derives a per-second derivative of any source
+`MotionValue`. `motionValueEvent(mv, "change", listener)` is a small
+subscription wrapper.
+
+```ts
+import { motionValue, time, velocity, motionValueEvent } from "@kinem/core"
+
+const t = time()
+const x = motionValue(0)
+const vx = velocity(x)
+motionValueEvent(vx, "change", (v) => console.log("v", v))
+```
+
+## Drag-to-sort
+
+`createReorderController({ axis, getValues, commit })` is the
+framework-agnostic engine behind every adapter's Reorder component. It
+owns rect math, sibling translates, and order commits; framework
+adapters wire pointer events into `startDrag` / `move` / `end`.
+
 ## Framework adapters
 
 - [`@kinem/react`](https://github.com/joshburgess/kinem/tree/main/packages/react)
 - [`@kinem/vue`](https://github.com/joshburgess/kinem/tree/main/packages/vue)
 - [`@kinem/svelte`](https://github.com/joshburgess/kinem/tree/main/packages/svelte)
+- [`@kinem/solid`](https://github.com/joshburgess/kinem/tree/main/packages/solid)
 
 ## Docs
 

@@ -34,9 +34,27 @@ pnpm add @kinem/svelte @kinem/core
 ## What's exported
 
 - `motion`, `gesture`, `scroll` actions
-- `spring` store
+- `spring` store, `time()` and `velocity()` stores
+- `motionValueEvent` (re-exported from core)
+- `kinemAnimate(node)` factory for imperative `animate(target, props, opts)` calls
+- `reorderGroup` and `reorderItem` actions for drag-to-sort lists
 - `kinemTransition` for `transition:` directives
 - `reducedMotion` store, `createReducedMotionStore`, `prefersReducedMotion`
+
+```svelte
+<script lang="ts">
+  import { kinemAnimate, type KinemAnimateApi } from "@kinem/svelte"
+  let api: KinemAnimateApi
+  const setup = (node: HTMLElement) => { api = kinemAnimate(node) }
+</script>
+
+<ul use:setup>
+  {#each items as i (i.id)}<li class="row">{i.label}</li>{/each}
+</ul>
+<button on:click={() => api.animate("li.row", { opacity: [0, 1] }, { duration: 300 })}>
+  play
+</button>
+```
 
 ## Docs
 

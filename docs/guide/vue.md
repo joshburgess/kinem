@@ -182,6 +182,82 @@ const hooks = useKinemTransition({
 </template>
 ```
 
+## `useAnimate`
+
+`useAnimate()` returns `{ scope, animate }` for imperative animation
+against elements inside a scoped subtree. Bind `scope` as a template ref
+and call `animate(target, props, opts)` to tween properties on a CSS
+selector resolved within scope, an `Element`, or an `Element[]`.
+
+```vue
+<script setup lang="ts">
+import { useAnimate } from "@kinem/vue"
+
+const items = ["one", "two", "three"]
+const { scope, animate } = useAnimate()
+const play = () => animate("li", { opacity: [0, 1], y: [12, 0] }, { duration: 300 })
+</script>
+
+<template>
+  <ul :ref="scope">
+    <li v-for="i in items" :key="i">{{ i }}</li>
+  </ul>
+  <button @click="play">play</button>
+</template>
+```
+
+The returned `Controls` is the same handle `play()` produces, so you can
+`await controls.finished`, cancel, pause, or scrub.
+
+## `useTime`, `useVelocity`, `useMotionValueEvent`
+
+Reactive value plumbing. `useTime()` returns a self-driving
+`MotionValue<number>` of milliseconds since mount. `useVelocity(source)`
+derives a per-second derivative `MotionValue` from any source.
+`useMotionValueEvent(mv, "change", listener)` re-binds the listener if
+it changes; the subscription is cleaned up `onBeforeUnmount`.
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue"
+import { useMotionValueEvent, useTime } from "@kinem/vue"
+
+const t = useTime()
+const text = ref("0")
+useMotionValueEvent(t, "change", (ms) => { text.value = ms.toFixed(0) })
+</script>
+
+<template>
+  <span>{{ text }} ms</span>
+</template>
+```
+
+## `<ReorderGroup>` / `<ReorderItem>`
+
+Drag-to-sort lists. The group owns the `values` array and the
+`onReorder` callback. Each item registers itself with the group, becomes
+draggable along the group's `axis`, and asks the group to commit a new
+order whenever the dragged item's center crosses a neighbour's. Sibling
+items translate to make room mid-drag and clear on pointer release.
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue"
+import { ReorderGroup, ReorderItem } from "@kinem/vue"
+
+const items = ref(["read", "write", "ship"])
+</script>
+
+<template>
+  <ReorderGroup axis="y" :values="items" :onReorder="(n) => (items = n)">
+    <ReorderItem v-for="v in items" :key="v" :value="v">{{ v }}</ReorderItem>
+  </ReorderGroup>
+</template>
+```
+
+`axis` defaults to `"y"`; pass `"x"` for horizontal lists. Group renders
+as `<ul>` and item as `<li>` by default; override via the `as` prop.
+
 ## `useReducedMotion`
 
 ```vue

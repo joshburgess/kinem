@@ -187,6 +187,83 @@ function Toast() {
 }
 ```
 
+## `createAnimate`
+
+`createAnimate()` returns `{ scope, animate }` for imperative animation
+against elements inside a scoped subtree. `scope` is a Solid ref setter;
+call `animate(target, props, opts)` to tween properties on a CSS
+selector resolved within scope, an `Element`, or an `Element[]`.
+
+```tsx
+import { For } from "solid-js"
+import { createAnimate } from "@kinem/solid"
+
+function StaggerIn() {
+  const items = ["one", "two", "three"]
+  const { scope, animate } = createAnimate()
+  const onClick = () =>
+    animate("li", { opacity: [0, 1], y: [12, 0] }, { duration: 300 })
+  return (
+    <>
+      <ul ref={scope}>
+        <For each={items}>{(i) => <li>{i}</li>}</For>
+      </ul>
+      <button onClick={onClick}>play</button>
+    </>
+  )
+}
+```
+
+The returned `Controls` is the same handle `play()` produces, so you can
+`await controls.finished`, cancel, pause, or scrub.
+
+## `createTime`, `createVelocity`, `createMotionValueEvent`
+
+Reactive value plumbing. `createTime()` returns a self-driving
+`MotionValue<number>` of milliseconds since mount. `createVelocity(source)`
+derives a per-second derivative `MotionValue` from any source.
+`createMotionValueEvent(mv, "change", listener)` re-binds the listener
+if it changes; the subscription is cleaned up on `onCleanup`.
+
+```tsx
+import { createSignal } from "solid-js"
+import { createMotionValueEvent, createTime } from "@kinem/solid"
+
+function Clock() {
+  const t = createTime()
+  const [text, setText] = createSignal("0")
+  createMotionValueEvent(t, "change", (ms) => setText(ms.toFixed(0)))
+  return <span>{text()} ms</span>
+}
+```
+
+## `<ReorderGroup>` / `<ReorderItem>`
+
+Drag-to-sort lists. The group owns the `values` array and the
+`onReorder` callback. Each item registers itself with the group, becomes
+draggable along the group's `axis`, and asks the group to commit a new
+order whenever the dragged item's center crosses a neighbour's. Sibling
+items translate to make room mid-drag and clear on pointer release.
+
+```tsx
+import { For, createSignal } from "solid-js"
+import { ReorderGroup, ReorderItem } from "@kinem/solid"
+
+function Todo() {
+  const [items, setItems] = createSignal(["read", "write", "ship"])
+  return (
+    <ReorderGroup axis="y" values={items()} onReorder={setItems}>
+      <For each={items()}>{(v) => (
+        <ReorderItem value={v}>{v}</ReorderItem>
+      )}</For>
+    </ReorderGroup>
+  )
+}
+```
+
+`axis` defaults to `"y"`; pass `"x"` for horizontal lists. Group renders
+as `<ul>` and item as `<li>` by default; override via the `as` prop.
+
 ## `createReducedMotion`
 
 Reactive boolean tied to the OS's `prefers-reduced-motion` setting plus

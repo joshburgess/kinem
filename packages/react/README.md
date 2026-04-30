@@ -32,8 +32,27 @@ pnpm add @kinem/react @kinem/core
 ## What's exported
 
 - `useAnimation`, `useGesture`, `useLayout`, `useScroll`, `useSpring` hooks
+- `useTime`, `useVelocity`, `useMotionValueEvent` for reactive value plumbing
+- `useAnimate` for imperative `animate(target, props, opts)` calls scoped to a ref
 - `useReducedMotion`, `prefersReducedMotion`
 - `<Motion>` and `<AnimatePresence>` components
+- `Reorder.Group` and `Reorder.Item` for drag-to-sort lists
+
+```tsx
+import { useAnimate, useTime, useVelocity, Reorder } from "@kinem/react"
+
+function StaggerIn() {
+  const [scope, animate] = useAnimate()
+  return (
+    <ul ref={scope}>
+      {items.map((i) => <li key={i.id}>{i.label}</li>)}
+      <button onClick={() => animate("li", { opacity: [0, 1] }, { duration: 300 })}>
+        play
+      </button>
+    </ul>
+  )
+}
+```
 
 ## Docs
 

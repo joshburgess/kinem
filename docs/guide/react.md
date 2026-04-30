@@ -176,6 +176,83 @@ function Item({ children }: { children: React.ReactNode }) {
 }
 ```
 
+## `useAnimate`
+
+`useAnimate()` returns a `[scope, animate]` tuple for imperative
+animation against elements inside a scoped subtree. Bind `scope` as a
+ref and call `animate(target, props, opts)` to tween properties on a CSS
+selector resolved within scope, an `Element`, or an `Element[]`.
+
+```tsx
+import { useAnimate } from "@kinem/react"
+
+function StaggerIn() {
+  const [scope, animate] = useAnimate()
+  const onClick = () => animate("li", { opacity: [0, 1], y: [12, 0] }, { duration: 300 })
+  return (
+    <>
+      <ul ref={scope}>
+        <li>one</li><li>two</li><li>three</li>
+      </ul>
+      <button onClick={onClick}>play</button>
+    </>
+  )
+}
+```
+
+The returned `Controls` is the same handle `play()` produces, so you can
+`await controls.finished`, cancel, pause, or scrub.
+
+## `useTime`, `useVelocity`, `useMotionValueEvent`
+
+Reactive value plumbing. `useTime()` returns a self-driving
+`MotionValue<number>` of milliseconds since mount; it auto-starts an rAF
+loop on the first listener and stops on the last. `useVelocity(source)`
+derives a per-second derivative `MotionValue` from any source.
+`useMotionValueEvent(mv, "change", listener)` is a small subscription
+wrapper that re-binds the listener if it changes.
+
+```tsx
+import { useEffect, useState } from "react"
+import { useMotionValueEvent, useTime, useVelocity } from "@kinem/react"
+
+function Clock() {
+  const t = useTime()
+  const vt = useVelocity(t)
+  const [text, setText] = useState("0")
+  useMotionValueEvent(t, "change", (ms) => setText(ms.toFixed(0)))
+  useEffect(() => () => { t.destroy(); vt.destroy() }, [t, vt])
+  return <span>{text} ms</span>
+}
+```
+
+## `<Reorder.Group>` / `<Reorder.Item>`
+
+Drag-to-sort lists. The group owns the `values` array and the
+`onReorder` callback. Each item registers itself with the group, becomes
+draggable along the group's `axis`, and asks the group to commit a new
+order whenever the dragged item's center crosses a neighbour's. Sibling
+items translate to make room mid-drag and clear on pointer release.
+
+```tsx
+import { useState } from "react"
+import { Reorder } from "@kinem/react"
+
+function Todo() {
+  const [items, setItems] = useState(["read", "write", "ship"])
+  return (
+    <Reorder.Group axis="y" values={items} onReorder={setItems}>
+      {items.map((v) => (
+        <Reorder.Item key={v} value={v}>{v}</Reorder.Item>
+      ))}
+    </Reorder.Group>
+  )
+}
+```
+
+`axis` defaults to `"y"`; pass `"x"` for horizontal lists. Items render
+as `<li>` by default; override with `as="div"` (or any tag).
+
 ## `useReducedMotion`
 
 Reactive boolean tied to the OS's `prefers-reduced-motion` setting plus any
