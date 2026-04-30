@@ -6,6 +6,7 @@
  * is never used to drive per-frame state.
  */
 
+export { type AnimateTarget, type KinemAnimateApi, kinemAnimate } from "./animate"
 export { type GestureActionOpts, type GestureActionReturn, gesture } from "./gesture"
 export { type InViewActionOpts, type InViewActionReturn, inView } from "./in-view"
 export { type LayoutActionOpts, type LayoutActionReturn, layout } from "./layout"
@@ -19,6 +20,7 @@ export {
   motionGroup,
 } from "./motion"
 export { type MotionValueStore, motionValue, transform } from "./motion-value"
+export { type MotionValueEventName, motionValueEvent } from "@kinem/core"
 export {
   type CreatePresenceOpts,
   type PresenceController,
@@ -31,11 +33,22 @@ export {
   prefersReducedMotion,
   reducedMotion,
 } from "./reduced-motion"
+export {
+  type ReorderAxis,
+  type ReorderGroupActionOpts,
+  type ReorderGroupActionReturn,
+  type ReorderItemActionOpts,
+  type ReorderItemActionReturn,
+  reorderGroup,
+  reorderItem,
+} from "./reorder"
 export { type ScrollActionOpts, type ScrollActionReturn, scroll } from "./scroll"
 export { type SpringStore, type SpringStoreOpts, spring } from "./spring"
+export { type TimeMotionValueStore, time } from "./time"
 export {
   type KinemTransitionFn,
   type KinemTransitionOpts,
   type KinemTransitionValues,
   kinemTransition,
 } from "./transition"
+export { type VelocityMotionValueStore, velocity } from "./velocity"

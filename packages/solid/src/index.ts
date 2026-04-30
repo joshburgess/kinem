@@ -16,6 +16,20 @@ export {
   Motion,
 } from "./components/Motion"
 export {
+  type ReorderAxis,
+  type ReorderGroupProps,
+  type ReorderItemProps,
+  ReorderGroup,
+  ReorderItem,
+} from "./components/Reorder"
+export { ReorderContext } from "./components/reorder-context"
+export {
+  type AnimateTarget,
+  type CreateAnimateAnimate,
+  type CreateAnimateResult,
+  createAnimate,
+} from "./primitives/createAnimate"
+export {
   type CreateAnimationResult,
   createAnimation,
 } from "./primitives/createAnimation"
@@ -39,10 +53,13 @@ export {
   createInView,
 } from "./primitives/createInView"
 export { createMotionValue } from "./primitives/createMotionValue"
+export { createMotionValueEvent } from "./primitives/createMotionValueEvent"
 export {
   createReducedMotion,
   prefersReducedMotion,
 } from "./primitives/createReducedMotion"
 export { type CreateScrollResult, createScroll } from "./primitives/createScroll"
 export { type SpringValue, createSpring } from "./primitives/createSpring"
+export { createTime } from "./primitives/createTime"
 export { createTransform } from "./primitives/createTransform"
+export { createVelocity } from "./primitives/createVelocity"

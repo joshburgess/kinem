@@ -328,6 +328,13 @@ export {
   playTap,
 } from "./gesture/recognizers"
 export {
+  type ReorderAxis,
+  type ReorderController,
+  type ReorderControllerOpts,
+  type ReorderDragSession,
+  createReorderController,
+} from "./gesture/reorder"
+export {
   type DragPublicOpts,
   type GestureTarget,
   type HoverPublicOpts,
@@ -381,3 +388,6 @@ export {
   type InViewStop,
   inView,
 } from "./value/in-view"
+export { type TimeMotionValue, time } from "./value/time"
+export { type VelocityMotionValue, velocity } from "./value/velocity"
+export { type MotionValueEventName, motionValueEvent } from "./value/event"
