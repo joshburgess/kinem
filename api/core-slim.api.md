@@ -54,6 +54,7 @@ export interface AnimationRecord {
     readonly backend: TrackerBackend;
     readonly progress: number;
     readonly controls: Controls;
+    readonly name?: string;
     readonly easing?: string;
     readonly properties?: readonly string[];
     readonly labels?: ReadonlyMap<string, number>;
@@ -1142,6 +1143,7 @@ export type TrackerListener = (event: TrackerEvent) => void;
 
 ```ts
 export interface TrackerMeta {
+    readonly name?: string;
     readonly easing?: string;
     readonly properties?: readonly string[];
     readonly labels?: ReadonlyMap<string, number>;
