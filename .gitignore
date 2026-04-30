@@ -9,5 +9,6 @@ test-results/
 *.cpuprofile
 benchmarks/browser/scripts/cpu-profile.mjs
 docs/public/playground/
+docs/public/showcase/
 docs/.vitepress/cache/
 docs/.vitepress/dist/

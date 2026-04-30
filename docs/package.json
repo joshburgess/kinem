@@ -6,8 +6,9 @@
   "scripts": {
     "api": "typedoc",
     "playground": "node scripts/build-playground.mjs",
+    "showcase": "node scripts/build-showcase.mjs",
     "dev": "typedoc && node scripts/build-playground.mjs && vitepress dev .",
-    "build": "typedoc && node scripts/build-playground.mjs && vitepress build .",
+    "build": "typedoc && node scripts/build-playground.mjs && node scripts/build-showcase.mjs && vitepress build .",
     "preview": "vitepress preview ."
   },
   "devDependencies": {
