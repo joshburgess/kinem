@@ -47,8 +47,15 @@ export function transform<T>(
 ): MotionValueStore<T> {
   const map = coreTransform(inputRange, outputRange, opts)
   const derived = motionValue<T>(map(source.get()))
-  source.on((value) => {
+  const off = source.on((value) => {
     derived.set(map(value))
   })
-  return derived
+  const innerDestroy = derived.destroy
+  return {
+    ...derived,
+    destroy: () => {
+      off()
+      innerDestroy()
+    },
+  }
 }

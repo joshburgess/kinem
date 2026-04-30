@@ -51,4 +51,15 @@ describe("transform (svelte)", () => {
     x.set(50)
     expect(spy).toHaveBeenLastCalledWith(0.5)
   })
+
+  it("destroy unsubscribes from the source", () => {
+    const x = motionValue(0)
+    const op = transform(x, [0, 100], [0, 1])
+    const spy = vi.fn()
+    op.subscribe(spy)
+    op.destroy()
+    spy.mockClear()
+    x.set(50)
+    expect(spy).not.toHaveBeenCalled()
+  })
 })
