@@ -15,6 +15,7 @@
  * that must remain live-editable across phases.
  */
 
+import { shouldReduceMotion } from "../core/reduced-motion"
 import { applyValues } from "../render/apply"
 import type { StrategyTarget } from "../render/strategy"
 import type { Clock } from "../scheduler/clock"
@@ -199,9 +200,18 @@ export function playDrag(targets: readonly StrategyTarget[], opts: DragOpts): Dr
       return
     }
 
+    const finalTarget = applyBounds(target, opts.bounds, axis)
+    // Reduced-motion: jump straight to the snap/origin target without
+    // running the rAF release loop.
+    if (shouldReduceMotion()) {
+      offset = finalTarget
+      renderOffset(targets, finalTarget)
+      phase = "idle"
+      return
+    }
     const duration = hasRelease ? (releaseCfg.duration ?? 400) : 400
     releaseFrom = offset
-    releaseTo = applyBounds(target, opts.bounds, axis)
+    releaseTo = finalTarget
     releaseStartTime = clock.now()
     releaseDuration = duration
     releaseActive = true

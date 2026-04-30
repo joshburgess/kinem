@@ -34,8 +34,15 @@ export {
   createPresence,
 } from "./primitives/createPresence"
 export {
+  type CreateInViewOpts,
+  type CreateInViewResult,
+  createInView,
+} from "./primitives/createInView"
+export { createMotionValue } from "./primitives/createMotionValue"
+export {
   createReducedMotion,
   prefersReducedMotion,
 } from "./primitives/createReducedMotion"
 export { type CreateScrollResult, createScroll } from "./primitives/createScroll"
 export { type SpringValue, createSpring } from "./primitives/createSpring"
+export { createTransform } from "./primitives/createTransform"

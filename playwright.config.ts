@@ -36,7 +36,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /devtools-extension\.spec\.ts$/,
+      testIgnore: [/devtools-extension\.spec\.ts$/, /visual\.spec\.ts$/],
     },
     // Firefox and WebKit run the cross-browser gesture / scroll spec
     // against the same playground build. Their pointer-events and
@@ -62,6 +62,15 @@ export default defineConfig({
       // command if the dist bundle is missing.
       name: "devtools-extension",
       testMatch: /devtools-extension\.spec\.ts$/,
+    },
+    {
+      // Visual regression suite. Excluded from the default `e2e` run so
+      // baselines can evolve on a deliberate cadence. Capture / refresh
+      // baselines locally with `pnpm e2e:visual:update`, then commit the
+      // resulting `*.png` files under `tests/e2e/visual.spec.ts-snapshots/`.
+      name: "visual",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /visual\.spec\.ts$/,
     },
   ],
 })

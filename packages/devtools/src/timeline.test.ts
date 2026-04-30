@@ -132,9 +132,10 @@ describe("mountTimeline", () => {
 
   it("toggle button collapses and expands the panel", () => {
     const scrubber = mountTimeline()
-    const toggle = scrubber.element.shadowRoot?.querySelectorAll(
+    const buttons = scrubber.element.shadowRoot?.querySelectorAll(
       ".header button",
-    )[2] as HTMLButtonElement
+    ) as NodeListOf<HTMLButtonElement>
+    const toggle = buttons[buttons.length - 1] as HTMLButtonElement
     const panel = scrubber.element.shadowRoot?.querySelector(".panel") as HTMLElement
     expect(panel.classList.contains("collapsed")).toBe(false)
     expect(toggle.textContent).toBe("-")
@@ -143,6 +144,52 @@ describe("mountTimeline", () => {
     expect(toggle.textContent).toBe("+")
     toggle.click()
     expect(panel.classList.contains("collapsed")).toBe(false)
+    scrubber.unmount()
+  })
+
+  it("step-forward seeks every active animation by one frame and pauses", () => {
+    const scrubber = mountTimeline()
+    const a = fakeControls({ duration: 1000 })
+    trackAnimation(a as never, [{ tagName: "DIV" }] as never)
+    scrubber.refresh()
+    const stepFwd = scrubber.element.shadowRoot?.querySelectorAll(
+      ".header button",
+    )[3] as HTMLButtonElement
+    stepFwd.click()
+    expect(a.pauseSpy).toHaveBeenCalledTimes(1)
+    // current progress + 16ms / 1000ms ≈ 0.016 (tracker progress is
+    // wall-clock-based, so allow a small ε beyond the nominal step).
+    const seeked = a.seekSpy.mock.calls[0]?.[0] as number
+    expect(seeked).toBeGreaterThanOrEqual(0.016)
+    expect(seeked).toBeLessThan(0.05)
+    scrubber.unmount()
+  })
+
+  it("step-back seeks by a negative frame and clamps to 0", () => {
+    const scrubber = mountTimeline()
+    const a = fakeControls({ duration: 1000 })
+    trackAnimation(a as never, [{ tagName: "DIV" }] as never)
+    scrubber.refresh()
+    const stepBack = scrubber.element.shadowRoot?.querySelectorAll(
+      ".header button",
+    )[2] as HTMLButtonElement
+    stepBack.click()
+    expect(a.pauseSpy).toHaveBeenCalled()
+    // current progress (0) - 0.016 -> clamped to 0
+    expect(a.seekSpy).toHaveBeenCalledWith(0)
+    scrubber.unmount()
+  })
+
+  it("step buttons skip ambient (zero-duration) records", () => {
+    const scrubber = mountTimeline()
+    const a = fakeControls({ duration: 0 })
+    trackAnimation(a as never, [{ tagName: "DIV" }] as never, "ambient")
+    scrubber.refresh()
+    const stepFwd = scrubber.element.shadowRoot?.querySelectorAll(
+      ".header button",
+    )[3] as HTMLButtonElement
+    stepFwd.click()
+    expect(a.seekSpy).not.toHaveBeenCalled()
     scrubber.unmount()
   })
 

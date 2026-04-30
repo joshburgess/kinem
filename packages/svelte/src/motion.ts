@@ -28,7 +28,7 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { omitUndefined, play, tween } from "@kinem/core"
+import { omitUndefined, play, resolveTransition, tween } from "@kinem/core"
 
 export type MotionValues = Readonly<Record<string, string | number>>
 
@@ -43,11 +43,35 @@ export type Variants = Readonly<Record<string, MotionValues>>
 export type VariantTarget = MotionValues | string | readonly string[]
 
 export interface MotionTransition {
+  /**
+   * "tween" (default) plays a fixed-duration easing; "spring" plays a
+   * physical spring. When omitted, the presence of any spring field
+   * implies "spring".
+   */
+  readonly type?: "tween" | "spring"
   readonly duration?: number
   readonly easing?: EasingFn
+  readonly stiffness?: number
+  readonly damping?: number
+  readonly mass?: number
+  readonly velocity?: number
   readonly backend?: PlayOpts["backend"]
   /** Delay in ms before the tween starts. */
   readonly delay?: number
+}
+
+/**
+ * A Svelte-readable store of `VariantTarget | undefined`. Created by
+ * `motionGroup()` and shared with descendant `use:motion` actions via
+ * the `group` option (typically passed through `setContext` /
+ * `getContext` in the parent component's script). When a descendant has
+ * no explicit `animate`, its target follows the group store.
+ */
+export interface MotionGroupStore {
+  subscribe(run: (value: VariantTarget | undefined) => void): () => void
+  set(value: VariantTarget | undefined): void
+  update(fn: (prev: VariantTarget | undefined) => VariantTarget | undefined): void
+  get(): VariantTarget | undefined
 }
 
 export interface MotionActionOpts {
@@ -57,6 +81,58 @@ export interface MotionActionOpts {
   readonly whileHover?: VariantTarget
   readonly whileTap?: VariantTarget
   readonly transition?: MotionTransition
+  /**
+   * Optional group store that drives the implicit animate target when
+   * `animate` is undefined. The action subscribes on mount, applies
+   * each emission as the new target, and unsubscribes on destroy.
+   * Pair with `motionGroup()` (and Svelte's `setContext` /
+   * `getContext`) to cascade a single state flip across a subtree.
+   */
+  readonly group?: MotionGroupStore
+}
+
+/**
+ * Build a writable group store. The returned store satisfies the Svelte
+ * readable contract (`subscribe`) plus an imperative `set` / `update` /
+ * `get` for parent code that drives the value programmatically.
+ *
+ *   // parent script
+ *   import { motionGroup } from "@kinem/svelte"
+ *   import { setContext } from "svelte"
+ *   const animate = motionGroup<"open" | "closed">("closed")
+ *   setContext("kinem.motion.group", animate)
+ *
+ *   // child script
+ *   import { getContext } from "svelte"
+ *   const animate = getContext("kinem.motion.group")
+ *   <div use:motion={{ variants: v, initial: "closed", group: animate }} />
+ */
+export function motionGroup<T extends VariantTarget | undefined = VariantTarget | undefined>(
+  initial: T,
+): MotionGroupStore {
+  let value: VariantTarget | undefined = initial
+  const subs = new Set<(v: VariantTarget | undefined) => void>()
+  const set = (next: VariantTarget | undefined): void => {
+    if (value === next) return
+    value = next
+    for (const fn of Array.from(subs)) fn(next)
+  }
+  return {
+    subscribe(run) {
+      run(value)
+      subs.add(run)
+      return () => {
+        subs.delete(run)
+      }
+    },
+    set,
+    update(fn) {
+      set(fn(value))
+    },
+    get() {
+      return value
+    },
+  }
 }
 
 function applyInline(el: Element, values: MotionValues): void {
@@ -124,6 +200,10 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
   let startTimer: ReturnType<typeof setTimeout> | null = null
   let hovering = false
   let tapping = false
+  let groupValue: VariantTarget | undefined
+  let currentGroup: MotionGroupStore | undefined
+  let unsubscribeGroup: (() => void) | null = null
+  let mounted = false
 
   const resolveAll = (
     o: MotionActionOpts,
@@ -134,7 +214,7 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
     tap: MotionValues | undefined
   } => ({
     initial: resolveTarget(o.initial, o.variants),
-    animate: resolveTarget(o.animate, o.variants),
+    animate: resolveTarget(o.animate ?? groupValue, o.variants),
     hover: resolveTarget(o.whileHover, o.variants),
     tap: resolveTarget(o.whileTap, o.variants),
   })
@@ -168,9 +248,10 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
     cancelCurrent()
     cancelStartTimer()
     const start = (): void => {
+      const resolved = resolveTransition(transition)
       const def = tween(tweenProps, {
-        duration: transition?.duration ?? 400,
-        ...omitUndefined({ easing: transition?.easing }),
+        duration: resolved.duration,
+        ...omitUndefined({ easing: resolved.easing }),
       })
       const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
       controls = play(def, [node as unknown as StrategyTarget], playOpts)
@@ -214,6 +295,37 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
   }
   const onPointerCancel = onPointerUp
 
+  const onGroupChange = (v: VariantTarget | undefined): void => {
+    if (groupValue === v) return
+    groupValue = v
+    if (!mounted) {
+      resolved = resolveAll(currentOpts)
+      currentValues = resolved.initial ?? resolved.animate
+      return
+    }
+    if (currentOpts.animate !== undefined) return
+    resolved = resolveAll(currentOpts)
+    const next = targetValues()
+    if (!next) return
+    const from = currentValues ?? resolved.initial ?? next
+    if (shallowEqualValues(from, next)) return
+    runTween(from, next)
+    currentValues = next
+  }
+
+  const subscribeGroup = (g: MotionGroupStore | undefined): void => {
+    if (g === currentGroup) return
+    if (unsubscribeGroup) {
+      unsubscribeGroup()
+      unsubscribeGroup = null
+    }
+    currentGroup = g
+    groupValue = undefined
+    if (g) {
+      unsubscribeGroup = g.subscribe(onGroupChange)
+    }
+  }
+
   let pointerListenersAttached = false
   const attachPointerListeners = (): void => {
     if (pointerListenersAttached) return
@@ -239,6 +351,8 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
     pointerListenersAttached = false
   }
 
+  subscribeGroup(opts.group)
+
   if (resolved.initial) applyInline(node, resolved.initial)
   if (resolved.animate) {
     const from = resolved.initial ?? resolved.animate
@@ -246,10 +360,12 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
     currentValues = resolved.animate
   }
   attachPointerListeners()
+  mounted = true
 
   return {
     update(next) {
       currentOpts = next
+      subscribeGroup(next.group)
       const prev = resolved
       resolved = resolveAll(next)
       // Re-attach listeners if the hover/tap surface changed.
@@ -268,6 +384,11 @@ export function motion(node: Element, opts: MotionActionOpts = {}): MotionAction
       currentValues = next_
     },
     destroy() {
+      if (unsubscribeGroup) {
+        unsubscribeGroup()
+        unsubscribeGroup = null
+      }
+      currentGroup = undefined
       detachPointerListeners()
       cancelStartTimer()
       cancelCurrent()

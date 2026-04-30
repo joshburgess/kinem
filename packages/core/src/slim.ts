@@ -298,3 +298,32 @@ export {
   type WorkerComputerOpts,
   createWorkerComputer,
 } from "./render/worker"
+
+export {
+  type MotionTransitionShape,
+  type ResolvedTransition,
+  type TransitionType,
+  resolveTransition,
+} from "./api/transition"
+
+export {
+  type MotionValue,
+  type MotionValueListener,
+  type Unsubscribe,
+  bindMotionValueToCss,
+  motionValue,
+} from "./value/motion-value"
+export {
+  type TransformInputRange,
+  type TransformOpts,
+  type TransformOutputRange,
+  transform,
+} from "./value/transform"
+export {
+  type InViewEnter,
+  type InViewEntry,
+  type InViewLeave,
+  type InViewOpts,
+  type InViewStop,
+  inView,
+} from "./value/in-view"

@@ -15,7 +15,7 @@
  * `springEasing` used elsewhere in the library.
  */
 
-import { type SpringOpts, frame, springEasing } from "@kinem/core"
+import { type SpringOpts, frame, shouldReduceMotion, springEasing } from "@kinem/core"
 
 export type SpringStoreOpts = SpringOpts
 
@@ -52,6 +52,11 @@ export function spring(initial: number, opts: SpringStoreOpts = {}): SpringStore
       return
     }
     cancelCurrent()
+    if (shouldReduceMotion()) {
+      value = target
+      notify(target)
+      return
+    }
     const start = value
     const easing = springEasing(opts)
     const duration = easing.duration

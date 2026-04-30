@@ -24,6 +24,8 @@
     "api:check": "node scripts/api-snapshot.mjs --check",
     "e2e": "pnpm --filter @kinem/devtools-extension build && playwright test",
     "e2e:install": "playwright install --with-deps chromium firefox webkit",
+    "e2e:visual": "playwright test --project visual",
+    "e2e:visual:update": "playwright test --project visual --update-snapshots",
     "changeset": "changeset",
     "changeset:status": "changeset status",
     "changeset:version": "changeset version",

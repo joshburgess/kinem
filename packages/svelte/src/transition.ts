@@ -13,7 +13,7 @@
  * inline style.
  */
 
-import { type EasingFn, easeOut, interpolate } from "@kinem/core"
+import { type EasingFn, easeOut, interpolate, shouldReduceMotion } from "@kinem/core"
 
 export type KinemTransitionValues = Readonly<Record<string, string | number>>
 
@@ -44,9 +44,13 @@ export const kinemTransition: KinemTransitionFn = (node, opts) => {
     samplers.push({ key, sample: interpolate(fromVal, toVal) })
   }
 
+  // Reduced-motion: collapse the transition to zero duration so Svelte
+  // jumps the element to its final-frame inline values immediately.
+  const reduced = shouldReduceMotion()
+
   return {
-    delay: opts.delay ?? 0,
-    duration: opts.duration ?? 400,
+    delay: reduced ? 0 : (opts.delay ?? 0),
+    duration: reduced ? 0 : (opts.duration ?? 400),
     easing: opts.easing ?? easeOut,
     tick: (t) => {
       if (!style) return

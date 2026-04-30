@@ -35,9 +35,12 @@ export {
   type UseLayoutResult,
   useLayout,
 } from "./composables/useLayout"
+export { type UseInViewOpts, type UseInViewResult, useInView } from "./composables/useInView"
+export { useMotionValue } from "./composables/useMotionValue"
 export {
   prefersReducedMotion,
   useReducedMotion,
 } from "./composables/useReducedMotion"
 export { type UseScrollResult, useScroll } from "./composables/useScroll"
 export { type SpringValue, useSpring } from "./composables/useSpring"
+export { useTransform } from "./composables/useTransform"

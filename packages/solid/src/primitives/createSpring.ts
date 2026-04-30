@@ -12,7 +12,7 @@
  * Spring trajectory and settling match `springEasing` from `@kinem/core`.
  */
 
-import { type SpringOpts, frame, springEasing } from "@kinem/core"
+import { type SpringOpts, frame, shouldReduceMotion, springEasing } from "@kinem/core"
 import { onCleanup } from "solid-js"
 
 export interface SpringValue {
@@ -71,6 +71,11 @@ export function createSpring(initial: number, opts: SpringOpts = {}): SpringValu
         return
       }
       cancelCurrent()
+      if (shouldReduceMotion()) {
+        value = target
+        notify(target)
+        return
+      }
       const easing = springEasing(opts)
       const duration = easing.duration
       let startTime = -1

@@ -7,14 +7,18 @@
  */
 
 export { type GestureActionOpts, type GestureActionReturn, gesture } from "./gesture"
+export { type InViewActionOpts, type InViewActionReturn, inView } from "./in-view"
 export { type LayoutActionOpts, type LayoutActionReturn, layout } from "./layout"
 export {
   type MotionActionOpts,
+  type MotionGroupStore,
   type MotionValues,
   type VariantTarget,
   type Variants,
   motion,
+  motionGroup,
 } from "./motion"
+export { type MotionValueStore, motionValue, transform } from "./motion-value"
 export {
   type CreatePresenceOpts,
   type PresenceController,

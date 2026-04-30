@@ -14,7 +14,7 @@
  * trajectory and settling behaviour match `spring()` used elsewhere.
  */
 
-import { type SpringOpts, frame, springEasing } from "@kinem/core"
+import { type SpringOpts, frame, shouldReduceMotion, springEasing } from "@kinem/core"
 import { onBeforeUnmount } from "vue"
 
 export interface SpringValue {
@@ -66,6 +66,11 @@ export function useSpring(initial: number, opts: SpringOpts = {}): SpringValue {
         return
       }
       cancelCurrent()
+      if (shouldReduceMotion()) {
+        value = target
+        notify(target)
+        return
+      }
       const start = value
       const easing = springEasing(currentOpts)
       const duration = easing.duration

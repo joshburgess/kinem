@@ -33,7 +33,7 @@
  */
 
 import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
-import { omitUndefined, play, tween } from "@kinem/core"
+import { omitUndefined, play, resolveTransition, tween } from "@kinem/core"
 import {
   type CSSProperties,
   type ComponentPropsWithoutRef,
@@ -68,8 +68,22 @@ export type Variants = Readonly<Record<string, MotionValues>>
 export type VariantTarget = MotionValues | string | readonly string[]
 
 export interface MotionTransition {
+  /**
+   * "tween" (default) plays a fixed-duration easing; "spring" plays a
+   * physical spring (stiffness/damping/mass). When omitted, the
+   * presence of any spring field implies "spring".
+   */
+  readonly type?: "tween" | "spring"
   readonly duration?: number
   readonly easing?: EasingFn
+  /** Spring: stiffness (default 170). */
+  readonly stiffness?: number
+  /** Spring: damping (default 26). */
+  readonly damping?: number
+  /** Spring: mass (default 1). */
+  readonly mass?: number
+  /** Spring: initial velocity (default 0). */
+  readonly velocity?: number
   readonly backend?: PlayOpts["backend"]
   /**
    * Per-element delay in ms before the tween starts. Composes with any
@@ -280,9 +294,10 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
     // already heading there even while the stagger timer is pending.
     currentValuesRef.current = targetValues
     const start = (): void => {
+      const resolved = resolveTransition(transition)
       const def = tween(tweenProps, {
-        duration: transition?.duration ?? 400,
-        ...omitUndefined({ easing: transition?.easing }),
+        duration: resolved.duration,
+        ...omitUndefined({ easing: resolved.easing }),
       })
       const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
       controlsRef.current = play(def, [el as unknown as StrategyTarget], playOpts)
@@ -326,9 +341,10 @@ export function Motion<E extends ElementType = "div">(props: MotionProps<E>): Re
       presence.safeToRemove()
       return
     }
+    const resolved = resolveTransition(transition)
     const def = tween(tweenProps, {
-      duration: transition?.duration ?? 400,
-      ...omitUndefined({ easing: transition?.easing }),
+      duration: resolved.duration,
+      ...omitUndefined({ easing: resolved.easing }),
     })
     const playOpts: PlayOpts = omitUndefined({ backend: transition?.backend })
     const controls = play(def, [el as unknown as StrategyTarget], playOpts)

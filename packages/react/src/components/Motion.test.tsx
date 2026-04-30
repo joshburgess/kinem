@@ -97,4 +97,35 @@ describe("Motion", () => {
     expect(container.querySelector("div")).not.toBeNull()
     expect(() => unmount()).not.toThrow()
   })
+
+  it("accepts a spring transition shorthand", async () => {
+    const { container } = render(
+      <Motion
+        as="div"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30, backend: "raf" }}
+      />,
+    )
+    const el = container.querySelector("div") as HTMLElement
+    expect(el).not.toBeNull()
+    // Wait long enough for the spring to make progress.
+    await new Promise<void>((r) => setTimeout(r, 80))
+    const op = Number.parseFloat(el.style.opacity || "0")
+    expect(op).toBeGreaterThan(0)
+  })
+
+  it("infers spring when stiffness/damping are present without an explicit type", async () => {
+    const { container } = render(
+      <Motion
+        as="div"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ stiffness: 500, damping: 30, backend: "raf" }}
+      />,
+    )
+    const el = container.querySelector("div") as HTMLElement
+    await new Promise<void>((r) => setTimeout(r, 80))
+    expect(Number.parseFloat(el.style.opacity || "0")).toBeGreaterThan(0)
+  })
 })

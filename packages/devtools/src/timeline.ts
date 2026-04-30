@@ -207,6 +207,18 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
   resumeBtn.textContent = "Resume all"
   header.appendChild(resumeBtn)
 
+  const stepBackBtn = document.createElement("button")
+  stepBackBtn.type = "button"
+  stepBackBtn.textContent = "<"
+  stepBackBtn.title = "Step back one frame (paused)"
+  header.appendChild(stepBackBtn)
+
+  const stepFwdBtn = document.createElement("button")
+  stepFwdBtn.type = "button"
+  stepFwdBtn.textContent = ">"
+  stepFwdBtn.title = "Step forward one frame (paused)"
+  header.appendChild(stepFwdBtn)
+
   const toggle = document.createElement("button")
   toggle.type = "button"
   toggle.textContent = opts.collapsed ? "+" : "-"
@@ -254,6 +266,24 @@ export function mountTimeline(opts: MountTimelineOpts = {}): TimelineHandle {
     for (const rec of listActiveAnimations()) rec.controls.resume()
     kick()
   })
+
+  // 1-frame advance for paused animations. Each fixed-duration record
+  // moves by `STEP_MS / duration` of progress; ambient/open-ended
+  // records (duration === 0) are skipped because their progress isn't a
+  // 0-1 line. The records themselves are not resumed; the user clicks
+  // Resume all to leave step mode.
+  const STEP_MS = 16
+  const stepBy = (deltaMs: number): void => {
+    for (const rec of listActiveAnimations()) {
+      if (rec.duration <= 0) continue
+      rec.controls.pause()
+      const next = Math.max(0, Math.min(1, rec.progress + deltaMs / rec.duration))
+      rec.controls.seek(next)
+    }
+    render()
+  }
+  stepBackBtn.addEventListener("click", () => stepBy(-STEP_MS))
+  stepFwdBtn.addEventListener("click", () => stepBy(STEP_MS))
 
   const render = (): void => {
     const records = listActiveAnimations()
