@@ -1,7 +1,18 @@
+export type DemoGroup =
+  | "Gestures"
+  | "Pointer follow"
+  | "Reactive values"
+  | "Stagger & cascade"
+  | "Paths & morphing"
+  | "Particles"
+  | "Shaders"
+  | "Goo & blobs"
+  | "Text & scroll"
+
 export interface Demo {
   readonly id: string
   readonly title: string
   readonly blurb: string
-  readonly group: "Gesture" | "Showcase"
+  readonly group: DemoGroup
   mount(stage: HTMLElement): () => void
 }

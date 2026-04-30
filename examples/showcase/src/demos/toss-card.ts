@@ -9,7 +9,7 @@ export const tossCard: Demo = {
   title: "Toss to dismiss · inertia release",
   blurb:
     "Drag the card and let go. A gentle release springs back; a hard fling decays away with momentum (`inertia`) and respawns. Try varying the throw speed.",
-  group: "Showcase",
+  group: "Gestures",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

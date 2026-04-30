@@ -13,7 +13,7 @@ export const liquidMenu: Demo = {
   title: "Liquid menu · radial stagger spring",
   blurb:
     "Click the center button. Seven items radiate outward via `playStagger`, each running a `keyframes` scale/opacity wave with overshoot. Click again to reverse the cascade and tuck them back in.",
-  group: "Showcase",
+  group: "Stagger & cascade",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

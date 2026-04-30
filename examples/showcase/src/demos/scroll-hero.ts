@@ -6,7 +6,7 @@ export const scrollHero: Demo = {
   title: "Cinematic scroll hero",
   blurb:
     "Scroll inside the frame: layered parallax, word-by-word reveals, and a pinned zoom driven by scroll progress.",
-  group: "Showcase",
+  group: "Text & scroll",
   mount(stage) {
     const viewport = document.createElement("div")
     Object.assign(viewport.style, {

@@ -16,7 +16,7 @@ export const heatShimmer: Demo = {
   title: "Heat shimmer · jitter wobble",
   blurb:
     "Each character runs an independent `jitter` channel layered on a stable identity def. Feeding wrapping progress at a constant rate produces continuous deterministic noise — heat haze without per-frame randomness.",
-  group: "Showcase",
+  group: "Text & scroll",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

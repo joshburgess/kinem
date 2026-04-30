@@ -26,7 +26,7 @@ export const starfieldWarp: Demo = {
   title: "Starfield warp · radial hyperdrive",
   blurb:
     "Stars stream outward from a moving warp center with non-linear depth acceleration. Each star's brightness pulses through its own `jitter` channel for organic twinkle. Move the cursor to steer the warp.",
-  group: "Showcase",
+  group: "Particles",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

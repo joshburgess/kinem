@@ -15,7 +15,7 @@ export const pulseSpectrum: Demo = {
   title: "Pulse spectrum reactive composition",
   blurb:
     "A bar of stripes whose heights, hues, and glow are derived from a single time() source plus a cursor motionValue. Move the cursor across the spectrum: bars under the cursor swell with a transform()-mapped spotlight, mouse-y scales overall amplitude, and cursor velocity kicks a hue shift. Every visible property is a function of one of four reactive sources.",
-  group: "Showcase",
+  group: "Reactive values",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

@@ -36,7 +36,7 @@ export const confettiBurst: Demo = {
   title: "Confetti burst",
   blurb:
     "Click anywhere. Each particle's lifecycle is a kinem tween (parabolic position, rotation, fade). A spring-driven shockwave ring also emanates from the click.",
-  group: "Showcase",
+  group: "Stagger & cascade",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

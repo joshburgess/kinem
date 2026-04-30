@@ -46,7 +46,7 @@ export const cardStack: Demo = {
   title: "Physics card stack",
   blurb:
     "Drag-and-throw the top card. Velocity determines fling direction; the stack springs up to fill the gap.",
-  group: "Showcase",
+  group: "Gestures",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

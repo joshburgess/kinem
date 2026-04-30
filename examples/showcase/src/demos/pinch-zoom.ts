@@ -15,7 +15,7 @@ export const pinchZoom: Demo = {
   title: "Pinch → zoom with inertia",
   blurb:
     "Two-finger pinch scales and rotates. Release past bounds and it springs back. Use trackpad pinch too.",
-  group: "Gesture",
+  group: "Gestures",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

@@ -193,7 +193,7 @@ export const meshGradient: Demo = {
   title: "Animated mesh gradient",
   blurb:
     "Five colored points blend over a Lissajous orbit. One tracks your cursor with kinem spring physics. Click to morph palettes.",
-  group: "Showcase",
+  group: "Shaders",
   mount(stage) {
     const canvas = document.createElement("canvas")
     Object.assign(canvas.style, {

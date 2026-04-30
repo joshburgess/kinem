@@ -9,7 +9,7 @@ export const pathFlight: Demo = {
   title: "Motion path · paper plane",
   blurb:
     "A paper plane follows an SVG path with arc-length parameterization, so it moves at constant speed even through tight curves. Tangent rotation keeps it pointed forward. Click to launch.",
-  group: "Showcase",
+  group: "Paths & morphing",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

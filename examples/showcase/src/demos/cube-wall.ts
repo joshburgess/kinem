@@ -20,7 +20,7 @@ export const cubeWall: Demo = {
   title: "Cube wall · staggered 3D flip",
   blurb:
     "Click any tile. A wave of CSS 3D flips radiates outward, ordered by distance from the click. Each tile drives its own `tween` from its current rotation to +180°, accumulating state across clicks.",
-  group: "Showcase",
+  group: "Stagger & cascade",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

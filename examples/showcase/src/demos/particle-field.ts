@@ -24,7 +24,7 @@ export const particleField: Demo = {
   title: "Cursor-reactive particle field",
   blurb:
     "A spring lattice of ~3k particles. Your cursor pushes them; a rest force pulls them home. Uses Canvas 2D.",
-  group: "Showcase",
+  group: "Particles",
   mount(stage) {
     const canvas = document.createElement("canvas")
     Object.assign(canvas.style, {

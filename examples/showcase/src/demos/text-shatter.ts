@@ -6,7 +6,7 @@ export const textShatter: Demo = {
   title: "Text shatter on hover",
   blurb:
     "Hover the headline. Letters fly apart with per-char spring physics, then reassemble when the pointer leaves.",
-  group: "Showcase",
+  group: "Text & scroll",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

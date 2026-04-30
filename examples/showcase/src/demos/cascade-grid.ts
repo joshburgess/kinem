@@ -10,7 +10,7 @@ export const cascadeGrid: Demo = {
   title: "Cascade · stagger from click",
   blurb:
     "Click anywhere in the grid. A scale + glow wave radiates outward, ordered by distance to the click. Built on `playStagger` with a custom `from` function.",
-  group: "Showcase",
+  group: "Stagger & cascade",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

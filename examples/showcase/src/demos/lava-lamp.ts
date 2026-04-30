@@ -85,7 +85,7 @@ export const lavaLamp: Demo = {
   title: "Lava lamp · gooey blob orchestra",
   blurb:
     "Six blobs each composed from independent rise, sway, and pulse defs. An SVG goo filter (blur + threshold matrix) blends them into a continuous wax flow when they touch. A slow hue rotation drifts the whole palette through the spectrum so the lamp never reads the same way twice.",
-  group: "Showcase",
+  group: "Goo & blobs",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

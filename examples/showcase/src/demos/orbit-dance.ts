@@ -21,7 +21,7 @@ export const orbitDance: Demo = {
   title: "Orbit dance · arc + scrub",
   blurb:
     "Three rings of satellites orbit a sun on exact circles via the `arc` primitive. Sweep the cursor horizontally to scrub the orbital phase; each ring is driven by its own `scrub` handle.",
-  group: "Showcase",
+  group: "Paths & morphing",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

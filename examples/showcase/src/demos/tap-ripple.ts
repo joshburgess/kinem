@@ -8,7 +8,7 @@ export const tapRipple: Demo = {
   id: "tap-ripple",
   title: "Tap → ripple burst",
   blurb: "Tap anywhere. Each tap spawns a ripple that scales out and fades, plus a shockwave ring.",
-  group: "Gesture",
+  group: "Gestures",
   mount(stage) {
     const surface = document.createElement("div")
     Object.assign(surface.style, {

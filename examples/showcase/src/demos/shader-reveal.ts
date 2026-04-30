@@ -145,7 +145,7 @@ export const shaderReveal: Demo = {
   title: "Liquid shader reveal",
   blurb:
     "WebGL fragment shader with domain-warped FBM. Drag the slider to scrub the reveal: it grows from your cursor like ink spreading through water. Click to cycle the palette; kinem's `playUniforms` smooth-crossfades between four palettes via the `uPaletteIndex` uniform.",
-  group: "Showcase",
+  group: "Shaders",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

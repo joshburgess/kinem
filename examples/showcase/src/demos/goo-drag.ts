@@ -13,7 +13,7 @@ export const gooDrag: Demo = {
   title: "Stretchy goo drag",
   blurb:
     "Drag the floating blob. An SVG goo filter (Gaussian blur + threshold) bridges it back to the anchor through nine intermediate dots. Release and a kinem spring snaps it home.",
-  group: "Showcase",
+  group: "Goo & blobs",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

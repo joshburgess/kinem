@@ -76,7 +76,7 @@ export const shapeMorph: Demo = {
   title: "Shape morph · structural blend",
   blurb:
     "Click a shape to morph between any pair. `morphPath` resamples both paths to a polyline and blends per-vertex, so it works across totally different topologies.",
-  group: "Showcase",
+  group: "Paths & morphing",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

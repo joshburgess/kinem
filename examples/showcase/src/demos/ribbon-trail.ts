@@ -9,7 +9,7 @@ export const ribbonTrail: Demo = {
   title: "Ribbon trail · tapered follow chain",
   blurb:
     "Move the cursor. A 32-link `follow` chain feeds an SVG ribbon rendered as N tapered segments. Each segment shrinks down the chain — head full, tail thin — for a calligraphic stroke trail.",
-  group: "Showcase",
+  group: "Pointer follow",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

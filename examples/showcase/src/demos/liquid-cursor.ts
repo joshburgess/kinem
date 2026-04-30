@@ -32,7 +32,7 @@ export const liquidCursor: Demo = {
   title: "Liquid metaball cursor",
   blurb:
     "A chain of soft blobs follows the cursor. The CSS goo trick (heavy blur + extreme contrast) blends them into a single fluid shape.",
-  group: "Showcase",
+  group: "Pointer follow",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

@@ -8,7 +8,7 @@ export const pressCharge: Demo = {
   title: "Press & hold → charge",
   blurb:
     "Hold the button to charge. Release fully charged for an explosion; let go early and the ring drains.",
-  group: "Gesture",
+  group: "Gestures",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

@@ -27,7 +27,7 @@ export const galaxySpiral: Demo = {
   title: "Galaxy spiral · catmull-rom arms",
   blurb:
     "Four spiral arms, each a `catmullRom` spline through 18 waypoints. Hundreds of particles flow along the arms with phase offsets, wrapping to the inside as they reach the rim. Move the cursor over the disk to drag particles toward it; click to fire a burst that briefly accelerates the whole flow.",
-  group: "Showcase",
+  group: "Paths & morphing",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

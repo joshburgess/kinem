@@ -8,7 +8,7 @@ export const holoCard: Demo = {
   title: "Holographic tilt card",
   blurb:
     "Pokémon-foil card. Move the pointer over it and the rainbow shifts with viewing angle. Spring physics return it to neutral when you leave.",
-  group: "Showcase",
+  group: "Pointer follow",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

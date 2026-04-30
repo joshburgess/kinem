@@ -25,41 +25,54 @@ import { ribbonTrail } from "./demos/ribbon-trail"
 import { scrollHero } from "./demos/scroll-hero"
 import { shaderReveal } from "./demos/shader-reveal"
 import { shapeMorph } from "./demos/shape-morph"
+import { springChoir } from "./demos/spring-choir"
 import { starfieldWarp } from "./demos/starfield-warp"
 import { tapRipple } from "./demos/tap-ripple"
 import { textShatter } from "./demos/text-shatter"
 import { tossCard } from "./demos/toss-card"
 
+// Ordered by category. The nav renders sections in the order the
+// `group` value first appears, so keep all demos of a group contiguous.
 const demos: readonly Demo[] = [
+  // Gestures
   tapRipple,
   pressCharge,
   panMomentum,
   pinchZoom,
   tossCard,
-  holoCard,
+  cardStack,
+  // Pointer follow
   liquidCursor,
-  meshGradient,
-  pulseSpectrum,
-  confettiBurst,
-  gooDrag,
-  lavaLamp,
-  pathFlight,
+  magneticNav,
+  holoCard,
   cometTrail,
   ribbonTrail,
-  orbitDance,
-  galaxySpiral,
-  starfieldWarp,
-  shapeMorph,
+  // Reactive values
+  pulseSpectrum,
+  springChoir,
+  // Stagger & cascade
+  confettiBurst,
   cascadeGrid,
   cubeWall,
   liquidMenu,
+  // Paths & morphing
+  pathFlight,
+  orbitDance,
+  galaxySpiral,
+  shapeMorph,
+  // Particles
   particleField,
+  starfieldWarp,
+  // Shaders
+  meshGradient,
+  shaderReveal,
+  // Goo & blobs
+  gooDrag,
+  lavaLamp,
+  // Text & scroll
   textShatter,
   heatShimmer,
-  cardStack,
   scrollHero,
-  shaderReveal,
-  magneticNav,
 ]
 
 enableTracker()

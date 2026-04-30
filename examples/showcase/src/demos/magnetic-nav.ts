@@ -8,7 +8,7 @@ export const magneticNav: Demo = {
   title: "Magnetic nav with morph pill",
   blurb:
     "Links attract your cursor. A gradient pill morphs between the active item with spring physics on position and size.",
-  group: "Showcase",
+  group: "Pointer follow",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

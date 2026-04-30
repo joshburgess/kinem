@@ -8,7 +8,7 @@ export const cometTrail: Demo = {
   title: "Comet trail · follow chain",
   blurb:
     "Move the cursor. A chain of glowing orbs trails the head with per-link decay, so each one lags slightly more than the last. Built on the `follow` primitive.",
-  group: "Showcase",
+  group: "Pointer follow",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {

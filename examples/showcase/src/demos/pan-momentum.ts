@@ -6,7 +6,7 @@ export const panMomentum: Demo = {
   title: "Pan → momentum & snap-back",
   blurb:
     "Drag the card and fling it. Soft flings snap home; hard flings throw in the direction of velocity.",
-  group: "Gesture",
+  group: "Gestures",
   mount(stage) {
     const wrap = document.createElement("div")
     Object.assign(wrap.style, {
