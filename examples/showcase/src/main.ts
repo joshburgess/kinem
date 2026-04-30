@@ -20,6 +20,7 @@ import { particleField } from "./demos/particle-field"
 import { pathFlight } from "./demos/path-flight"
 import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
+import { pulseSpectrum } from "./demos/pulse-spectrum"
 import { ribbonTrail } from "./demos/ribbon-trail"
 import { scrollHero } from "./demos/scroll-hero"
 import { shaderReveal } from "./demos/shader-reveal"
@@ -38,6 +39,7 @@ const demos: readonly Demo[] = [
   holoCard,
   liquidCursor,
   meshGradient,
+  pulseSpectrum,
   confettiBurst,
   gooDrag,
   lavaLamp,
