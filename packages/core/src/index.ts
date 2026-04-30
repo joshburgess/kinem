@@ -230,6 +230,7 @@ export {
   subscribe as subscribeTracker,
   trackAmbient,
   trackAnimation,
+  trackNamed,
   untrackAmbient,
 } from "./devtools/tracker"
 export {
@@ -390,4 +391,5 @@ export {
 } from "./value/in-view"
 export { type TimeMotionValue, time } from "./value/time"
 export { type VelocityMotionValue, velocity } from "./value/velocity"
+export { type CombinedMotionValue, combine } from "./value/combine"
 export { type MotionValueEventName, motionValueEvent } from "./value/event"

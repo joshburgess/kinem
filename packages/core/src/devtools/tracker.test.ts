@@ -10,6 +10,7 @@ import {
   subscribe,
   trackAmbient,
   trackAnimation,
+  trackNamed,
   untrackAmbient,
 } from "./tracker"
 
@@ -163,6 +164,31 @@ describe("tracker", () => {
     expect(record.backend).toBe("follow")
     expect(record.state).toBe("playing")
     expect(record.progress).toBeCloseTo(0.42)
+  })
+
+  it("trackAmbient surfaces a friendly name through meta", () => {
+    const handle: AmbientHandle = { cancel() {}, state: "active" }
+    trackAmbient(handle, "ambient", [], { name: "spring-choir leaderX" })
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(record.name).toBe("spring-choir leaderX")
+  })
+
+  it("trackNamed registers an ambient entry that goes away on disposal", () => {
+    const off = trackNamed("spring-choir")
+    const [record] = listActive()
+    if (!record) throw new Error("no record")
+    expect(record.name).toBe("spring-choir")
+    expect(record.backend).toBe("ambient")
+    off()
+    expect(listActive()).toHaveLength(0)
+  })
+
+  it("trackNamed is a no-op when tracking is disabled", () => {
+    __resetTracker()
+    const off = trackNamed("noop")
+    expect(listActive()).toHaveLength(0)
+    expect(() => off()).not.toThrow()
   })
 
   it("trackAmbient is a no-op when tracking is disabled", () => {

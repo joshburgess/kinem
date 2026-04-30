@@ -4,15 +4,18 @@ Copy-pasteable patterns for the things you'll build over and over. Each
 recipe is self-contained: import what's shown, paste, swap selectors,
 ship.
 
-- [Drawer / sheet](./drawer) — slide a panel in from the edge with a
+- [Drawer / sheet](./drawer): slide a panel in from the edge with a
   controlled `<AnimatePresence>` and `whileHover` on the trigger.
-- [Modal with backdrop](./modal) — animated backdrop and panel, click
+- [Modal with backdrop](./modal): animated backdrop and panel, click
   outside to close.
-- [List reorder](./list-reorder) — animate items between positions using
+- [List reorder](./list-reorder): animate items between positions using
   `useLayout` (FLIP).
-- [Page transitions](./page-transition) — cross-fade or slide between
+- [Page transitions](./page-transition): cross-fade or slide between
   routes with `<AnimatePresence>` and a `mode` switch.
-- [Scroll-driven hero](./scroll-hero) — bind transforms to scroll
+- [Scroll-driven hero](./scroll-hero): bind transforms to scroll
   progress with `useScroll`.
-- [Shared element transition](./shared-element) — animate an element
+- [Shared element transition](./shared-element): animate an element
   between two render trees using `LayoutGroup`.
+- [Reactive values](./reactive-values): build animation graphs out of
+  `motionValue`, `time`, `velocity`, `transform`, `combine`, and `inView`
+  without going through `play()`.

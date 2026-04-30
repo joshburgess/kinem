@@ -1,4 +1,4 @@
-import { motionValue, time, transform, velocity } from "@kinem/core"
+import { motionValue, time, trackNamed, transform, velocity } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -52,6 +52,10 @@ export const pulseSpectrum: Demo = {
     svg.appendChild(defs)
 
     const baseline = H * 0.85
+
+    // One named entry in devtools so this demo shows up as a single
+    // labelled record while it is mounted, instead of being invisible.
+    const offTrack = trackNamed("pulse-spectrum")
 
     // Reactive sources.
     //  - t: continuous ms tick driven by rAF
@@ -217,6 +221,7 @@ export const pulseSpectrum: Demo = {
       mouseX.destroy()
       mouseY.destroy()
       t.destroy()
+      offTrack()
     }
   },
 }

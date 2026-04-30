@@ -1,4 +1,4 @@
-import { motionValue, time } from "@kinem/core"
+import { motionValue, time, trackNamed } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -50,6 +50,10 @@ export const springChoir: Demo = {
     wrap.appendChild(svg)
 
     const trackW = W - TRACK_X0 - PAD_X
+
+    // One named entry in devtools so this demo shows up as a single
+    // labelled record while it is mounted, instead of being invisible.
+    const offTrack = trackNamed("spring-choir")
 
     // Reactive sources.
     //  - leaderX: the cursor's drag position, normalized to [0, 1]
@@ -271,6 +275,7 @@ export const springChoir: Demo = {
       offRT()
       leaderX.destroy()
       t.destroy()
+      offTrack()
     }
   },
 }

@@ -23,6 +23,7 @@ import { pressCharge } from "./demos/press-charge"
 import { pulseSpectrum } from "./demos/pulse-spectrum"
 import { ribbonTrail } from "./demos/ribbon-trail"
 import { scrollHero } from "./demos/scroll-hero"
+import { scrollReveal } from "./demos/scroll-reveal"
 import { shaderReveal } from "./demos/shader-reveal"
 import { shapeMorph } from "./demos/shape-morph"
 import { springChoir } from "./demos/spring-choir"
@@ -50,6 +51,7 @@ const demos: readonly Demo[] = [
   // Reactive values
   pulseSpectrum,
   springChoir,
+  scrollReveal,
   // Stagger & cascade
   confettiBurst,
   cascadeGrid,

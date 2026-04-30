@@ -64,6 +64,14 @@ export interface AnimationRecord {
    */
   readonly controls: Controls
   /**
+   * Optional human-readable name for the entry. Used by reactive demos
+   * and other ambient registrations to surface a friendly title in the
+   * devtools UI (`"spring-choir leaderX"`, `"pulse-spectrum cursor"`).
+   * For `play()`-driven animations this is usually undefined; the
+   * targets / properties tell the story instead.
+   */
+  readonly name?: string
+  /**
    * Optional descriptive label for the animation's easing. Surfaced via
    * the registration meta bag from `play()` / `playStagger()`. Built-in
    * CSS-tagged easings report `"linear"` / `"cubic-bezier(...)"`; named
@@ -88,6 +96,7 @@ export interface AnimationRecord {
 
 /** Optional metadata attached at registration time. */
 export interface TrackerMeta {
+  readonly name?: string
   readonly easing?: string
   readonly properties?: readonly string[]
   readonly labels?: ReadonlyMap<string, number>
@@ -144,6 +153,27 @@ function now(): number {
 function emit(event: TrackerEvent): void {
   if (listeners.size === 0) return
   for (const fn of listeners) fn(event)
+}
+
+/**
+ * Register a named ambient entry that lives until the returned
+ * function is called. Convenience for reactive demos and other
+ * graph-driven primitives that don't have a single `cancel()`-shaped
+ * handle of their own but want to surface as one entry in devtools.
+ *
+ *   const off = trackNamed("spring-choir")
+ *   // ... later, on cleanup:
+ *   off()
+ *
+ * No-op when tracking is disabled.
+ */
+export function trackNamed(name: string, backend: TrackerBackend = "ambient"): () => void {
+  if (!enabled) return () => {}
+  const handle: AmbientHandle = { cancel(): void {}, state: "active" }
+  const id = trackAmbient(handle, backend, [], { name })
+  return () => {
+    untrackAmbient(id)
+  }
 }
 
 /**
@@ -209,7 +239,12 @@ export function trackAnimation(
     startedAt,
     backend,
     controls,
-    ...omitUndefined({ easing: meta.easing, properties: meta.properties, labels: meta.labels }),
+    ...omitUndefined({
+      name: meta.name,
+      easing: meta.easing,
+      properties: meta.properties,
+      labels: meta.labels,
+    }),
     get state() {
       return controls.state
     },
@@ -347,6 +382,7 @@ export function trackAmbient(
   handle: AmbientHandle,
   backend: TrackerBackend,
   targets: readonly StrategyTarget[] = [],
+  meta: TrackerMeta = {},
 ): number {
   if (!enabled) return -1
   const controls = ambientControls(handle)
@@ -359,6 +395,12 @@ export function trackAmbient(
     startedAt,
     backend,
     controls,
+    ...omitUndefined({
+      name: meta.name,
+      easing: meta.easing,
+      properties: meta.properties,
+      labels: meta.labels,
+    }),
     get state(): StrategyState {
       return controls.state
     },
