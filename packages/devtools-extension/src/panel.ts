@@ -132,6 +132,14 @@ function formatTarget(targets: AnimationSnapshot["targets"]): string {
   return `${tag}${id}${cls}${more}`
 }
 
+// Prefer a friendly name when one is registered (e.g. trackNamed("...")
+// or any ambient registration with TrackerMeta.name). Fall back to the
+// target descriptor for play()-driven entries that don't carry a name.
+function rowTitle(a: AnimationSnapshot): string {
+  if (a.name) return a.name
+  return formatTarget(a.targets)
+}
+
 function isAmbientBackend(backend: string): boolean {
   return (
     backend === "follow" || backend === "scroll" || backend === "scrub" || backend === "ambient"
@@ -221,7 +229,7 @@ function renderRow(a: AnimationSnapshot): RowNodes {
   id.textContent = `#${a.id}`
   const target = document.createElement("span")
   target.className = "row-target"
-  target.textContent = formatTarget(a.targets)
+  target.textContent = rowTitle(a)
   const meta = document.createElement("span")
   meta.className = "row-meta"
   header.append(id, target, meta)

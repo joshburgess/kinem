@@ -1,0 +1,28 @@
+/**
+ * `useCombine(sources, fn)` returns a derived `MotionValue<T>` whose
+ * value is recomputed from `fn(...sourceValues)` whenever any source
+ * updates. The derived cell is destroyed when the calling component
+ * unmounts.
+ *
+ *   const x = useMotionValue(0)
+ *   const y = useMotionValue(0)
+ *   const dist = useCombine([x, y], (a, b) => Math.hypot(a, b))
+ */
+
+import { type CombinedMotionValue, type MotionValue, combine } from "@kinem/core"
+import { onBeforeUnmount } from "vue"
+
+type SourceValues<S extends readonly MotionValue<unknown>[]> = {
+  [K in keyof S]: S[K] extends MotionValue<infer V> ? V : never
+}
+
+export function useCombine<S extends readonly MotionValue<unknown>[], T>(
+  sources: S,
+  fn: (...values: SourceValues<S>) => T,
+): CombinedMotionValue<T> {
+  const mv = combine(sources, fn)
+  onBeforeUnmount(() => {
+    mv.destroy()
+  })
+  return mv
+}

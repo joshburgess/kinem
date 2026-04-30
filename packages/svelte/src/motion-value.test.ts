@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { motionValue, transform } from "./motion-value"
+import { combine, motionValue, transform } from "./motion-value"
 
 describe("motionValue (svelte store)", () => {
   it("get/set work", () => {
@@ -60,6 +60,42 @@ describe("transform (svelte)", () => {
     op.destroy()
     spy.mockClear()
     x.set(50)
+    expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe("combine (svelte)", () => {
+  it("derives the initial value and tracks updates", () => {
+    const x = motionValue(0)
+    const y = motionValue(0)
+    const sum = combine([x, y] as const, (a, b) => a + b)
+    expect(sum.get()).toBe(0)
+    x.set(3)
+    expect(sum.get()).toBe(3)
+    y.set(4)
+    expect(sum.get()).toBe(7)
+  })
+
+  it("subscribe receives derived values", () => {
+    const x = motionValue(2)
+    const doubled = combine([x] as const, (a) => a * 2)
+    const spy = vi.fn()
+    doubled.subscribe(spy)
+    expect(spy).toHaveBeenLastCalledWith(4)
+    x.set(5)
+    expect(spy).toHaveBeenLastCalledWith(10)
+  })
+
+  it("destroy unsubscribes from every source", () => {
+    const x = motionValue(0)
+    const y = motionValue(0)
+    const sum = combine([x, y] as const, (a, b) => a + b)
+    const spy = vi.fn()
+    sum.subscribe(spy)
+    sum.destroy()
+    spy.mockClear()
+    x.set(10)
+    y.set(20)
     expect(spy).not.toHaveBeenCalled()
   })
 })

@@ -37,6 +37,7 @@ export interface AnimationRecordLike {
   readonly startedAt: number
   readonly backend: string
   readonly targets: ReadonlyArray<unknown>
+  readonly name?: string
   readonly easing?: string
   readonly properties?: ReadonlyArray<string>
   readonly controls: {
@@ -94,6 +95,7 @@ export function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
     startedAt: number
     backend: string
     targets: readonly TargetDescriptor[]
+    name?: string
     easing?: string
     properties?: readonly string[]
     labels?: readonly { readonly name: string; readonly offset: number }[]
@@ -107,6 +109,7 @@ export function toSnapshot(rec: AnimationRecordLike): AnimationSnapshot {
     backend: rec.backend,
     targets: rec.targets.map(describeTarget),
   }
+  if (rec.name !== undefined) out.name = rec.name
   if (rec.easing !== undefined) out.easing = rec.easing
   if (rec.properties && rec.properties.length > 0) {
     out.properties = Array.from(rec.properties)

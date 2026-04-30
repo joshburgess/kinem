@@ -35,6 +35,12 @@ export interface AnimationSnapshot {
   readonly startedAt: number
   readonly backend: string
   readonly targets: readonly TargetDescriptor[]
+  /**
+   * Optional human-readable name. Surfaces `trackNamed("...")`
+   * registrations and other ambient entries that want a friendly
+   * title in the panel.
+   */
+  readonly name?: string
   /** Human-readable easing label (e.g. `"linear"`, `"easeOut"`). */
   readonly easing?: string
   /** Property names the animation drives, when known. */

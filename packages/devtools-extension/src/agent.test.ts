@@ -115,6 +115,12 @@ describe("toSnapshot", () => {
     expect(snap.targets[0]?.tag).toBe("div")
   })
 
+  it("forwards a name when set on the record", () => {
+    const { record } = makeRecord(13, { name: "spring-choir" })
+    const snap = toSnapshot(record)
+    expect(snap.name).toBe("spring-choir")
+  })
+
   it("forwards easing, properties, labels, and speed when present", () => {
     const { record, controls } = makeRecord(11, {
       easing: "easeOut",

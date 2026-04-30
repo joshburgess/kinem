@@ -5,6 +5,7 @@ import { cascadeGrid } from "./demos/cascade-grid"
 import { cometTrail } from "./demos/comet-trail"
 import { confettiBurst } from "./demos/confetti-burst"
 import { cubeWall } from "./demos/cube-wall"
+import { frameScrubber } from "./demos/frame-scrubber"
 import { galaxySpiral } from "./demos/galaxy-spiral"
 import { gooDrag } from "./demos/goo-drag"
 import { heatShimmer } from "./demos/heat-shimmer"
@@ -52,6 +53,7 @@ const demos: readonly Demo[] = [
   pulseSpectrum,
   springChoir,
   scrollReveal,
+  frameScrubber,
   // Stagger & cascade
   confettiBurst,
   cascadeGrid,

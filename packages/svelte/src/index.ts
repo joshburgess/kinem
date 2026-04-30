@@ -19,7 +19,13 @@ export {
   motion,
   motionGroup,
 } from "./motion"
-export { type MotionValueStore, motionValue, transform } from "./motion-value"
+export {
+  type CombinedMotionValueStore,
+  type MotionValueStore,
+  combine,
+  motionValue,
+  transform,
+} from "./motion-value"
 export { type MotionValueEventName, motionValueEvent } from "@kinem/core"
 export {
   type CreatePresenceOpts,

@@ -10,10 +10,12 @@
  */
 
 import {
+  type CombinedMotionValue,
   type MotionValue,
   type TransformInputRange,
   type TransformOpts,
   type TransformOutputRange,
+  combine as coreCombine,
   motionValue as coreMotionValue,
   transform as coreTransform,
 } from "@kinem/core"
@@ -56,6 +58,33 @@ export function transform<T>(
     destroy: () => {
       off()
       innerDestroy()
+    },
+  }
+}
+
+type SourceValues<S extends readonly MotionValue<unknown>[]> = {
+  [K in keyof S]: S[K] extends MotionValue<infer V> ? V : never
+}
+
+export interface CombinedMotionValueStore<T> extends CombinedMotionValue<T> {
+  /** Svelte-compatible subscribe. Returns an unsubscribe. */
+  subscribe(run: (value: T) => void): () => void
+}
+
+export function combine<S extends readonly MotionValue<unknown>[], T>(
+  sources: S,
+  fn: (...values: SourceValues<S>) => T,
+): CombinedMotionValueStore<T> {
+  const mv = coreCombine(sources, fn)
+  return {
+    get: mv.get,
+    set: mv.set,
+    on: mv.on,
+    getVelocity: mv.getVelocity,
+    destroy: mv.destroy,
+    subscribe(run): () => void {
+      run(mv.get())
+      return mv.on((value) => run(value))
     },
   }
 }

@@ -31,6 +31,7 @@ export { type SpringValue, useSpring } from "./hooks/useSpring"
 export { useTime } from "./hooks/useTime"
 export { useTransform } from "./hooks/useTransform"
 export { useVelocity } from "./hooks/useVelocity"
+export { useCombine } from "./hooks/useCombine"
 export { AnimatePresence, type AnimatePresenceProps } from "./components/AnimatePresence"
 export {
   Reorder,
