@@ -21,7 +21,7 @@ import {
   play,
   tween,
 } from "@kinem/core"
-import { type RefObject, useCallback, useRef } from "react"
+import { useCallback, useMemo, useRef } from "react"
 
 export type AnimateTarget = string | HTMLElement | readonly HTMLElement[]
 
@@ -31,7 +31,12 @@ export type UseAnimateAnimate = <P extends TweenProps>(
   opts?: TweenOpts & PlayOpts,
 ) => Controls
 
-export type UseAnimateResult = readonly [RefObject<HTMLElement | null>, UseAnimateAnimate]
+export type UseAnimateScope<T extends HTMLElement = HTMLElement> = (el: T | null) => void
+
+export type UseAnimateResult<T extends HTMLElement = HTMLElement> = readonly [
+  UseAnimateScope<T>,
+  UseAnimateAnimate,
+]
 
 const resolveTargets = (scope: HTMLElement | null, target: AnimateTarget): HTMLElement[] => {
   if (typeof target === "string") {
@@ -42,15 +47,21 @@ const resolveTargets = (scope: HTMLElement | null, target: AnimateTarget): HTMLE
   return [target as HTMLElement]
 }
 
-export function useAnimate(): UseAnimateResult {
-  const scope = useRef<HTMLElement | null>(null)
+export function useAnimate<T extends HTMLElement = HTMLElement>(): UseAnimateResult<T> {
+  const current = useRef<T | null>(null)
+  const scope = useMemo<UseAnimateScope<T>>(
+    () => (el) => {
+      current.current = el
+    },
+    [],
+  )
   const animate = useCallback<UseAnimateAnimate>(
     <P extends TweenProps>(
       target: AnimateTarget,
       props: P,
       opts: TweenOpts & PlayOpts = {},
     ): Controls => {
-      const targets = resolveTargets(scope.current, target)
+      const targets = resolveTargets(current.current, target)
       return play(tween(props, opts) as Parameters<typeof play>[0], targets, opts)
     },
     [],

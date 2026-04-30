@@ -7,7 +7,7 @@ describe("useAnimate", () => {
   it("returns a stable [scope, animate] tuple", () => {
     const captured: Array<{ scope: unknown; animate: unknown }> = []
     function Probe() {
-      const [scope, animate] = useAnimate()
+      const [scope, animate] = useAnimate<HTMLDivElement>()
       captured.push({ scope, animate })
       return <div ref={scope} />
     }
@@ -18,9 +18,9 @@ describe("useAnimate", () => {
   })
 
   it("resolves a CSS selector against the scope and animates matches", async () => {
-    let animateRef: ReturnType<typeof useAnimate>[1] | null = null
+    let animateRef: ReturnType<typeof useAnimate>[1] | undefined
     function Probe() {
-      const [scope, animate] = useAnimate()
+      const [scope, animate] = useAnimate<HTMLUListElement>()
       animateRef = animate
       return (
         <ul ref={scope}>
@@ -30,7 +30,7 @@ describe("useAnimate", () => {
       )
     }
     render(<Probe />)
-    let controls: ReturnType<typeof animateRef> | null = null
+    let controls: ReturnType<NonNullable<typeof animateRef>> | null = null
     act(() => {
       controls = animateRef!("li.row", { opacity: [0, 1] }, { duration: 1 })
     })
@@ -39,10 +39,10 @@ describe("useAnimate", () => {
   })
 
   it("accepts a direct element as target", async () => {
-    let animateRef: ReturnType<typeof useAnimate>[1] | null = null
+    let animateRef: ReturnType<typeof useAnimate>[1] | undefined
     let elRef: HTMLDivElement | null = null
     function Probe() {
-      const [scope, animate] = useAnimate()
+      const [scope, animate] = useAnimate<HTMLDivElement>()
       animateRef = animate
       const ref = useRef<HTMLDivElement | null>(null)
       useEffect(() => {
@@ -56,7 +56,7 @@ describe("useAnimate", () => {
     }
     render(<Probe />)
     expect(elRef).not.toBeNull()
-    let controls: ReturnType<typeof animateRef> | null = null
+    let controls: ReturnType<NonNullable<typeof animateRef>> | null = null
     act(() => {
       controls = animateRef!(elRef!, { opacity: [0, 1] }, { duration: 1 })
     })
@@ -64,9 +64,9 @@ describe("useAnimate", () => {
   })
 
   it("returns settled controls when no targets resolve", async () => {
-    let animateRef: ReturnType<typeof useAnimate>[1] | null = null
+    let animateRef: ReturnType<typeof useAnimate>[1] | undefined
     function Probe() {
-      const [scope, animate] = useAnimate()
+      const [scope, animate] = useAnimate<HTMLDivElement>()
       animateRef = animate
       return <div ref={scope} />
     }

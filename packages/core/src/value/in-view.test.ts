@@ -130,16 +130,16 @@ describe("inView", () => {
   })
 
   it("translates amount=all to threshold 1", () => {
-    inView(makeEl(), () => {}, { amount: "all" })
+    inView(makeEl(), () => undefined, { amount: "all" })
     const obs = observers[0]!
     expect(obs.options?.threshold).toBe(1)
   })
 
   it("translates a numeric amount to that threshold (clamped)", () => {
-    inView(makeEl(), () => {}, { amount: 0.42 })
+    inView(makeEl(), () => undefined, { amount: 0.42 })
     expect(observers[0]!.options?.threshold).toBeCloseTo(0.42)
     observers.length = 0
-    inView(makeEl(), () => {}, { amount: 1.5 })
+    inView(makeEl(), () => undefined, { amount: 1.5 })
     expect(observers[0]!.options?.threshold).toBe(1)
   })
 
