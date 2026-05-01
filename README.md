@@ -40,6 +40,7 @@ Framework adapters:
 pnpm add @kinem/react
 pnpm add @kinem/vue
 pnpm add @kinem/svelte
+pnpm add @kinem/solid
 ```
 
 ## What's in the box
@@ -57,7 +58,7 @@ pnpm add @kinem/svelte
   time-based play.
 - **Text**: `splitText()` with optional grapheme-aware character splitting,
   plus `fromGrid`, `shuffle`, and `wave` stagger patterns.
-- **Adapters**: First-party React, Vue, and Svelte bindings.
+- **Adapters**: First-party React, Vue, Svelte, and Solid bindings.
 - **DevTools**: A tracker channel every renderer reports to, consumable by
   a standalone panel or your own UI.
 
@@ -219,6 +220,24 @@ import { Motion } from "@kinem/vue"
 >
   hello
 </div>
+```
+
+### Solid
+
+```tsx
+import { Motion } from "@kinem/solid"
+
+function Card() {
+  return (
+    <Motion
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 400 }}
+    >
+      hello
+    </Motion>
+  )
+}
 ```
 
 ## Status

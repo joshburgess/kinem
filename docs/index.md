@@ -30,7 +30,7 @@ features:
     details: Scroll-driven playback, scroll-triggered timelines, and drag/hover gestures share the same handle API.
   - icon: 🧵
     title: Framework adapters
-    details: First-party React, Vue, and Svelte bindings with a tiny surface area. No adapter required for vanilla TS.
+    details: First-party React, Vue, Svelte, and Solid bindings with a tiny surface area. No adapter required for vanilla TS.
   - icon: 🧪
     title: Built for testing
     details: Pure animation definitions can be sampled without a DOM. Deterministic timing means tests stay fast.
