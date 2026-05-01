@@ -51,18 +51,26 @@ describe("catmullRomToCubicPoints", () => {
   })
 
   it("rejects fewer than 2 waypoints", () => {
-    expect(() => catmullRomToCubicPoints([[0, 0]], 0, false)).toThrow()
+    // Cast simulates a JS caller defeating the compile-time `Point2List`
+    // constraint.
+    expect(() =>
+      catmullRomToCubicPoints(
+        [[0, 0]] as unknown as Parameters<typeof catmullRomToCubicPoints>[0],
+        0,
+        false,
+      ),
+    ).toThrow()
   })
 })
 
 describe("catmullRom", () => {
   it("passes through every waypoint (open)", () => {
-    const wps: [number, number][] = [
+    const wps = [
       [0, 0],
       [100, 50],
       [200, 0],
       [300, 50],
-    ]
+    ] as const
     const c = catmullRom(wps)
     // Endpoints are exact
     expect(c.interpolate(0).x).toBeCloseTo(wps[0]?.[0] as number, 5)

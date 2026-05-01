@@ -59,6 +59,7 @@ export function morphPath(
   }
 
   return {
+    kind: "morph-path",
     duration,
     easing,
     interpolate: (p) => {

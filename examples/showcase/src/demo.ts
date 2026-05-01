@@ -8,6 +8,7 @@ export type DemoGroup =
   | "Shaders"
   | "Goo & blobs"
   | "Text & scroll"
+  | "3D scenes"
 
 export interface Demo {
   readonly id: string

@@ -6,7 +6,7 @@ import { partitionByTier } from "../render/properties"
 
 const clamp01 = (p: number): number => (p <= 0 ? 0 : p >= 1 ? 1 : p)
 
-export type KeyframeStops = Record<string, readonly unknown[]>
+export type KeyframeStops = Record<string, readonly [unknown, unknown, ...unknown[]]>
 
 export type KeyframesValue<P extends KeyframeStops> = {
   [K in keyof P]: P[K] extends readonly (infer V)[] ? V : never
@@ -19,7 +19,7 @@ export interface KeyframesOpts {
    * Explicit offsets in [0, 1]. If provided, must have the same length as
    * each property's stop array. Defaults to even distribution per property.
    */
-  readonly offsets?: readonly number[]
+  readonly offsets?: readonly [number, number, ...number[]]
 }
 
 const DEFAULT_DURATION = 400
@@ -66,7 +66,7 @@ function validateOffsets(offsets: readonly number[], n: number): void {
  * )
  * ```
  */
-export function keyframes<P extends KeyframeStops>(
+export function keyframes<const P extends KeyframeStops>(
   stops: P,
   opts: KeyframesOpts = {},
 ): AnimationDef<KeyframesValue<P>> {
@@ -118,6 +118,7 @@ export function keyframes<P extends KeyframeStops>(
   const tierSplit = partitionByTier(properties)
 
   return {
+    kind: "keyframes",
     duration,
     easing,
     interpolate: (p) => {

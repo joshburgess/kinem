@@ -27,7 +27,7 @@
  * per-frame state: mutation happens directly on the DOM node.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
+import type { Controls, EasingFn, NormalizedVelocity, PlayOpts, StrategyTarget } from "@kinem/core"
 import { omitUndefined, play, resolveTransition, tween } from "@kinem/core"
 
 export type MotionValues = Readonly<Record<string, string | number>>
@@ -54,7 +54,11 @@ export interface MotionTransition {
   readonly stiffness?: number
   readonly damping?: number
   readonly mass?: number
-  readonly velocity?: number
+  /**
+   * Spring: initial velocity, in normalized [0, 1]/sec units of travel.
+   * Mint with `normalizedVelocity()` or `velocityFromSpan()`.
+   */
+  readonly velocity?: NormalizedVelocity
   readonly backend?: PlayOpts["backend"]
   /** Delay in ms before the tween starts. */
   readonly delay?: number

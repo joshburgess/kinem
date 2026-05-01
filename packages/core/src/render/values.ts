@@ -32,7 +32,7 @@ export type ValuesCommit<V> = (values: V) => void
 
 export function playValues<V>(
   def: AnimationDef<V>,
-  onValue: ValuesCommit<V>,
+  onValue: ValuesCommit<NoInfer<V>>,
   opts: ValuesOpts = {},
 ): ValuesHandle {
   const handle = createTiming(def, onValue, opts)

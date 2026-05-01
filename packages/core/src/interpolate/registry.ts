@@ -61,8 +61,23 @@ export function findInterpolator(value: unknown): InterpolatorEntry | null {
  * caller's T. Wrapping it in `(p) => fn(p) as T` would be a pure trampoline
  * (the cast is compile-time only), adding one function call per property
  * interpolation per frame.
+ *
+ * Overloads narrow the return type by primitive shape so that
+ * `interpolate(0, 100)` is typed `(p: number) => number`,
+ * `interpolate("red", "blue")` as `(p: number) => string`, etc. The
+ * generic fallback covers user-registered interpolators of arbitrary
+ * shape. `NoInfer<T>` on the `to` parameter prevents the second
+ * argument from widening the inferred type of the first (so a literal
+ * `0` from-value isn't widened to `number` just because `to` is wider).
  */
-export function interpolate<T>(from: T, to: T): (progress: number) => T {
+export function interpolate(from: number, to: NoInfer<number>): (progress: number) => number
+export function interpolate(from: string, to: NoInfer<string>): (progress: number) => string
+export function interpolate(
+  from: readonly number[],
+  to: NoInfer<readonly number[]>,
+): (progress: number) => number[]
+export function interpolate<T>(from: T, to: NoInfer<T>): (progress: number) => T
+export function interpolate<T>(from: T, to: NoInfer<T>): (progress: number) => T {
   const entry = findInterpolator(from)
   if (!entry) {
     throw new KinemError(

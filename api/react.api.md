@@ -47,7 +47,7 @@ export interface MotionTransition {
     readonly stiffness?: number;
     readonly damping?: number;
     readonly mass?: number;
-    readonly velocity?: number;
+    readonly velocity?: NormalizedVelocity;
     readonly backend?: PlayOpts["backend"];
     readonly delay?: number;
     readonly staggerChildren?: number;

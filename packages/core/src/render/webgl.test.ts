@@ -164,8 +164,8 @@ describe("playUniforms", () => {
     const env = setup()
     const { gl, calls } = makeGl()
     const loc = {} as WebGLUniformLocation
-    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-    const scaled = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1]
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
+    const scaled = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1] as const
     const def = tween({ uMat: [identity, scaled] }, { duration: 100 })
     const h = playUniforms(
       def,

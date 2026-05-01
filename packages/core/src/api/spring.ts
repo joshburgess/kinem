@@ -11,10 +11,13 @@ import { type TweenProps, type TweenValue, tween } from "./tween"
  * spring({ x: [0, 100] }, { stiffness: 200, damping: 15, mass: 1 })
  * ```
  */
-export function spring<P extends TweenProps>(
+export function spring<const P extends TweenProps>(
   props: P,
   opts: SpringOpts = {},
 ): AnimationDef<TweenValue<P>> {
   const easing = springEasing(opts)
-  return tween(props, { easing, duration: easing.duration })
+  const t = tween(props, { easing, duration: easing.duration })
+  // Override the inner tween's kind so consumers see "spring" at the
+  // outer call site.
+  return { ...t, kind: "spring" }
 }

@@ -5,6 +5,7 @@ import {
   type BezierPathOpts,
   type BezierPathValue,
   type Point2,
+  type Point2List,
   bezierPath,
   bezierPathLength,
 } from "./bezier-path"
@@ -15,7 +16,7 @@ import {
  * are degree-elevated to cubics. Arc commands ('A') and multi-subpath
  * paths ('M' after the first) are not yet supported.
  */
-export function svgPathToCubicPoints(d: string): readonly Point2[] {
+export function svgPathToCubicPoints(d: string): Point2List {
   const cmds = parsePath(d)
   const out: Point2[] = []
   let cx = 0
@@ -162,7 +163,8 @@ export function svgPathToCubicPoints(d: string): readonly Point2[] {
       "make sure the SVG path includes at least one drawing command after 'M'",
     )
   }
-  return out
+  // Cast: the length guard above guarantees at least 2 points at runtime.
+  return out as unknown as Point2List
 }
 
 /**
@@ -182,7 +184,7 @@ export function svgPathToCubicPoints(d: string): readonly Point2[] {
  * ```
  */
 export function motionPath(d: string, opts: BezierPathOpts = {}): AnimationDef<BezierPathValue> {
-  return bezierPath(svgPathToCubicPoints(d), opts)
+  return { ...bezierPath(svgPathToCubicPoints(d), opts), kind: "motion-path" }
 }
 
 /**

@@ -21,14 +21,14 @@ type Widen<T> = T extends number
         ? bigint
         : T
 
-export type TweenProps = Record<string, readonly unknown[]>
+export type TweenProps = Record<string, readonly [unknown, unknown]>
 
 /**
  * The value type of a tween animation: for each property, the widened
  * element type of its `[from, to]` pair.
  */
 export type TweenValue<P extends TweenProps> = {
-  [K in keyof P]: P[K] extends readonly (infer V)[] ? Widen<V> : never
+  [K in keyof P]: P[K] extends readonly [infer A, infer B] ? Widen<A | B> : never
 }
 
 export interface TweenOpts {
@@ -186,7 +186,7 @@ function commitWithPlan(plan: CommitPlan, easing: EasingFn, p: number, el: Commi
  * tween({ opacity: [0, 1], x: [0, 100] }, { duration: 500, easing: easeOut })
  * ```
  */
-export function tween<P extends TweenProps>(
+export function tween<const P extends TweenProps>(
   props: P,
   opts: TweenOpts = {},
 ): AnimationDef<TweenValue<P>> {
@@ -225,6 +225,7 @@ export function tween<P extends TweenProps>(
   }
 
   return {
+    kind: "tween",
     duration,
     easing,
     interpolate: (p) => {

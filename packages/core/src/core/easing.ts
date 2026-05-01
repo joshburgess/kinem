@@ -1,4 +1,6 @@
-import type { EasingFn } from "./types"
+import type { EasingFn, NormalizedVelocity, SpringEasingFn } from "./types"
+
+export type { SpringEasingFn } from "./types"
 
 /**
  * Per-easing CSS timing-function string. The WAAPI renderer consults this
@@ -110,27 +112,49 @@ export interface SpringOpts {
   readonly stiffness?: number
   readonly damping?: number
   readonly mass?: number
-  readonly velocity?: number
+  /**
+   * Initial velocity in normalized [0, 1]/sec units of travel (NOT
+   * raw rad/s or px/s). Mint with `normalizedVelocity()` or
+   * `velocityFromSpan(real, span)`.
+   */
+  readonly velocity?: NormalizedVelocity
   readonly restVelocity?: number
   readonly restDisplacement?: number
   readonly maxDuration?: number
 }
 
 /**
- * A spring easing carries its computed settling duration alongside the
- * easing function. Tween constructors check for the `duration` property to
- * infer the spring's duration when the user doesn't specify one.
+ * Brand a number as a normalized spring velocity. Use when you've
+ * already done the real-world -> normalized conversion yourself; for
+ * the conversion itself, see `velocityFromSpan()`.
  */
-export type SpringEasingFn = EasingFn & { readonly duration: number }
+export const normalizedVelocity = (v: number): NormalizedVelocity => v as NormalizedVelocity
 
+/**
+ * Convert a real-world velocity (rad/s, px/s, etc.) into the
+ * normalized [0, 1]/sec velocity that `spring()` expects, given the
+ * total span the spring travels (1 rad, 100 px, etc.). Equivalent to
+ * `realVelocity / span`.
+ */
+export const velocityFromSpan = (realVelocity: number, span: number): NormalizedVelocity =>
+  (span === 0 ? 0 : realVelocity / span) as NormalizedVelocity
+
+const SPRING_KIND_TAG = "__kinem_spring__"
+
+/**
+ * True if `fn` was produced by `springEasing()`. Narrows to
+ * `SpringEasingFn`, exposing the `.duration` field. Uses a brand tag
+ * rather than property-sniffing so user easings that happen to expose
+ * a `duration` are not mis-identified.
+ */
 export const isSpringEasing = (fn: EasingFn): fn is SpringEasingFn =>
-  typeof (fn as Partial<SpringEasingFn>).duration === "number"
+  (fn as { [SPRING_KIND_TAG]?: true })[SPRING_KIND_TAG] === true
 
 const DEFAULT_SPRING: Required<SpringOpts> = {
   stiffness: 170,
   damping: 26,
   mass: 1,
-  velocity: 0,
+  velocity: 0 as NormalizedVelocity,
   restVelocity: 0.001,
   restDisplacement: 0.001,
   maxDuration: 10_000,
@@ -158,7 +182,7 @@ export function springEasing(opts: SpringOpts = {}): SpringEasingFn {
 
   const samples: number[] = [0]
   let x = 0
-  let v = velocity
+  let v: number = velocity
   let restCount = 0
   const REST_FRAMES = 4
 
@@ -200,5 +224,6 @@ export function springEasing(opts: SpringOpts = {}): SpringEasingFn {
     return a + (b - a) * frac
   }) as SpringEasingFn
   Object.defineProperty(fn, "duration", { value: duration, enumerable: true })
+  Object.defineProperty(fn, SPRING_KIND_TAG, { value: true })
   return fn
 }

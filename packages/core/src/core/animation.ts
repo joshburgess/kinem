@@ -23,6 +23,7 @@ export function animation<T>(
   easing: EasingFn = linear,
 ): AnimationDef<T> {
   return {
+    kind: "raw",
     duration,
     easing,
     interpolate: (p) => interpolate(easing(clamp01(p))),
@@ -48,6 +49,7 @@ export function sequence<T>(...anims: AnimationDef<T>[]): AnimationDef<T> {
   }
 
   return {
+    kind: "sequence",
     duration: total,
     easing: linear,
     interpolate: (p) => {
@@ -90,6 +92,7 @@ export function parallel<T extends readonly AnimationDef<unknown>[]>(
   for (const a of anims) if (a.duration > maxDur) maxDur = a.duration
 
   return {
+    kind: "parallel",
     duration: maxDur,
     easing: linear,
     interpolate: (p) => {
@@ -194,6 +197,7 @@ export function stagger<T>(
   }
 
   return {
+    kind: "stagger",
     duration: total,
     easing: linear,
     fanOut: count,
@@ -232,6 +236,7 @@ export function loop<T>(anim: AnimationDef<T>, count = 1): AnimationDef<T> {
   const total = anim.duration * count
 
   return {
+    kind: "loop",
     duration: total,
     easing: linear,
     interpolate: (p) => {
@@ -252,6 +257,7 @@ export function delay<T>(anim: AnimationDef<T>, ms: number): AnimationDef<T> {
   const total = anim.duration + ms
 
   return {
+    kind: "delay",
     duration: total,
     easing: linear,
     interpolate: (p) => {
@@ -267,6 +273,7 @@ export function delay<T>(anim: AnimationDef<T>, ms: number): AnimationDef<T> {
 /** Play an animation backwards. Duration is preserved. */
 export function reverse<T>(anim: AnimationDef<T>): AnimationDef<T> {
   return {
+    kind: "reverse",
     duration: anim.duration,
     easing: linear,
     interpolate: (p) => anim.interpolate(1 - clamp01(p)),
@@ -274,8 +281,9 @@ export function reverse<T>(anim: AnimationDef<T>): AnimationDef<T> {
 }
 
 /** Transform the value of an animation via a pure function. Timing is preserved. */
-export function map<A, B>(anim: AnimationDef<A>, fn: (a: A) => B): AnimationDef<B> {
+export function map<A, B>(anim: AnimationDef<A>, fn: (a: NoInfer<A>) => B): AnimationDef<B> {
   return {
+    kind: "map",
     duration: anim.duration,
     ...omitUndefined({ easing: anim.easing }),
     interpolate: (p) => fn(anim.interpolate(p)),

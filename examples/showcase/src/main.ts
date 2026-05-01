@@ -5,6 +5,7 @@ import { cascadeGrid } from "./demos/cascade-grid"
 import { cometTrail } from "./demos/comet-trail"
 import { confettiBurst } from "./demos/confetti-burst"
 import { cubeWall } from "./demos/cube-wall"
+import { explodedView } from "./demos/exploded-view"
 import { frameScrubber } from "./demos/frame-scrubber"
 import { galaxySpiral } from "./demos/galaxy-spiral"
 import { gooDrag } from "./demos/goo-drag"
@@ -21,6 +22,7 @@ import { particleField } from "./demos/particle-field"
 import { pathFlight } from "./demos/path-flight"
 import { pinchZoom } from "./demos/pinch-zoom"
 import { pressCharge } from "./demos/press-charge"
+import { productReveal3d } from "./demos/product-reveal-3d"
 import { pulseSpectrum } from "./demos/pulse-spectrum"
 import { ribbonTrail } from "./demos/ribbon-trail"
 import { rubiksCube } from "./demos/rubiks-cube"
@@ -28,7 +30,9 @@ import { scrollHero } from "./demos/scroll-hero"
 import { scrollReveal } from "./demos/scroll-reveal"
 import { shaderReveal } from "./demos/shader-reveal"
 import { shapeMorph } from "./demos/shape-morph"
+import { springCard3d } from "./demos/spring-card-3d"
 import { springChoir } from "./demos/spring-choir"
+import { staggerGrid3d } from "./demos/stagger-grid-3d"
 import { starfieldWarp } from "./demos/starfield-warp"
 import { tapRipple } from "./demos/tap-ripple"
 import { textShatter } from "./demos/text-shatter"
@@ -79,6 +83,11 @@ const demos: readonly Demo[] = [
   textShatter,
   heatShimmer,
   scrollHero,
+  // 3D scenes
+  explodedView,
+  staggerGrid3d,
+  springCard3d,
+  productReveal3d,
 ]
 
 enableTracker()

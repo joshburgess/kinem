@@ -54,23 +54,45 @@ export interface UniformBinding<T = unknown> {
 
 export type UniformBindings<V> = { readonly [K in keyof V]: UniformBinding<V[K]> }
 
+export type Vec2 = readonly [number, number]
+export type Vec3 = readonly [number, number, number]
+export type Vec4 = readonly [number, number, number, number]
+export type Mat4 = readonly [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+]
+
 export function float(loc: UniformLocation): UniformBinding<number> {
   return { apply: (gl, v) => gl.uniform1f(loc, v) }
 }
 
-export function vec2(loc: UniformLocation): UniformBinding<readonly number[]> {
+export function vec2(loc: UniformLocation): UniformBinding<Vec2> {
   return { apply: (gl, v) => gl.uniform2fv(loc, v) }
 }
 
-export function vec3(loc: UniformLocation): UniformBinding<readonly number[]> {
+export function vec3(loc: UniformLocation): UniformBinding<Vec3> {
   return { apply: (gl, v) => gl.uniform3fv(loc, v) }
 }
 
-export function vec4(loc: UniformLocation): UniformBinding<readonly number[]> {
+export function vec4(loc: UniformLocation): UniformBinding<Vec4> {
   return { apply: (gl, v) => gl.uniform4fv(loc, v) }
 }
 
-export function mat4(loc: UniformLocation, transpose = false): UniformBinding<readonly number[]> {
+export function mat4(loc: UniformLocation, transpose = false): UniformBinding<Mat4> {
   return { apply: (gl, v) => gl.uniformMatrix4fv(loc, transpose, v) }
 }
 

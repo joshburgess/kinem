@@ -66,7 +66,11 @@ describe("bezierPath", () => {
   })
 
   it("rejects fewer than two points", () => {
-    expect(() => bezierPath([[0, 0]])).toThrow(/at least 2 points/)
+    // Cast simulates a JS caller defeating the compile-time `Point2List`
+    // constraint, which exists to surface this exact mistake at type level.
+    expect(() => bezierPath([[0, 0]] as unknown as Parameters<typeof bezierPath>[0])).toThrow(
+      /at least 2 points/,
+    )
   })
 
   it("uses the supplied duration and easing", () => {

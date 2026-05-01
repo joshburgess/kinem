@@ -9,6 +9,73 @@ until 1.0.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-01
+
+### Changed
+
+- Public-API type tightening across the board. Most users will see
+  better autocomplete, fewer "did I get the units right?" footguns, and
+  a few breaking changes where the previous types were too loose.
+  - `tween()` already required `[from, to]`; `keyframes()` now requires
+    each property's stops to be `[a, b, ...rest]` (length >= 2), and
+    `KeyframesOpts.offsets` is `[number, number, ...number[]]`.
+    `keyframes` also gained a `const` type parameter, so literal stops
+    like `{ y: [0, -50, 0] }` are inferred as exact tuples without
+    `as const`.
+  - `bezierPath`, `bezierPathLength`, `sampleBezierPath`, `deCasteljau`,
+    `catmullRom`, and `catmullRomToCubicPoints` now take the new
+    exported `Point2List` type (`readonly [Point2, Point2, ...Point2[]]`)
+    instead of `readonly Point2[]`. Passing an empty or single-point
+    array fails at type level.
+  - `vec2`, `vec3`, `vec4`, and `mat4` uniform bindings now use
+    fixed-length tuples (new exported `Vec2`, `Vec3`, `Vec4`, `Mat4`
+    types) so dimension mismatches are caught when wiring a tween into
+    `playUniforms`.
+  - `interpolate(from, to)` now uses overloads to narrow the return type
+    by primitive: `interpolate(0, 100)` is `(p: number) => number`,
+    `interpolate("red", "blue")` is `(p: number) => string`, and
+    `interpolate([0, 1], [2, 3])` is `(p: number) => number[]`. The
+    `to` argument also uses `NoInfer<T>` so it cannot widen the type
+    inferred from `from`.
+  - `playValues(def, onValue, opts?)` now applies `NoInfer<V>` to the
+    callback, so `def`'s value type drives inference and `onValue` no
+    longer participates. Same change applied to `map(anim, fn)`.
+  - `SpringOpts.velocity` (and the `velocity` field on every adapter's
+    `MotionTransition`) is now the new branded `NormalizedVelocity`
+    type. Mint values via the new `normalizedVelocity(v)` or
+    `velocityFromSpan(realVelocity, span)` helpers from `@kinem/core`.
+    The previous "is this rad/s or [0,1]/s?" ambiguity now fails at
+    compile time. Adapter `<Motion>` interfaces (`@kinem/react`,
+    `@kinem/solid`, `@kinem/svelte`, `@kinem/vue`) updated in lockstep.
+  - `springEasing()` now returns a branded `SpringEasingFn` (a tagged
+    `EasingFn & { duration: number }`). `isSpringEasing(fn)` checks the
+    brand directly instead of property-sniffing for `.duration`, so user
+    easings that happen to expose a numeric `.duration` are no longer
+    mis-identified.
+  - Every built-in animation constructor now sets a `kind` discriminator
+    on the returned `AnimationDef`: `tween`, `spring`, `keyframes`,
+    `bezier`, `catmull-rom`, `motion-path`, `arc`, `morph-path`,
+    `sequence`, `parallel`, `stagger`, `loop`, `delay`, `reverse`,
+    `map`, and `raw`. Useful for devtools and exhaustive switches in
+    user code; the field is optional so legacy / custom defs keep
+    working.
+
+### Added
+
+- `normalizedVelocity(v)`: brand a number you've already converted to
+  the spring's normalized [0, 1]/sec units.
+- `velocityFromSpan(realVelocity, span)`: convert a real-world velocity
+  (rad/s, px/s, etc.) into the normalized form `spring()` expects,
+  given the span the spring travels.
+- New exported types: `AnimationKind`, `NormalizedVelocity`, `HexColor`,
+  `RgbColor`, `HslColor`, `OklchColor`, `ColorString`.
+- Two new three.js + kinem showcase demos in
+  `@kinem/examples-showcase`: `spring-card-3d` (drag a 3D card and
+  release into independent yaw/pitch springs with carry-over velocity)
+  and `product-reveal-3d` (timeline composition of camera fly-in,
+  spring mesh scale-up with overshoot, and DOM spec-label stagger,
+  handing off to a continuous orbit).
+
 ## [0.4.0] - 2026-04-30
 
 ### Added

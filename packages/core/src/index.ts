@@ -5,9 +5,11 @@ import "./interpolate/register-defaults"
 
 export type {
   AnimationDef,
+  AnimationKind,
   EasingFn,
   Interpolator,
   LoopOpts,
+  NormalizedVelocity,
   ParallelValues,
   StaggerArrayOpts,
   StaggerFn,
@@ -23,8 +25,10 @@ export {
   easeOut,
   isSpringEasing,
   linear,
+  normalizedVelocity,
   springEasing,
   steps,
+  velocityFromSpan,
   type SpringEasingFn,
   type SpringOpts,
   type StepPosition,
@@ -56,7 +60,16 @@ export {
 export { interpolateNumber } from "./interpolate/number"
 export { interpolateNumbers } from "./interpolate/numbers"
 export { type UnitValue, UnitMismatchError, interpolateUnit, parseUnit } from "./interpolate/units"
-export { type ColorFormat, interpolateColor, isColor } from "./interpolate/color"
+export {
+  type ColorFormat,
+  type ColorString,
+  type HexColor,
+  type HslColor,
+  type OklchColor,
+  type RgbColor,
+  interpolateColor,
+  isColor,
+} from "./interpolate/color"
 export { interpolateTransform, parseTransform } from "./interpolate/transform"
 export { type PathCommand, interpolatePath, parsePath, stringifyPath } from "./interpolate/path"
 export {
@@ -79,6 +92,7 @@ export {
   type BezierPathOpts,
   type BezierPathValue,
   type Point2,
+  type Point2List,
   bezierPath,
   bezierPathLength,
   deCasteljau,
@@ -161,9 +175,13 @@ export {
 } from "./render/values"
 export {
   type GLLike,
+  type Mat4,
   type UniformBinding,
   type UniformBindings,
   type UniformLocation,
+  type Vec2,
+  type Vec3,
+  type Vec4,
   type WebGLHandle,
   type WebGLOpts,
   float,

@@ -32,7 +32,7 @@
  * happens on the DOM node via refs.
  */
 
-import type { Controls, EasingFn, PlayOpts, StrategyTarget } from "@kinem/core"
+import type { Controls, EasingFn, NormalizedVelocity, PlayOpts, StrategyTarget } from "@kinem/core"
 import { omitUndefined, play, resolveTransition, tween } from "@kinem/core"
 import {
   type CSSProperties,
@@ -82,8 +82,12 @@ export interface MotionTransition {
   readonly damping?: number
   /** Spring: mass (default 1). */
   readonly mass?: number
-  /** Spring: initial velocity (default 0). */
-  readonly velocity?: number
+  /**
+   * Spring: initial velocity, in normalized [0, 1]/sec units of travel.
+   * Mint with `normalizedVelocity()` or `velocityFromSpan()` from
+   * `@kinem/core`.
+   */
+  readonly velocity?: NormalizedVelocity
   readonly backend?: PlayOpts["backend"]
   /**
    * Per-element delay in ms before the tween starts. Composes with any

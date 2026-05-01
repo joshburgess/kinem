@@ -10,6 +10,13 @@ const DEFAULT_SAMPLES = 32
 
 export type Point2 = readonly [number, number]
 
+/**
+ * At least two `Point2`s. Encodes the runtime "need at least 2 points"
+ * invariant in the type, so passing an empty or single-point array
+ * fails at compile time instead of throwing.
+ */
+export type Point2List = readonly [Point2, Point2, ...Point2[]]
+
 export interface BezierPathOpts {
   readonly duration?: number
   readonly easing?: EasingFn
@@ -47,7 +54,7 @@ export interface BezierPathValue {
  * uses closed-form cubic math instead, since every segment is normalized
  * to a cubic at construction.
  */
-export function deCasteljau(points: readonly Point2[], t: number): Point2 {
+export function deCasteljau(points: Point2List, t: number): Point2 {
   const n = points.length
   if (n === 2) {
     const a = points[0] as Point2
@@ -218,7 +225,7 @@ function buildCubicEval(points: readonly Point2[], samplesPerSegment: number): C
  * path's pathLength.
  */
 export function bezierPathLength(
-  points: readonly Point2[],
+  points: Point2List,
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): number {
   return buildCubicEval(points, samplesPerSegment).total
@@ -231,7 +238,7 @@ export function bezierPathLength(
  * match.
  */
 export function sampleBezierPath(
-  points: readonly Point2[],
+  points: Point2List,
   samples: number,
   samplesPerSegment: number = DEFAULT_SAMPLES,
 ): Point2[] {
@@ -375,7 +382,7 @@ function cubicTangentDegrees(cps: Float64Array, base: number, t: number): number
  * ```
  */
 export function bezierPath(
-  points: readonly Point2[],
+  points: Point2List,
   opts: BezierPathOpts = {},
 ): AnimationDef<BezierPathValue> {
   const easing = opts.easing ?? linear
@@ -394,6 +401,7 @@ export function bezierPath(
 
   if (rotate) {
     return {
+      kind: "bezier",
       duration,
       easing,
       interpolate: (p) => {
@@ -410,6 +418,7 @@ export function bezierPath(
   }
 
   return {
+    kind: "bezier",
     duration,
     easing,
     interpolate: (p) => {

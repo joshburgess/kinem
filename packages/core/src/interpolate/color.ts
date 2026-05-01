@@ -10,7 +10,25 @@ import { KinemError } from "../core/errors"
 
 export type ColorFormat = "hex" | "rgb" | "hsl" | "oklch"
 
-interface OklchColor {
+/**
+ * Hex color literal: `#rgb`, `#rgba`, `#rrggbb`, or `#rrggbbaa`. The
+ * inner pattern is left as `${string}` (TypeScript template literals
+ * cannot encode hex-digit constraints), so this catches `#anything` at
+ * call sites where the literal type is preserved.
+ */
+export type HexColor = `#${string}`
+export type RgbColor = `rgb(${string})` | `rgba(${string})`
+export type HslColor = `hsl(${string})` | `hsla(${string})`
+export type OklchColor = `oklch(${string})`
+
+/**
+ * String values accepted by the color interpolator. Useful as a
+ * parameter type for utilities that take CSS colors and want autocomplete
+ * to suggest one of the supported function forms.
+ */
+export type ColorString = HexColor | RgbColor | HslColor | OklchColor
+
+interface OklchColorValue {
   L: number
   C: number
   H: number
@@ -59,7 +77,7 @@ function oklabToLinearSrgb(L: number, a: number, b: number): [number, number, nu
   ]
 }
 
-function srgbToOklch(r: number, g: number, b: number, alpha: number): OklchColor {
+function srgbToOklch(r: number, g: number, b: number, alpha: number): OklchColorValue {
   const [lr, lg, lb] = [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)]
   const [L, aa, bb] = linearSrgbToOklab(lr, lg, lb)
   const C = Math.sqrt(aa * aa + bb * bb)
@@ -68,7 +86,7 @@ function srgbToOklch(r: number, g: number, b: number, alpha: number): OklchColor
   return { L, C, H, alpha }
 }
 
-function oklchToSrgb(c: OklchColor): [number, number, number, number] {
+function oklchToSrgb(c: OklchColorValue): [number, number, number, number] {
   const hr = (c.H * Math.PI) / 180
   const a = c.C * Math.cos(hr)
   const b = c.C * Math.sin(hr)
@@ -180,7 +198,7 @@ function parseHslFn(input: string): [number, number, number, number] | null {
   return [r, g, b, a]
 }
 
-function parseOklchFn(input: string): OklchColor | null {
+function parseOklchFn(input: string): OklchColorValue | null {
   const m = /^oklch\s*\(([^)]*)\)\s*$/i.exec(input.trim())
   if (!m) return null
   const args = splitArgs(m[1] ?? "")
@@ -192,7 +210,7 @@ function parseOklchFn(input: string): OklchColor | null {
   return { L, C, H, alpha }
 }
 
-function parseColor(input: string): { oklch: OklchColor; format: ColorFormat } {
+function parseColor(input: string): { oklch: OklchColorValue; format: ColorFormat } {
   const trimmed = input.trim()
   if (trimmed.startsWith("#")) {
     const rgba = parseHex(trimmed)
@@ -240,7 +258,7 @@ function parseColor(input: string): { oklch: OklchColor; format: ColorFormat } {
 const toByte = (c: number): number => Math.round(clamp01(c) * 255)
 const hex2 = (n: number): string => n.toString(16).padStart(2, "0")
 
-function formatColor(c: OklchColor, format: ColorFormat): string {
+function formatColor(c: OklchColorValue, format: ColorFormat): string {
   if (format === "oklch") {
     const L = +c.L.toFixed(4)
     const C = +c.C.toFixed(4)
@@ -287,7 +305,7 @@ export function interpolateColor(from: string, to: string): (progress: number) =
   const dA = b.alpha - a.alpha
 
   return (p) => {
-    const mixed: OklchColor = {
+    const mixed: OklchColorValue = {
       L: a.L + dL * p,
       C: a.C + dC * p,
       H: a.H + dH * p,

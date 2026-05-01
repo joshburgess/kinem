@@ -45,6 +45,7 @@ export function arc(
   const tierSplit = partitionByTier(properties)
 
   return {
+    kind: "arc",
     duration,
     easing,
     interpolate: (p) => {

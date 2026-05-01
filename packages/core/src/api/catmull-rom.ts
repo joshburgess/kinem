@@ -1,6 +1,12 @@
 import { KinemError } from "../core/errors"
 import type { AnimationDef } from "../core/types"
-import { type BezierPathOpts, type BezierPathValue, type Point2, bezierPath } from "./bezier-path"
+import {
+  type BezierPathOpts,
+  type BezierPathValue,
+  type Point2,
+  type Point2List,
+  bezierPath,
+} from "./bezier-path"
 
 export interface CatmullRomOpts extends BezierPathOpts {
   /**
@@ -21,10 +27,10 @@ export interface CatmullRomOpts extends BezierPathOpts {
  * waypoint with C¹ continuity.
  */
 export function catmullRomToCubicPoints(
-  waypoints: readonly Point2[],
+  waypoints: Point2List,
   tension: number,
   closed: boolean,
-): Point2[] {
+): Point2List {
   const n = waypoints.length
   if (n < 2) throw new KinemError("catmullRom: need at least 2 waypoints")
 
@@ -52,7 +58,9 @@ export function catmullRomToCubicPoints(
     )
   }
 
-  return out
+  // Cast: out always has 1 + 3 * segCount points, so length >= 4 (segCount
+  // >= 1 since n >= 2). The runtime invariant is enforced above.
+  return out as unknown as Point2List
 }
 
 /**
@@ -77,9 +85,9 @@ export function catmullRomToCubicPoints(
  * ```
  */
 export function catmullRom(
-  waypoints: readonly Point2[],
+  waypoints: Point2List,
   opts: CatmullRomOpts = {},
 ): AnimationDef<BezierPathValue> {
   const points = catmullRomToCubicPoints(waypoints, opts.tension ?? 0, opts.closed === true)
-  return bezierPath(points, opts)
+  return { ...bezierPath(points, opts), kind: "catmull-rom" }
 }

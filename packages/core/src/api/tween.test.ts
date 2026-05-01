@@ -59,7 +59,11 @@ describe("tween", () => {
   })
 
   it("rejects non-pair arrays (use keyframes for 3+ stops)", () => {
-    expect(() => tween({ y: [0, 50, 100] })).toThrow(/pair/)
+    // The TS signature now constrains props to length-2 tuples, so this is
+    // a type error at compile time. We still validate the runtime guard for
+    // JS callers, hence the assertion through `unknown`.
+    const bad = { y: [0, 50, 100] } as unknown as { y: readonly [number, number] }
+    expect(() => tween(bad)).toThrow(/pair/)
   })
 
   describe("commit(p, el)", () => {

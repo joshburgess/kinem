@@ -1,5 +1,5 @@
 import { catmullRom, playValues } from "@kinem/core"
-import type { AnimationDef } from "@kinem/core"
+import type { AnimationDef, Point2List } from "@kinem/core"
 import type { Demo } from "../demo"
 
 const ARM_COUNT = 4
@@ -83,7 +83,10 @@ export const galaxySpiral: Demo = {
         const r = ARM_INNER_R + u * (ARM_OUTER_R - ARM_INNER_R)
         points.push([Math.cos(theta) * r, Math.sin(theta) * r])
       }
-      const def = catmullRom(points, { duration: 1, tension: 0 }) as AnimationDef<{
+      const def = catmullRom(points as unknown as Point2List, {
+        duration: 1,
+        tension: 0,
+      }) as AnimationDef<{
         x: number
         y: number
       }>

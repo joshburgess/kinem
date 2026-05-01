@@ -24,6 +24,60 @@ export type Interpolator<T> = (progress: number) => T
  */
 export type EasingFn = (progress: number) => number
 
+declare const SPRING_EASING_BRAND: unique symbol
+
+/**
+ * A spring easing carries its computed settling duration alongside the
+ * easing function. The unique-symbol brand distinguishes it from any
+ * `EasingFn` that happens to expose a `duration` property by accident,
+ * so `isSpringEasing()` is safe even when a caller wraps another
+ * easing.
+ */
+export type SpringEasingFn = EasingFn & {
+  readonly duration: number
+  readonly [SPRING_EASING_BRAND]: true
+}
+
+declare const NORMALIZED_VELOCITY_BRAND: unique symbol
+
+/**
+ * A spring `velocity` value, expressed in normalized units of travel per
+ * second (NOT real-world rad/s, m/s, etc.). For a spring whose
+ * displacement spans `D` units (e.g. 100 px or 1 rad), a real-world
+ * velocity of `v` is converted by `v / D`. Use `normalizedVelocity()`
+ * to mint one from a number you've already converted, or
+ * `velocityFromSpan(realVelocity, span)` to do the conversion at the
+ * call site.
+ */
+export type NormalizedVelocity = number & {
+  readonly [NORMALIZED_VELOCITY_BRAND]: true
+}
+
+/**
+ * Tag identifying which constructor produced an `AnimationDef`. Set by
+ * every built-in constructor; useful for devtools, debugging, and
+ * exhaustive switches in user code that branch on def kind. Custom defs
+ * (e.g. produced by `animation()` from a raw interpolator) can pass any
+ * string; the canonical built-in tags are listed here.
+ */
+export type AnimationKind =
+  | "tween"
+  | "spring"
+  | "keyframes"
+  | "bezier"
+  | "catmull-rom"
+  | "motion-path"
+  | "arc"
+  | "morph-path"
+  | "sequence"
+  | "parallel"
+  | "stagger"
+  | "loop"
+  | "delay"
+  | "reverse"
+  | "map"
+  | "raw"
+
 /**
  * The core animation description. An AnimationDef is a pure value: it carries
  * all the information needed to evaluate the animation at any point in time,
@@ -37,11 +91,16 @@ export type EasingFn = (progress: number) => number
  * (`linear`). Most defs that want easing already bake it into `interpolate`,
  * so this field is only meaningful at the boundaries that re-sample easing
  * separately (the WAAPI keyframe path and the worker bridge).
+ *
+ * `kind` is set by every built-in constructor (`tween`, `spring`, `parallel`,
+ * etc.) so devtools and consumer code can branch on def shape without
+ * sniffing for properties. Optional so legacy/custom defs keep working.
  */
 export interface AnimationDef<T> {
   readonly interpolate: Interpolator<T>
   readonly duration: number
-  readonly easing?: EasingFn
+  readonly easing?: EasingFn | SpringEasingFn
+  readonly kind?: AnimationKind | (string & {})
   /**
    * Set by leaf constructors that produce an animation whose values at
    * every progress point match `valueAtZero + easing(p) * (valueAtOne - valueAtZero)`

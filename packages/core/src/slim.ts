@@ -9,9 +9,11 @@
 
 export type {
   AnimationDef,
+  AnimationKind,
   EasingFn,
   Interpolator,
   LoopOpts,
+  NormalizedVelocity,
   ParallelValues,
   StaggerArrayOpts,
   StaggerFn,
@@ -27,8 +29,10 @@ export {
   easeOut,
   isSpringEasing,
   linear,
+  normalizedVelocity,
   springEasing,
   steps,
+  velocityFromSpan,
   type SpringEasingFn,
   type SpringOpts,
   type StepPosition,
@@ -60,7 +64,16 @@ export {
 export { interpolateNumber } from "./interpolate/number"
 export { interpolateNumbers } from "./interpolate/numbers"
 export { type UnitValue, UnitMismatchError, interpolateUnit, parseUnit } from "./interpolate/units"
-export { type ColorFormat, interpolateColor, isColor } from "./interpolate/color"
+export {
+  type ColorFormat,
+  type ColorString,
+  type HexColor,
+  type HslColor,
+  type OklchColor,
+  type RgbColor,
+  interpolateColor,
+  isColor,
+} from "./interpolate/color"
 export { interpolateTransform, parseTransform } from "./interpolate/transform"
 export { type PathCommand, interpolatePath, parsePath, stringifyPath } from "./interpolate/path"
 export {

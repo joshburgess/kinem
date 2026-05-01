@@ -34,7 +34,10 @@ describe("keyframes", () => {
   })
 
   it("rejects a property with fewer than two stops", () => {
-    expect(() => keyframes({ y: [0] })).toThrow()
+    // Cast simulates a JS caller defeating the compile-time tuple constraint.
+    expect(() =>
+      keyframes({ y: [0] } as unknown as Parameters<typeof keyframes>[0]),
+    ).toThrow()
   })
 
   it("rejects offsets of the wrong length", () => {
