@@ -59,12 +59,33 @@ export const heatShimmer: Demo = {
     })
     wrap.appendChild(horizon)
 
+    // SVG turbulence filter: animated baseFrequency throbs the noise
+    // field, and feDisplacementMap warps the text along it. Scale of 4
+    // keeps the warp sub-glyph (no broken letters), and the slow 7s
+    // breathing cycle reads as rising heat rather than shake.
+    const filterId = `heat-shimmer-${Math.random().toString(36).slice(2, 8)}`
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+    Object.assign(svg.style, { position: "absolute", width: "0", height: "0" })
+    svg.innerHTML = `
+      <defs>
+        <filter id="${filterId}" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.013 0.024" numOctaves="2" seed="3" result="noise">
+            <animate attributeName="baseFrequency"
+              dur="7s" repeatCount="indefinite"
+              values="0.012 0.022; 0.018 0.028; 0.012 0.022" />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="4"
+            xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>`
+    wrap.appendChild(svg)
+
     const title = document.createElement("div")
     Object.assign(title.style, {
       position: "relative",
       display: "flex",
       gap: "10px",
-      filter: "drop-shadow(0 6px 28px rgba(254, 215, 170, 0.55))",
+      filter: `url(#${filterId}) drop-shadow(0 6px 28px rgba(254, 215, 170, 0.55))`,
       marginBottom: "8%",
     })
     wrap.appendChild(title)
@@ -93,8 +114,8 @@ export const heatShimmer: Demo = {
       title.appendChild(span)
 
       const def = jitter<ShimmerVal>(baseDef, {
-        amplitude: 12,
-        frequency: 7,
+        amplitude: 1.2,
+        frequency: 5,
         seed: i * 17 + 3,
       })
       chars.push({ el: span, def })
@@ -109,7 +130,7 @@ export const heatShimmer: Demo = {
       (p) => {
         for (const c of chars) {
           const v = c.def.interpolate(p)
-          c.el.style.transform = `translate(${(v.x * 0.6).toFixed(2)}px, ${(v.y * 1.6).toFixed(2)}px) rotate(${(v.r * 0.25).toFixed(3)}deg) skewX(${(v.x * 0.18).toFixed(3)}deg)`
+          c.el.style.transform = `translate(${(v.x * 0.15).toFixed(2)}px, ${(v.y * 0.35).toFixed(2)}px) rotate(${(v.r * 0.03).toFixed(3)}deg)`
         }
       },
       { repeat: true },
