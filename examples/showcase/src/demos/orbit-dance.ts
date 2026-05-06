@@ -170,7 +170,7 @@ export const orbitDance: Demo = {
       const rect = wrap.getBoundingClientRect()
       const mx = e.clientX - rect.left
       if (lastMx >= 0) {
-        scrubBias += (mx - lastMx) / 600
+        scrubBias += (mx - lastMx) / 4000
       }
       lastMx = mx
       inside = true
